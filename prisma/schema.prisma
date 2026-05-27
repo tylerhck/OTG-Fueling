@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum FuelType {
+  REGULAR_87
+  PREMIUM_93
+  DIESEL
+}
+
+enum FuelCapSide {
+  LEFT
+  RIGHT
+  REAR
+  UNKNOWN
+}
+
+enum OrderStatus {
+  AWAITING_PAYMENT
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum OrderItemKind {
+  PRIMARY_VEHICLE
+  SECOND_VEHICLE
+  TRAILERED_BOAT
+  PRIMARY_BOAT
+  DEF_ADDON
+  DEF_ONLY
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  phone         String?
+  role          Role      @default(CUSTOMER)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  vehicles      Vehicle[]
+  boats         Boat[]
+  addresses     Address[]
+  orders        Order[]
+  notifications Notification[]
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+model Vehicle {
+  id           String      @id @default(cuid())
+  userId       String      @map("user_id")
+  nickname     String?
+  make         String
+  model        String
+  year         Int
+  color        String
+  licensePlate String?     @map("license_plate")
+  notes        String?     @db.Text
+  fuelCapSide  FuelCapSide @default(UNKNOWN) @map("fuel_cap_side")
+  fuelType     FuelType    @default(REGULAR_87) @map("fuel_type")
+  isDefault    Boolean     @default(false) @map("is_default")
+  deletedAt    DateTime?   @map("deleted_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+  orderItems OrderItem[]
+
+  @@map("vehicles")
+}
+
+model Boat {
+  id                 String    @id @default(cuid())
+  userId             String?   @map("user_id")
+  nickname           String?
+  make               String?
+  model              String?
+  year               Int?
+  color              String?
+  registrationNumber String    @map("registration_number")
+  notes              String?   @db.Text
+  fuelType           FuelType  @default(REGULAR_87) @map("fuel_type")
+  isDefault          Boolean   @default(false) @map("is_default")
+  deletedAt          DateTime? @map("deleted_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user       User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("boats")
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  label     String?
+  street    String
+  city      String
+  state     String
+  zip       String
+  lat       Float
+  lng       Float
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("addresses")
+}
+
+model ServiceArea {
+  id          String   @id @default(cuid())
+  name        String
+  centerLat   Float    @map("center_lat")
+  centerLng   Float    @map("center_lng")
+  radiusMiles Float    @map("radius_miles")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  schedules ServiceSchedule[]
+
+  @@map("service_areas")
+}
+
+model FuelPrice {
+  id                  String   @id @default(cuid())
+  fuelType            FuelType @unique @map("fuel_type")
+  basePriceCents      Int      @map("base_price_cents")
+  markupPercent       Float    @map("markup_percent")
+  effectivePriceCents Int      @map("effective_price_cents")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("fuel_prices")
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  userId                String?     @map("user_id")
+  vehicleId             String?     @map("vehicle_id")
+  addressId             String?     @map("address_id")
+  fuelType              FuelType?   @map("fuel_type")
+  gallons               Float?
+  pricePerGallonCents   Int?        @map("price_per_gallon_cents")
+  deliveryFeeCents      Int         @default(0) @map("delivery_fee_cents")
+  totalCents            Int         @map("total_cents")
+  stripePaymentIntentId String?     @map("stripe_payment_intent_id")
+  stripeCustomerId      String?     @map("stripe_customer_id")
+  stripePaymentMethodId String?     @map("stripe_payment_method_id")
+  status                OrderStatus @default(AWAITING_PAYMENT)
+  scheduledAt           DateTime?   @map("scheduled_at")
+  etaMinutes            Int?        @map("eta_minutes")
+  notes                 String?     @db.Text
+  subscriptionDelivery  Boolean     @default(false) @map("subscription_delivery")
+  isFillUp              Boolean     @default(false) @map("is_fill_up")
+  authAmountCents       Int?        @map("auth_amount_cents")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  pinLat Float? @map("pin_lat")
+  pinLng Float? @map("pin_lng")
+
+  // Guest checkout fields (used when userId is null)
+  guestName    String? @map("guest_name")
+  guestEmail   String? @map("guest_email")
+  guestPhone   String? @map("guest_phone")
+  guestVehicle String? @map("guest_vehicle") @db.Text
+  guestAddress String? @map("guest_address") @db.Text
+
+  user          User?          @relation(fields: [userId], references: [id])
+  vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id])
+  address       Address?       @relation(fields: [addressId], references: [id])
+  notifications Notification[]
+  items         OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String        @id @default(cuid())
+  orderId             String        @map("order_id")
+  kind                OrderItemKind
+  vehicleId           String?       @map("vehicle_id")
+  boatId              String?       @map("boat_id")
+  fuelType            FuelType      @map("fuel_type")
+  gallons             Float?
+  isFillUp            Boolean       @default(false) @map("is_fill_up")
+  pricePerGallonCents Int           @map("price_per_gallon_cents")
+  gasCents            Int           @default(0) @map("gas_cents")
+  serviceFeeCents     Int           @default(0) @map("service_fee_cents")
+  authAmountCents     Int?          @map("auth_amount_cents")
+  notes               String?       @db.Text
+  // Guest / inline snapshot fields
+  itemMake            String?       @map("item_make")
+  itemModel           String?       @map("item_model")
+  itemYear            Int?          @map("item_year")
+  itemColor           String?       @map("item_color")
+  itemPlate           String?       @map("item_plate")
+  itemRegNumber       String?       @map("item_reg_number")
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+  boat    Boat?    @relation(fields: [boatId], references: [id])
+
+  @@map("order_items")
+}
+
+model Notification {
+  id      String             @id @default(cuid())
+  orderId String             @map("order_id")
+  userId  String?            @map("user_id")
+  type    NotificationType
+  status  NotificationStatus @default(QUEUED)
+  sentAt  DateTime?          @map("sent_at")
+
+  order Order  @relation(fields: [orderId], references: [id])
+  user  User?  @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @map("user_id")
+  stripeSubscriptionId String             @unique @map("stripe_subscription_id")
+  stripeCustomerId     String             @map("stripe_customer_id")
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart   DateTime           @map("current_period_start")
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  zip       String
+  city      String?
+  state     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("waitlist")
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model ServiceSchedule {
+  id             String      @id @default(cuid())
+  dayOfWeek      DayOfWeek   @map("day_of_week")
+  serviceAreaId  String      @map("service_area_id")
+  description    String?     @db.Text
+  startTime      String      @map("start_time") // e.g. "08:00"
+  endTime        String      @map("end_time") // e.g. "17:00"
+  isActive       Boolean     @default(true) @map("is_active")
+  slotMinutes    Int         @default(15) @map("slot_minutes")
+  capacityPerSlot Int        @default(1) @map("capacity_per_slot")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  serviceArea     ServiceArea          @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+  slotOverrides   ScheduleSlotOverride[]
+
+  @@map("service_schedules")
+}
+
+model ScheduleSlotOverride {
+  id               String          @id @default(cuid())
+  scheduleId       String          @map("schedule_id")
+  slotStart        String          @map("slot_start") // e.g. "10:15"
+  isClosed         Boolean         @default(true) @map("is_closed")
+  capacityOverride Int?            @map("capacity_override")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  schedule ServiceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, slotStart])
+  @@map("schedule_slot_overrides")
+}
