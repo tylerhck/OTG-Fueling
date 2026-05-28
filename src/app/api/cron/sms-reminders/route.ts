@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendOrderNotifications } from "@/lib/sms";
+import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 /**
- * Cron job: Send SMS reminders for scheduled orders 1 hour before delivery.
+ * Cron job: Activate scheduled orders on their day and send SMS.
  * 
- * Should be called every 15 minutes (e.g., via Railway cron or external cron service).
- * It finds orders with scheduledAt between now and 1 hour from now that haven't been notified yet.
+ * Should be called at 6 AM Central daily (same time as recurring orders cron).
+ * Finds all orders with scheduledAt = today that are still in PENDING/AWAITING_PAYMENT/CONFIRMED
+ * and haven't been SMS-notified yet, then fires the SMS.
  * 
- * We use the `smsNotifiedAt` field to avoid sending duplicate notifications.
+ * This moves scheduled orders from "Pending" to "Active" in the admin view.
  */
 export async function GET(req: NextRequest) {
   // Verify cron secret
@@ -19,75 +20,66 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
 
-  // Find scheduled orders that:
-  // 1. Have a scheduledAt within the next hour
-  // 2. Are still in PENDING or AWAITING_PAYMENT or CONFIRMED status
-  // 3. Haven't been SMS-notified yet (smsNotifiedAt is null)
+  // Get today's date range in Central Time
+  const centralOffset = getCentralUtcOffset(now);
+  const centralNow = new Date(now.getTime() - centralOffset * 60 * 60 * 1000);
+  const todayStr = centralNow.toISOString().split("T")[0]; // YYYY-MM-DD
+
+  // Start and end of today in UTC
+  const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
+  todayStart.setTime(todayStart.getTime() + centralOffset * 60 * 60 * 1000); // Convert Central midnight to UTC
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  // Find scheduled orders for today that haven't been SMS-notified
   const orders = await prisma.order.findMany({
     where: {
       scheduledAt: {
-        gte: now,
-        lte: oneHourFromNow,
+        gte: todayStart,
+        lt: todayEnd,
       },
       status: { in: ["PENDING", "AWAITING_PAYMENT", "CONFIRMED"] },
       smsNotifiedAt: null,
     },
-    include: {
-      user: { select: { name: true } },
-      address: { select: { street: true, city: true, state: true, zip: true } },
-      items: true,
-    },
+    select: { id: true },
   });
 
   let sent = 0;
 
   for (const order of orders) {
-    // Build customer name
-    const customerName = order.user?.name || order.guestName || "Customer";
-    const isGuest = !order.userId;
-
-    // Build address
-    let address = "Unknown";
-    if (order.address) {
-      address = `${order.address.street}, ${order.address.city}, ${order.address.state} ${order.address.zip}`;
-    } else if (order.guestAddress) {
-      try {
-        const ga = JSON.parse(order.guestAddress);
-        address = `${ga.street}, ${ga.city}, ${ga.state} ${ga.zip}`;
-      } catch {}
+    try {
+      await notifyOrderActive(order.id, "Scheduled");
+      sent++;
+    } catch (err) {
+      console.error(`Failed to notify order ${order.id}:`, err);
     }
-
-    // Check for DEF addon
-    const defItem = order.items.find((i) => i.kind === "DEF_ADDON" || i.kind === "DEF_ONLY");
-
-    await sendOrderNotifications({
-      orderId: order.id,
-      customerName,
-      fuelType: (order.fuelType || "REGULAR").replace("_", " "),
-      gallons: order.isFillUp ? undefined : order.gallons,
-      isFillUp: order.isFillUp,
-      address,
-      scheduledAt: order.scheduledAt,
-      notes: order.notes,
-      isGuest,
-      defAddon: defItem ? { gallons: defItem.gallons || 2.5 } : null,
-    });
-
-    // Mark as notified
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { smsNotifiedAt: new Date() },
-    });
-
-    sent++;
   }
 
   return NextResponse.json({
     success: true,
-    checked: orders.length,
+    found: orders.length,
     sent,
+    date: todayStr,
     timestamp: now.toISOString(),
   });
+}
+
+// Also support POST for consistency with other cron routes
+export async function POST(req: NextRequest) {
+  return GET(req);
+}
+
+/**
+ * Get the UTC offset for America/Chicago (Central Time) on a given date.
+ */
+function getCentralUtcOffset(date: Date): number {
+  const year = date.getUTCFullYear();
+  const marchFirst = new Date(Date.UTC(year, 2, 1));
+  const marchFirstDay = marchFirst.getUTCDay();
+  const dstStart = new Date(Date.UTC(year, 2, 8 + (7 - marchFirstDay) % 7, 8, 0, 0));
+  const novFirst = new Date(Date.UTC(year, 10, 1));
+  const novFirstDay = novFirst.getUTCDay();
+  const dstEnd = new Date(Date.UTC(year, 10, 1 + (7 - novFirstDay) % 7, 7, 0, 0));
+  if (date >= dstStart && date < dstEnd) return 5;
+  return 6;
 }

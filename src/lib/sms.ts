@@ -31,6 +31,7 @@ async function sendSmsToNumber(to: string, message: string): Promise<boolean> {
 interface OrderSmsData {
   orderId: string;
   customerName: string;
+  orderType: "ASAP" | "Scheduled" | "Recurring";
   fuelType: string;
   gallons?: number | null;
   isFillUp?: boolean;
@@ -53,7 +54,7 @@ export async function sendOrderNotifications(data: OrderSmsData) {
 
   // Build message
   const lines: string[] = [
-    `🚛 NEW ORDER #${data.orderId.slice(0, 8)}`,
+    `🚛 ${data.orderType.toUpperCase()} ORDER #${data.orderId.slice(0, 8)}`,
     `Customer: ${data.customerName}${data.isGuest ? " (Guest)" : ""}`,
     `Fuel: ${data.fuelType}${data.isFillUp ? " (Fill Up)" : data.gallons ? ` × ${data.gallons} gal` : ""}`,
   ];
@@ -66,9 +67,7 @@ export async function sendOrderNotifications(data: OrderSmsData) {
 
   if (data.scheduledAt) {
     const scheduled = new Date(data.scheduledAt);
-    lines.push(`Scheduled: ${scheduled.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" })} at ${scheduled.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })}`);
-  } else {
-    lines.push("Delivery: ASAP");
+    lines.push(`Time: ${scheduled.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" })} at ${scheduled.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })}`);
   }
 
   if (data.notes) {
