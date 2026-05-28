@@ -14,6 +14,7 @@ export default function SignUpPage() {
     confirmPassword: "",
     phone: "",
   });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +25,11 @@ export default function SignUpPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!agreedToTerms) {
+      setError("You must agree to the Terms of Service and Privacy Policy to create an account.");
+      return;
+    }
 
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match");
@@ -164,6 +170,28 @@ export default function SignUpPage() {
                 placeholder="••••••••"
               />
             </div>
+          </div>
+
+          {/* Terms of Service & Privacy Policy Agreement */}
+          <div className="flex items-start gap-3 pt-2">
+            <input
+              id="terms"
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-sm text-slate-600 leading-snug cursor-pointer">
+              I agree to the{" "}
+              <Link href="/terms" target="_blank" className="font-semibold text-red-600 hover:text-red-500 underline">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" target="_blank" className="font-semibold text-red-600 hover:text-red-500 underline">
+                Privacy Policy
+              </Link>
+              , including that fuel prices are subject to change at the time of fill-up.
+            </label>
           </div>
 
           <button

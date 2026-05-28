@@ -76,6 +76,7 @@ model User {
   notifications Notification[]
     subscriptions Subscription[]
   recurringOrders RecurringOrder[]
+  passwordResetTokens PasswordResetToken[]
   @@map("users")
 }
 
@@ -337,6 +338,19 @@ model ScheduleSlotOverride {
 
   @@unique([scheduleId, slotStart])
   @@map("schedule_slot_overrides")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
 
 model RecurringOrder {
