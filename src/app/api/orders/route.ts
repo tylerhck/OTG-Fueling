@@ -42,12 +42,12 @@ export async function GET() {
   const isAdmin = (session.user as { role: string }).role === "ADMIN";
 
   try {
-    // Auto-cancel orders stuck in AWAITING_PAYMENT for more than 10 minutes
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    // Auto-cancel orders stuck in AWAITING_PAYMENT for more than 1 hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     await prisma.order.updateMany({
       where: {
         status: "AWAITING_PAYMENT",
-        createdAt: { lt: tenMinutesAgo },
+        createdAt: { lt: oneHourAgo },
       },
       data: { status: "CANCELLED" },
     });
