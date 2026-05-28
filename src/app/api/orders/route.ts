@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { orderSchema, guestOrderSchema, guestBoatOrderSchema } from "@/lib/validators";
-import { haversineDistance } from "@/lib/haversine";
+import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 import { geocodeAddress } from "@/lib/geocode";
 import { notifyOrderStatus } from "@/lib/notifications";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
@@ -91,11 +91,7 @@ export async function POST(req: NextRequest) {
     }
 
     const serviceAreas = await prisma.serviceArea.findMany({ where: { isActive: true } });
-    const inArea = serviceAreas.some((area) => {
-      const dist = haversineDistance(geo.lat, geo.lng, area.centerLat, area.centerLng);
-      return dist <= area.radiusMiles;
-    });
-    if (!inArea && serviceAreas.length > 0) {
+    if (!isInAnyServiceArea(geo.lat, geo.lng, serviceAreas)) {
       return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
     }
 
@@ -157,11 +153,7 @@ export async function POST(req: NextRequest) {
     }
 
     const serviceAreas = await prisma.serviceArea.findMany({ where: { isActive: true } });
-    const inArea = serviceAreas.some((area) => {
-      const dist = haversineDistance(geo.lat, geo.lng, area.centerLat, area.centerLng);
-      return dist <= area.radiusMiles;
-    });
-    if (!inArea && serviceAreas.length > 0) {
+    if (!isInAnyServiceArea(geo.lat, geo.lng, serviceAreas)) {
       return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
     }
 
@@ -241,12 +233,7 @@ export async function POST(req: NextRequest) {
     }
 
     const serviceAreas = await prisma.serviceArea.findMany({ where: { isActive: true } });
-    const inArea = serviceAreas.some((area) => {
-      const dist = haversineDistance(geo.lat, geo.lng, area.centerLat, area.centerLng);
-      return dist <= area.radiusMiles;
-    });
-
-    if (!inArea && serviceAreas.length > 0) {
+    if (!isInAnyServiceArea(geo.lat, geo.lng, serviceAreas)) {
       return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
     }
 
@@ -327,11 +314,7 @@ export async function POST(req: NextRequest) {
 
   // Check service area
   const serviceAreas = await prisma.serviceArea.findMany({ where: { isActive: true } });
-  const inArea = serviceAreas.some((area) => {
-    const dist = haversineDistance(address.lat, address.lng, area.centerLat, area.centerLng);
-    return dist <= area.radiusMiles;
-  });
-  if (!inArea && serviceAreas.length > 0) {
+  if (!isInAnyServiceArea(address.lat, address.lng, serviceAreas)) {
     return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
   }
 

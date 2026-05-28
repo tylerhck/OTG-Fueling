@@ -58,6 +58,16 @@ export default function AdminOrders() {
     setOrders(Array.isArray(data) ? data : []);
   }
 
+  async function deleteOrder(orderId: string) {
+    if (!confirm("Permanently delete this order? This cannot be undone.")) return;
+    setUpdating(orderId);
+    const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
+    if (res.ok) {
+      await loadOrders();
+    }
+    setUpdating(null);
+  }
+
   useEffect(() => {
     loadOrders();
   }, []);
@@ -327,6 +337,13 @@ export default function AdminOrders() {
                       >
                         Cancel
                       </button>
+                      <button
+                        onClick={() => deleteOrder(order.id)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
                     </>
                   )}
                   {order.status === "PENDING" && showEta === order.id && (
@@ -413,6 +430,16 @@ export default function AdminOrders() {
                         )}
                       </div>
                     </div>
+                  )}
+                  {/* Delete button - available on all orders */}
+                  {(order.status === "AWAITING_PAYMENT" || order.status === "CANCELLED") && (
+                    <button
+                      onClick={() => deleteOrder(order.id)}
+                      disabled={updating === order.id}
+                      className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
                   )}
                 </div>
               </div>

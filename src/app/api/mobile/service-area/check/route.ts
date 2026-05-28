@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { haversineDistance } from "@/lib/haversine";
+import { isInServiceArea } from "@/lib/serviceAreaCheck";
 import { geocodeAddress } from "@/lib/geocode";
 
 export async function GET(req: NextRequest) {
@@ -29,13 +29,7 @@ export async function GET(req: NextRequest) {
   });
 
   for (const area of areas) {
-    const distance = haversineDistance(
-      coords.lat,
-      coords.lng,
-      area.centerLat,
-      area.centerLng
-    );
-    if (distance <= area.radiusMiles) {
+    if (isInServiceArea(coords.lat, coords.lng, area)) {
       return NextResponse.json({
         inServiceArea: true,
         serviceArea: { id: area.id, name: area.name },

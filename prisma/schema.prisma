@@ -74,8 +74,8 @@ model User {
   addresses     Address[]
   orders        Order[]
   notifications Notification[]
-  subscriptions Subscription[]
-
+    subscriptions Subscription[]
+  recurringOrders RecurringOrder[]
   @@map("users")
 }
 
@@ -96,10 +96,10 @@ model Vehicle {
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders     Order[]
   orderItems OrderItem[]
-
+  recurringOrders RecurringOrder[]
   @@map("vehicles")
 }
 
@@ -139,9 +139,9 @@ model Address {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
-
+  recurringOrders RecurringOrder[]
   @@map("addresses")
 }
 
@@ -151,6 +151,7 @@ model ServiceArea {
   centerLat   Float    @map("center_lat")
   centerLng   Float    @map("center_lng")
   radiusMiles Float    @map("radius_miles")
+  polygon     Json?    @map("polygon")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -336,4 +337,29 @@ model ScheduleSlotOverride {
 
   @@unique([scheduleId, slotStart])
   @@map("schedule_slot_overrides")
+}
+
+model RecurringOrder {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  vehicleId     String?   @map("vehicle_id")
+  boatId        String?   @map("boat_id")
+  addressId     String    @map("address_id")
+  fuelType      FuelType  @default(REGULAR_87) @map("fuel_type")
+  isFillUp      Boolean   @default(true) @map("is_fill_up")
+  gallons       Float?
+  dayOfWeek     DayOfWeek @map("day_of_week")
+  preferredTime String    @default("09:00") @map("preferred_time")
+  isActive      Boolean   @default(true) @map("is_active")
+  notes         String?   @db.Text
+  lastOrderId   String?   @map("last_order_id")
+  lastOrderDate DateTime? @map("last_order_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  address Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  @@map("recurring_orders")
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { geocodeAddress } from "@/lib/geocode";
-import { haversineDistance } from "@/lib/haversine";
+import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -33,15 +33,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const inArea = serviceAreas.some((area) => {
-    const distance = haversineDistance(
-      geo.lat,
-      geo.lng,
-      area.centerLat,
-      area.centerLng
-    );
-    return distance <= area.radiusMiles;
-  });
+  const inArea = isInAnyServiceArea(geo.lat, geo.lng, serviceAreas);
 
   if (inArea) {
     return NextResponse.json({

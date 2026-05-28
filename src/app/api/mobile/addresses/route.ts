@@ -3,7 +3,7 @@ import { getMobileSession } from "@/lib/mobileAuth";
 import { prisma } from "@/lib/prisma";
 import { addressSchema } from "@/lib/validators";
 import { geocodeAddress } from "@/lib/geocode";
-import { haversineDistance } from "@/lib/haversine";
+import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -50,15 +50,7 @@ export async function POST(req: NextRequest) {
   const serviceAreas = await prisma.serviceArea.findMany({
     where: { isActive: true },
   });
-  const inServiceArea = serviceAreas.some((area: { centerLat: number; centerLng: number; radiusMiles: number }) => {
-    const distance = haversineDistance(
-      geo.lat,
-      geo.lng,
-      area.centerLat,
-      area.centerLng
-    );
-    return distance <= area.radiusMiles;
-  });
+  const inServiceArea = isInAnyServiceArea(geo.lat, geo.lng, serviceAreas);
 
   if (!inServiceArea && serviceAreas.length > 0) {
     return NextResponse.json(

@@ -347,6 +347,21 @@ function ProfileContent() {
         </Link>
 
         <Link
+          href="/profile/recurring"
+          className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-600">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900">Recurring Fill-Ups</p>
+            <p className="text-sm text-slate-500">Set up automatic weekly orders</p>
+          </div>
+        </Link>
+
+        <Link
           href="/order/boat"
           className="flex items-center gap-4 rounded-2xl border border-cyan-100 bg-cyan-50 p-6 shadow-sm hover:shadow-md transition-all sm:col-span-2"
         >

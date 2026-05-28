@@ -74,6 +74,7 @@ export const serviceAreaSchema = z.object({
   centerLat: z.number().min(-90).max(90),
   centerLng: z.number().min(-180).max(180),
   radiusMiles: z.number().positive("Radius must be positive"),
+  polygon: z.array(z.tuple([z.number(), z.number()])).min(3).nullable().optional(),
   isActive: z.boolean().default(true),
 });
 

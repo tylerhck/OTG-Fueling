@@ -85,3 +85,21 @@ export async function PUT(
 
   return NextResponse.json(order);
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id || (session.user as { role: string }).role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+
+  // Delete order items first (foreign key), then the order
+  await prisma.orderItem.deleteMany({ where: { orderId: id } });
+  await prisma.order.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
+}

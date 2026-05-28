@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const area = await prisma.serviceArea.create({
-    data: parsed.data,
+    data: parsed.data as any,
   });
 
   return NextResponse.json(area, { status: 201 });
@@ -58,7 +58,7 @@ export async function PUT(req: NextRequest) {
 
   const area = await prisma.serviceArea.update({
     where: { id },
-    data: parsed.data,
+    data: parsed.data as any,
   });
 
   return NextResponse.json(area);

@@ -12,6 +12,7 @@ const adminLinks = [
   { href: "/admin/service-area", label: "Service Area" },
   { href: "/admin/pricing", label: "Fuel Pricing" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/recurring", label: "Recurring" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/waitlist", label: "Waitlist" },
 ];
