@@ -156,7 +156,14 @@ export async function DELETE(
     }
   }
 
-  // Delete order items first (foreign key), then the order
+  // Clear lastOrderId references in recurring orders
+  await prisma.recurringOrder.updateMany({
+    where: { lastOrderId: id },
+    data: { lastOrderId: null },
+  });
+
+  // Delete related records, then the order
+  await prisma.notification.deleteMany({ where: { orderId: id } });
   await prisma.orderItem.deleteMany({ where: { orderId: id } });
   await prisma.order.delete({ where: { id } });
 
