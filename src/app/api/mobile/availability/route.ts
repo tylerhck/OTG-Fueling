@@ -3,14 +3,19 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const serviceAreaId = searchParams.get("serviceAreaId");
+  let serviceAreaId = searchParams.get("serviceAreaId");
   const dateStr = searchParams.get("date"); // YYYY-MM-DD
 
+  // If no serviceAreaId provided, use the first active service area
   if (!serviceAreaId) {
-    return NextResponse.json(
-      { error: "serviceAreaId is required" },
-      { status: 400 }
-    );
+    const defaultArea = await prisma.serviceArea.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    if (!defaultArea) {
+      return NextResponse.json({ schedules: [] });
+    }
+    serviceAreaId = defaultArea.id;
   }
 
   const schedules = await prisma.serviceSchedule.findMany({
