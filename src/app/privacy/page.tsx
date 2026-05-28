@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
           <li>Cancel your subscription at any time</li>
         </ul>
         <p className="text-slate-600 leading-relaxed mb-4">
-          To exercise any of these rights, please contact us at support@otgfueling.com.
+          To exercise any of these rights, please contact us at otgfuelingllc@gmail.com.
         </p>
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">9. Cookies &amp; Tracking</h2>
@@ -94,7 +94,7 @@ export default function PrivacyPolicyPage() {
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">11. Children&rsquo;s Privacy</h2>
         <p className="text-slate-600 leading-relaxed mb-4">
-          The Service is not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If we become aware that we have collected information from a child under 18, we will take steps to delete that information.
+          The Service is not intended for individuals under the age of 16. We do not knowingly collect personal information from children under 16. If we become aware that we have collected information from a user under 16, we will take steps to delete that information.
         </p>
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">12. Changes to This Policy</h2>
@@ -104,9 +104,8 @@ export default function PrivacyPolicyPage() {
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">13. Contact Us</h2>
         <p className="text-slate-600 leading-relaxed mb-4">
-          If you have questions or concerns about this Privacy Policy, please contact us at:<br />
-          Email: support@otgfueling.com<br />
-          Website: www.otgfueling.com
+If you have questions or concerns about this Privacy Policy, please contact us at:<br />
+           Email: otgfuelingllc@gmail.com
         </p>
       </div>
 
