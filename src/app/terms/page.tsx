@@ -57,7 +57,7 @@ export default function TermsOfServicePage() {
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">8. Cancellations &amp; Refunds</h2>
         <p className="text-slate-600 leading-relaxed mb-4">
-          Orders may be cancelled without charge while in &ldquo;Awaiting Payment&rdquo; or &ldquo;Pending&rdquo; status. Once an order is confirmed or in progress, cancellation may not be available. If you believe you were charged in error, please contact us at support@otgfueling.com.
+          Orders may be cancelled without charge while in &ldquo;Awaiting Payment&rdquo; or &ldquo;Pending&rdquo; status. Once an order is confirmed or in progress, cancellation may not be available. If you believe you were charged in error, please contact us at otgfuelingllc@gmail.com.
         </p>
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">9. User Responsibilities</h2>
@@ -87,9 +87,8 @@ export default function TermsOfServicePage() {
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">14. Contact Information</h2>
         <p className="text-slate-600 leading-relaxed mb-4">
-          If you have questions about these Terms of Service, please contact us at:<br />
-          Email: support@otgfueling.com<br />
-          Website: www.otgfueling.com
+If you have questions about these Terms of Service, please contact us at:<br />
+           Email: otgfuelingllc@gmail.com
         </p>
       </div>
 
