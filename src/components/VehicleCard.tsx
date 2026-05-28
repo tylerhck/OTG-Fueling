@@ -9,6 +9,7 @@ interface Vehicle {
   model: string;
   year: number;
   color: string;
+  licensePlate: string | null;
   fuelCapSide: string;
   fuelType: string;
   isDefault: boolean;
@@ -61,6 +62,11 @@ export default function VehicleCard({
             <span className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-600 capitalize">
               {vehicle.color}
             </span>
+            {vehicle.licensePlate && (
+              <span className="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                Plate: {vehicle.licensePlate}
+              </span>
+            )}
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ interface Vehicle {
   model: string;
   year: number;
   color: string;
+  licensePlate: string | null;
   fuelCapSide: string;
   fuelType: string;
   isDefault: boolean;
@@ -52,6 +53,7 @@ export default function VehiclesPage() {
     model: string;
     year: number;
     color: string;
+    licensePlate: string;
     fuelCapSide: string;
     fuelType: string;
     isDefault: boolean;
@@ -76,6 +78,7 @@ export default function VehiclesPage() {
     model: string;
     year: number;
     color: string;
+    licensePlate: string;
     fuelCapSide: string;
     fuelType: string;
     isDefault: boolean;
@@ -170,6 +173,7 @@ export default function VehiclesPage() {
               model: editingVehicle.model,
               year: editingVehicle.year,
               color: editingVehicle.color,
+              licensePlate: editingVehicle.licensePlate || "",
               fuelCapSide: editingVehicle.fuelCapSide,
               fuelType: editingVehicle.fuelType,
               isDefault: editingVehicle.isDefault,

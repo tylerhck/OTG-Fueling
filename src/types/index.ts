@@ -23,8 +23,8 @@ export const FUEL_TYPE_LABELS: Record<FuelType, string> = {
 };
 
 export const FUEL_CAP_LABELS: Record<FuelCapSide, string> = {
-  LEFT: "Left",
-  RIGHT: "Right",
+  LEFT: "Left (Driver)",
+  RIGHT: "Right (Passenger)",
   REAR: "Rear",
   UNKNOWN: "Unknown",
 };

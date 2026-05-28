@@ -9,6 +9,7 @@ interface VehicleFormData {
   model: string;
   year: number;
   color: string;
+  licensePlate: string;
   fuelCapSide: string;
   fuelType: string;
   isDefault: boolean;
@@ -36,6 +37,7 @@ export default function VehicleForm({
       model: "",
       year: currentYear,
       color: "",
+      licensePlate: "",
       fuelCapSide: "UNKNOWN",
       fuelType: "REGULAR_87",
       isDefault: false,
@@ -108,7 +110,7 @@ export default function VehicleForm({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-slate-700">Color *</label>
           <input
@@ -120,6 +122,21 @@ export default function VehicleForm({
             placeholder="White"
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700">
+            License Plate <span className="text-slate-400">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={form.licensePlate}
+            onChange={(e) => update("licensePlate", e.target.value.toUpperCase())}
+            className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow uppercase"
+            placeholder="ABC-1234"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-slate-700">Fuel Cap Side</label>
           <select
