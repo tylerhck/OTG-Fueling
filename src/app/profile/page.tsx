@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -49,6 +49,16 @@ function ProfileContent() {
   const [subLoading, setSubLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Cancel subscription modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelInput, setCancelInput] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Delete account modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/signin");
   }, [status, router]);
@@ -72,7 +82,6 @@ function ProfileContent() {
     const sessionId = searchParams.get("session_id");
 
     async function fetchSubscription(): Promise<void> {
-      // If we just returned from Stripe checkout, verify and create subscription
       if (sessionId) {
         const verifyRes = await fetch("/api/subscription", {
           method: "PUT",
@@ -85,7 +94,6 @@ function ProfileContent() {
           return;
         }
       }
-      // Normal fetch
       const res = await fetch("/api/subscription");
       const data = await res.json();
       setSubData(data);
@@ -130,17 +138,32 @@ function ProfileContent() {
   }
 
   async function handleCancelSubscription() {
-    if (!confirm("Cancel your subscription? You'll keep access until the end of the billing period.")) return;
-    setSubLoading(true);
+    setCancelLoading(true);
     const res = await fetch("/api/subscription", { method: "DELETE" });
     if (res.ok) {
       setMessage("Subscription will cancel at end of billing period.");
       const data = await fetch("/api/subscription").then((r) => r.json());
       setSubData(data);
+      setShowCancelModal(false);
+      setCancelInput("");
     } else {
       setMessage("Failed to cancel subscription");
     }
-    setSubLoading(false);
+    setCancelLoading(false);
+  }
+
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    const res = await fetch("/api/account", { method: "DELETE" });
+    if (res.ok) {
+      setShowDeleteModal(false);
+      setDeleteInput("");
+      await signOut({ callbackUrl: "/" });
+    } else {
+      const data = await res.json();
+      setMessage(data.error || "Failed to delete account");
+      setDeleteLoading(false);
+    }
   }
 
   if (status === "loading" || !profile) {
@@ -268,7 +291,7 @@ function ProfileContent() {
               Add 2nd vehicle at same location: +$5 · Trailered boat: +$10
             </p>
             <button
-              onClick={handleCancelSubscription}
+              onClick={() => setShowCancelModal(true)}
               disabled={subLoading}
               className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
@@ -376,6 +399,118 @@ function ProfileContent() {
           </div>
         </Link>
       </div>
+
+      {/* Delete Account */}
+      <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 p-6">
+        <h2 className="text-lg font-semibold text-red-900">Danger Zone</h2>
+        <p className="mt-1 text-sm text-red-700">
+          Permanently delete your account and all associated data. This action cannot be undone.
+        </p>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="mt-4 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+        >
+          Delete My Account
+        </button>
+      </div>
+
+      {/* Cancel Subscription Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowCancelModal(false); setCancelInput(""); }}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Cancel Subscription</h3>
+              <button
+                onClick={() => { setShowCancelModal(false); setCancelInput(""); }}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">
+              Are you sure you want to cancel your subscription? You&apos;ll keep access until the end of your current billing period.
+            </p>
+            <p className="text-sm text-slate-700 font-medium mb-3">
+              Type <span className="font-bold text-red-600">CANCEL</span> below to confirm:
+            </p>
+            <input
+              type="text"
+              value={cancelInput}
+              onChange={(e) => setCancelInput(e.target.value)}
+              placeholder="Type CANCEL"
+              className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleCancelSubscription}
+                disabled={cancelInput !== "CANCEL" || cancelLoading}
+                className="flex-1 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cancelLoading ? "Cancelling..." : "Confirm Cancellation"}
+              </button>
+              <button
+                onClick={() => { setShowCancelModal(false); setCancelInput(""); }}
+                className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowDeleteModal(false); setDeleteInput(""); }}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-red-900">Delete Account</h3>
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteInput(""); }}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3 mb-4">
+              <p className="text-sm text-red-700 font-medium">
+                This will permanently delete your account, including:
+              </p>
+              <ul className="text-sm text-red-600 mt-1.5 space-y-0.5 list-disc pl-4">
+                <li>Your profile and personal information</li>
+                <li>All order history</li>
+                <li>Saved vehicles, boats, and addresses</li>
+                <li>Your subscription (cancelled immediately)</li>
+              </ul>
+            </div>
+            <p className="text-sm text-slate-700 font-medium mb-3">
+              Type <span className="font-bold text-red-600">DELETE</span> below to confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder="Type DELETE"
+              className="block w-full rounded-xl border border-red-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteInput !== "DELETE" || deleteLoading}
+                className="flex-1 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? "Deleting..." : "Permanently Delete Account"}
+              </button>
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteInput(""); }}
+                className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
