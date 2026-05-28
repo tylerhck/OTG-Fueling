@@ -136,6 +136,26 @@ export async function DELETE(
 
   const { id } = await params;
 
+  // Fetch the order to check for Stripe payment intent
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  // Release Stripe hold if there's an uncaptured payment intent
+  if (order.stripePaymentIntentId) {
+    try {
+      const { stripe } = await import("@/lib/stripe");
+      const pi = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
+      if (pi.status === "requires_capture") {
+        await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
+      }
+    } catch (e) {
+      // Log but don't block deletion if Stripe call fails
+      console.error("Failed to cancel Stripe PaymentIntent:", e);
+    }
+  }
+
   // Delete order items first (foreign key), then the order
   await prisma.orderItem.deleteMany({ where: { orderId: id } });
   await prisma.order.delete({ where: { id } });

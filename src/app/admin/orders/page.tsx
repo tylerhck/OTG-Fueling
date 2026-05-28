@@ -442,8 +442,8 @@ export default function AdminOrders() {
                       </div>
                     </div>
                   )}
-                  {/* Delete button - available on all orders */}
-                  {(order.status === "AWAITING_PAYMENT" || order.status === "CANCELLED") && (
+                  {/* Delete button - available on completed, cancelled, and awaiting payment orders */}
+                  {(order.status === "AWAITING_PAYMENT" || order.status === "CANCELLED" || order.status === "COMPLETED") && (
                     <button
                       onClick={() => deleteOrder(order.id)}
                       disabled={updating === order.id}

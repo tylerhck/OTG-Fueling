@@ -85,12 +85,20 @@ export async function POST(req: NextRequest) {
 
   for (const recurring of recurringOrders) {
     try {
-      // Skip if already processed today
-      if (recurring.lastOrderDate) {
+      // Skip if already processed today AND the order still exists and isn't cancelled/deleted
+      if (recurring.lastOrderDate && recurring.lastOrderId) {
         const lastDate = new Date(recurring.lastOrderDate).toISOString().split("T")[0];
         if (lastDate === todayDate) {
-          results.push({ id: recurring.id, status: "skipped", error: "Already processed today" });
-          continue;
+          // Check if that order still exists and is not cancelled
+          const existingOrder = await prisma.order.findUnique({
+            where: { id: recurring.lastOrderId },
+            select: { status: true },
+          });
+          if (existingOrder && existingOrder.status !== "CANCELLED") {
+            results.push({ id: recurring.id, status: "skipped", error: "Already processed today" });
+            continue;
+          }
+          // Order was cancelled or deleted — allow re-creation
         }
       }
 
