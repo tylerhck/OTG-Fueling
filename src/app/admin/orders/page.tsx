@@ -29,6 +29,7 @@ interface Order {
   gallons: number;
   totalCents: number;
   authAmountCents: number | null;
+  deliveryFeeCents: number;
   isFillUp: boolean;
   deliveryType: string;
   scheduledAt: string | null;
@@ -51,6 +52,7 @@ export default function AdminOrders() {
   const [etaInput, setEtaInput] = useState<Record<string, string>>({});
   const [showEta, setShowEta] = useState<string | null>(null);
   const [captureGallons, setCaptureGallons] = useState<Record<string, string>>({});
+  const [capturePricePerGallon, setCapturePricePerGallon] = useState<Record<string, string>>({});
   const [showCapture, setShowCapture] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<Record<string, string>>({});
 
@@ -85,12 +87,17 @@ export default function AdminOrders() {
       setCaptureError({ ...captureError, [orderId]: "Enter a valid gallon amount" });
       return;
     }
+    const pricePerGallon = parseFloat(capturePricePerGallon[orderId] || "");
+    if (isNaN(pricePerGallon) || pricePerGallon <= 0) {
+      setCaptureError({ ...captureError, [orderId]: "Enter a valid price per gallon" });
+      return;
+    }
     setUpdating(orderId);
     setCaptureError({ ...captureError, [orderId]: "" });
     const res = await fetch(`/api/admin/orders/${orderId}/capture`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gallons }),
+      body: JSON.stringify({ gallons, pricePerGallon }),
     });
     if (res.ok) {
       setShowCapture(null);
@@ -417,17 +424,26 @@ export default function AdminOrders() {
                             type="number"
                             min="0.1"
                             step="0.1"
-                            placeholder="Actual gal"
+                            placeholder="Gallons"
                             value={captureGallons[order.id] || ""}
                             onChange={(e) => setCaptureGallons({ ...captureGallons, [order.id]: e.target.value })}
-                            className="w-28 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
+                            className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
+                          />
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            placeholder="$/gal"
+                            value={capturePricePerGallon[order.id] || ""}
+                            onChange={(e) => setCapturePricePerGallon({ ...capturePricePerGallon, [order.id]: e.target.value })}
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
                           />
                           <button
                             onClick={() => capturePayment(order.id)}
                             disabled={updating === order.id}
                             className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
                           >
-                            {updating === order.id ? "..." : "Capture"}
+                            {updating === order.id ? "..." : "Charge"}
                           </button>
                           <button
                             onClick={() => { setShowCapture(null); setCaptureError({ ...captureError, [order.id]: "" }); }}
@@ -436,6 +452,11 @@ export default function AdminOrders() {
                             ✕
                           </button>
                         </div>
+                        {capturePricePerGallon[order.id] && captureGallons[order.id] && (
+                          <p className="text-xs text-slate-500">
+                            Total: ${(parseFloat(captureGallons[order.id]) * parseFloat(capturePricePerGallon[order.id])).toFixed(2)} fuel + ${(order.deliveryFeeCents / 100).toFixed(2)} delivery
+                          </p>
+                        )}
                         {captureError[order.id] && (
                           <p className="text-xs text-red-600">{captureError[order.id]}</p>
                         )}

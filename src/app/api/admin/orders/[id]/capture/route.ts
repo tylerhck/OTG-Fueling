@@ -14,10 +14,14 @@ export async function POST(
 
   const { id } = await params;
   const body = await req.json();
-  const { gallons } = body;
+  const { gallons, pricePerGallon } = body;
 
   if (!gallons || typeof gallons !== "number" || gallons <= 0 || gallons > 200) {
     return NextResponse.json({ error: "Invalid gallons amount" }, { status: 400 });
+  }
+
+  if (!pricePerGallon || typeof pricePerGallon !== "number" || pricePerGallon <= 0 || pricePerGallon > 20) {
+    return NextResponse.json({ error: "Invalid price per gallon" }, { status: 400 });
   }
 
   const order = await prisma.order.findUnique({ where: { id } });
@@ -49,10 +53,9 @@ export async function POST(
     );
   }
 
-  if (!order.pricePerGallonCents) {
-    return NextResponse.json({ error: "Order is missing fuel price data" }, { status: 400 });
-  }
-  const actualFuelCents = Math.round(order.pricePerGallonCents * gallons);
+  // Use the admin-provided price per gallon (in dollars, convert to cents)
+  const pricePerGallonCents = Math.round(pricePerGallon * 100);
+  const actualFuelCents = Math.round(pricePerGallonCents * gallons);
   const actualTotalCents = actualFuelCents + order.deliveryFeeCents;
 
   // Charge the saved payment method for the actual amount (off-session)
@@ -65,7 +68,7 @@ export async function POST(
       payment_method: paymentMethodId,
       confirm: true,
       off_session: true,
-      metadata: { orderId: order.id, isFillUpCapture: "true" },
+      metadata: { orderId: order.id, isFillUpCapture: "true", gallons: String(gallons), pricePerGallon: String(pricePerGallon) },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Card charge failed";
@@ -82,11 +85,12 @@ export async function POST(
     }
   }
 
-  // Update order with actual gallons, final total, and new intent ID
+  // Update order with actual gallons, price per gallon, final total, and new intent ID
   const updated = await prisma.order.update({
     where: { id },
     data: {
       gallons,
+      pricePerGallonCents,
       totalCents: actualTotalCents,
       authAmountCents: actualTotalCents,
       stripePaymentIntentId: newIntent.id,
