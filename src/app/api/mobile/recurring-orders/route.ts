@@ -17,7 +17,14 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(recurringOrders);
+  // Map to include dayOfWeek and preferredTime for display
+  const mapped = recurringOrders.map((ro) => ({
+    ...ro,
+    dayOfWeek: ro.dayOfWeek,
+    preferredTime: ro.preferredTime,
+  }));
+
+  return NextResponse.json(mapped);
 }
 
 export async function DELETE(req: NextRequest) {
