@@ -34,3 +34,17 @@ function fmtTime(date: Date): string {
     hour12: true,
   });
 }
+
+/**
+ * Format a UTC date/time as Central Time (America/Chicago).
+ * Used for displaying recurring order scheduled times in the admin UI.
+ */
+export function formatCentralTime(dateInput: string | Date): string {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/Chicago",
+  });
+}

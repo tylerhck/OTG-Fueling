@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { getDeliveryWindow } from "@/lib/deliveryWindow";
+import { getDeliveryWindow, formatCentralTime } from "@/lib/deliveryWindow";
 
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS"];
 const HISTORY_STATUSES = ["COMPLETED", "CANCELLED"];
@@ -34,6 +34,8 @@ interface Order {
   scheduledAt: string | null;
   etaMinutes: number | null;
   createdAt: string;
+  notes: string | null;
+  subscriptionDelivery: boolean;
   user: { name: string; email: string };
   address: { street: string; city: string };
 }
@@ -311,6 +313,15 @@ export default function AdminOrders() {
                     {new Date(order.createdAt).toLocaleString()}
                   </p>
                   {(() => {
+                    // For recurring/subscription orders, show just the scheduled time (not a window)
+                    if (order.subscriptionDelivery && order.scheduledAt) {
+                      const timeStr = formatCentralTime(order.scheduledAt);
+                      return (
+                        <p className="mt-0.5 text-xs font-medium text-blue-700">
+                          🔁 Recurring — Scheduled: {timeStr}
+                        </p>
+                      );
+                    }
                     const window = getDeliveryWindow(order.scheduledAt, order.etaMinutes, 120);
                     if (!window) return null;
                     return (

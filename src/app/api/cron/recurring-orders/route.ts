@@ -14,6 +14,32 @@ const DAY_MAP: Record<number, DayOfWeek> = {
   6: "SATURDAY",
 };
 
+/**
+ * Get the UTC offset for America/Chicago (Central Time) on a given date.
+ * CDT (March–November) = UTC-5, CST (November–March) = UTC-6.
+ * We detect DST by checking if the date falls within DST boundaries.
+ */
+function getCentralUtcOffset(date: Date): number {
+  // DST in the US: starts 2nd Sunday of March, ends 1st Sunday of November
+  const year = date.getUTCFullYear();
+
+  // Find 2nd Sunday of March
+  const marchFirst = new Date(Date.UTC(year, 2, 1)); // March 1
+  const marchFirstDay = marchFirst.getUTCDay(); // 0=Sun
+  const dstStart = new Date(Date.UTC(year, 2, 8 + (7 - marchFirstDay) % 7, 8, 0, 0)); // 2nd Sunday at 2AM CST = 8AM UTC
+
+  // Find 1st Sunday of November
+  const novFirst = new Date(Date.UTC(year, 10, 1)); // November 1
+  const novFirstDay = novFirst.getUTCDay();
+  const dstEnd = new Date(Date.UTC(year, 10, 1 + (7 - novFirstDay) % 7, 7, 0, 0)); // 1st Sunday at 2AM CDT = 7AM UTC
+
+  // If date is between DST start and DST end, we're in CDT (UTC-5)
+  if (date >= dstStart && date < dstEnd) {
+    return 5; // CDT: UTC-5
+  }
+  return 6; // CST: UTC-6
+}
+
 // Cron secret to prevent unauthorized access
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
@@ -25,8 +51,13 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const todayDayOfWeek = DAY_MAP[now.getDay()];
-  const todayDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  // Get today's date and day-of-week in Central Time
+  // The cron fires at 6 AM CDT, so the server (UTC) sees 11 AM UTC — same calendar day.
+  // But to be safe, we derive the Central date explicitly.
+  const centralOffset = getCentralUtcOffset(now);
+  const centralNow = new Date(now.getTime() - centralOffset * 60 * 60 * 1000);
+  const todayDayOfWeek = DAY_MAP[centralNow.getUTCDay()];
+  const todayDate = centralNow.toISOString().split("T")[0]; // YYYY-MM-DD in Central
 
   // Find all active recurring orders for today's day of week
   const recurringOrders = await prisma.recurringOrder.findMany({
@@ -103,10 +134,12 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Calculate scheduled time
+      // Calculate scheduled time — preferredTime is in Central Time (America/Chicago)
+      // Convert to UTC by adding the offset (5 for CDT, 6 for CST)
       const [hours, minutes] = recurring.preferredTime.split(":").map(Number);
       const scheduledAt = new Date(now);
-      scheduledAt.setHours(hours, minutes, 0, 0);
+      const centralOffset = getCentralUtcOffset(now);
+      scheduledAt.setUTCHours(hours + centralOffset, minutes, 0, 0);
 
       // For fill-ups, we authorize $1 (100 cents) to verify card
       const authAmountCents = 100; // $1 pre-authorization
