@@ -89,6 +89,8 @@ export async function POST(req: NextRequest) {
           <div style="text-align: center; margin-bottom: 24px;">
             <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-weight: 600; font-size: 16px; padding: 14px 32px; border-radius: 12px; text-decoration: none;">Reset Password</a>
           </div>
+          <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 16px;">Or copy and paste this link into your browser:</p>
+          <p style="color: #2563eb; font-size: 13px; line-height: 1.5; margin-bottom: 24px; word-break: break-all;"><a href="${resetUrl}" style="color: #2563eb;">${resetUrl}</a></p>
           <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-bottom: 8px;">This link will expire in 1 hour.</p>
           <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">If you didn't request this, you can safely ignore this email. Your password will not be changed.</p>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
