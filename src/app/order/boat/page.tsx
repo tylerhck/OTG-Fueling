@@ -117,6 +117,7 @@ export default function BoatOrderPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -818,16 +819,39 @@ export default function BoatOrderPage() {
           </div>
         </div>
 
+        {/* Terms of Service (guests only) */}
+        {!isAuthenticated && (
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="agreeTermsBoat"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+            />
+            <label htmlFor="agreeTermsBoat" className="text-sm text-slate-600">
+              I agree to the{" "}
+              <a href="/terms" target="_blank" className="text-red-600 hover:text-red-500 font-medium underline">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="/privacy" target="_blank" className="text-red-600 hover:text-red-500 font-medium underline">
+                Privacy Policy
+              </a>
+            </label>
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={submitting}
-          className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200 transition-all disabled:opacity-50"
+          disabled={submitting || (!isAuthenticated && !agreedToTerms)}
+          className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Verify Card — $1.00"
-            : `Proceed to Payment — $${total.toFixed(2)}`}
+            ? "Verify Card \u2014 $1.00"
+            : `Proceed to Payment \u2014 $${total.toFixed(2)}`}
         </button>
 
         {!isAuthenticated && (
