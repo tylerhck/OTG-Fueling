@@ -377,7 +377,7 @@ export default function GuestOrderPage() {
             onChange={(e) => updateForm({ notes: e.target.value })}
             rows={3}
             maxLength={500}
-            placeholder="Any special instructions (e.g., parked in the back lot)"
+            placeholder="Any special instructions (e.g., gate code, parked in the back lot)"
             className="mt-3 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
           />
         </div>

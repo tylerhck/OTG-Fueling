@@ -1059,7 +1059,7 @@ export default function OrderPage() {
             onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
             rows={3}
             maxLength={500}
-            placeholder="Any special instructions (e.g., parked in the back lot, fuel cap on the left)"
+            placeholder="Any special instructions (e.g., gate code, parked in the back lot, fuel cap on the left)"
             className="mt-3 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
           />
         </div>

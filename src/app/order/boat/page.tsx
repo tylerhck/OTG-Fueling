@@ -775,7 +775,7 @@ export default function BoatOrderPage() {
             onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
             rows={3}
             maxLength={500}
-            placeholder="Any special instructions (e.g., boat at slip 12, call on arrival)"
+            placeholder="Any special instructions (e.g., gate code, boat at slip 12, call on arrival)"
             className="mt-3 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
           />
         </div>
