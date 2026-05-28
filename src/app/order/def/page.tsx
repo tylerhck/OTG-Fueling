@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { DEF_SIZES } from "@/types";
+
 
 const PinMap = dynamic(() => import("@/components/PinMap"), { ssr: false });
 
@@ -85,6 +85,10 @@ export default function DefOrderPage() {
   const [scheduledSlotStart, setScheduledSlotStart] = useState("");
   const [scheduledSlotLabel, setScheduledSlotLabel] = useState("");
   const [notes, setNotes] = useState("");
+  const [defSizes, setDefSizes] = useState<{gallons: number; label: string; cents: number}[]>([
+    { gallons: 2.5, label: "2.5 gallon", cents: 3000 },
+    { gallons: 5, label: "5 gallon", cents: 5500 },
+  ]);
 
   // Guest fields
   const [guestName, setGuestName] = useState("");
@@ -99,13 +103,19 @@ export default function DefOrderPage() {
   const [error, setError] = useState("");
 
   const isAuthenticated = status === "authenticated";
-  const selectedDef = DEF_SIZES.find((s) => s.gallons === defGallons)!;
+  const selectedDef = defSizes.find((s) => s.gallons === defGallons)!;
   const total = DELIVERY_FEE + (selectedDef?.cents ?? 0) / 100;
 
   useEffect(() => {
     fetch("/api/service-schedules")
       .then((r) => r.json())
       .then((data) => setSchedules(Array.isArray(data) ? data : []));
+
+    // Fetch dynamic DEF pricing
+    fetch("/api/fuel-prices")
+      .then((r) => r.json())
+      .then((data) => { if (data.defSizes) setDefSizes(data.defSizes); })
+      .catch(() => {});
 
     if (isAuthenticated) {
       fetch("/api/addresses")
@@ -243,7 +253,7 @@ export default function DefOrderPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">DEF Fluid Size</h2>
           <div className="mt-3 space-y-2">
-            {DEF_SIZES.map((opt) => (
+            {defSizes.map((opt) => (
               <button
                 key={opt.gallons}
                 type="button"

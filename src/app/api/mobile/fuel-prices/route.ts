@@ -6,7 +6,12 @@ export async function GET(req: NextRequest) {
   // Auth is optional for fuel prices — guests can see prices too
   const session = await getMobileSession(req);
 
-  const fuelPrices = await prisma.fuelPrice.findMany();
+  const [fuelPrices, defSettings] = await Promise.all([
+    prisma.fuelPrice.findMany(),
+    prisma.siteSetting.findMany({
+      where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } },
+    }),
+  ]);
 
   let subscription = null;
   if (session?.user?.id) {
@@ -24,8 +29,22 @@ export async function GET(req: NextRequest) {
     ),
   }));
 
+  // Build DEF pricing from site settings (manually set by admin)
+  const defMap: Record<string, string> = {};
+  for (const s of defSettings) {
+    defMap[s.key] = s.value;
+  }
+
+  const defPricing = {
+    sizes: [
+      { gallons: 2.5, label: "2.5 gallon", priceCents: parseInt(defMap.def_price_cents_2_5 || "3000", 10) },
+      { gallons: 5, label: "5 gallon", priceCents: parseInt(defMap.def_price_cents_5 || "5500", 10) },
+    ],
+  };
+
   return NextResponse.json({
     prices,
+    defPricing,
     isSubscribed: !!subscription,
     deliveryFeeCents: subscription ? 0 : 1500,
     subscriptionPriceCents: 3500,

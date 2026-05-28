@@ -41,6 +41,11 @@ export default function PricingAdmin() {
   const [editBase, setEditBase] = useState("");
   const [editMarkup, setEditMarkup] = useState("");
 
+  // DEF pricing
+  const [defPrice2_5, setDefPrice2_5] = useState("30.00");
+  const [defPrice5, setDefPrice5] = useState("55.00");
+  const [savingDef, setSavingDef] = useState(false);
+
   const loadData = useCallback(async () => {
     const [priceRes, settingsRes] = await Promise.all([
       fetch("/api/fuel-prices"),
@@ -54,6 +59,8 @@ export default function PricingAdmin() {
     setDeliveryFeeDollars((settingsData.deliveryFeeCents / 100).toFixed(2));
     setDefaultMarkup(String(settingsData.defaultMarkupPercent));
     setAsapEnabled(settingsData.asapEnabled !== false);
+    setDefPrice2_5((settingsData.defPriceCents2_5 / 100).toFixed(2));
+    setDefPrice5((settingsData.defPriceCents5 / 100).toFixed(2));
     setLoading(false);
   }, []);
 
@@ -535,6 +542,75 @@ export default function PricingAdmin() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* DEF Fluid Pricing */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">DEF Fluid Pricing</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Manually set DEF (Diesel Exhaust Fluid) prices. These are flat prices, not per-gallon.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              2.5 Gallon DEF ($)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={defPrice2_5}
+              onChange={(e) => setDefPrice2_5(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Current: ${defPrice2_5} for 2.5 gallons
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              5 Gallon DEF ($)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={defPrice5}
+              onChange={(e) => setDefPrice5(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Current: ${defPrice5} for 5 gallons
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={async () => {
+            setSavingDef(true);
+            setError("");
+            const res = await fetch("/api/admin/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                defPriceCents2_5: Math.round(parseFloat(defPrice2_5) * 100),
+                defPriceCents5: Math.round(parseFloat(defPrice5) * 100),
+              }),
+            });
+            if (res.ok) {
+              setSuccess("DEF prices updated!");
+              setTimeout(() => setSuccess(""), 3000);
+            } else {
+              setError("Failed to save DEF prices");
+            }
+            setSavingDef(false);
+          }}
+          disabled={savingDef}
+          className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {savingDef ? "Saving..." : "Save DEF Prices"}
+        </button>
       </div>
 
       {/* Pricing Explainer */}

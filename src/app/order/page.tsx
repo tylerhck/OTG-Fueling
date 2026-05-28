@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { FUEL_TYPE_LABELS, DEF_SIZES } from "@/types";
+import { FUEL_TYPE_LABELS } from "@/types";
 
 const PinMap = dynamic(() => import("@/components/PinMap"), { ssr: false });
 
@@ -130,6 +130,10 @@ export default function OrderPage() {
   const [boats, setBoats] = useState<Boat[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [prices, setPrices] = useState<FuelPrice[]>([]);
+  const [defSizes, setDefSizes] = useState<{gallons: number; label: string; cents: number}[]>([
+    { gallons: 2.5, label: "2.5 gallon", cents: 3000 },
+    { gallons: 5, label: "5 gallon", cents: 5500 },
+  ]);
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(1500);
   const [asapEnabled, setAsapEnabled] = useState(true);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo | null>(null);
@@ -206,6 +210,7 @@ export default function OrderPage() {
     setVehicles(vehicleData);
     setAddresses(addressData);
     setPrices(priceData.prices || []);
+    if (priceData.defSizes) setDefSizes(priceData.defSizes);
     setBoats(Array.isArray(boatData) ? boatData : []);
     if (priceData.deliveryFeeCents !== undefined) setDeliveryFeeCents(priceData.deliveryFeeCents);
     if (priceData.asapEnabled !== undefined) setAsapEnabled(priceData.asapEnabled);
@@ -289,7 +294,7 @@ export default function OrderPage() {
     : 0;
   const boatAddonFee = addTraileredBoat ? TRAILERED_BOAT_ADDON_CENTS / 100 : 0;
 
-  const defCost = addDef ? (DEF_SIZES.find((s) => s.gallons === defGallons)?.cents ?? 0) / 100 : 0;
+  const defCost = addDef ? (defSizes.find((s) => s.gallons === defGallons)?.cents ?? 0) / 100 : 0;
 
   const total = form.isFillUp
     ? primaryFillUpAuth + deliveryFee + secondVehicleAddonFee + secondVehicleGasCost + boatAddonFee + boatGasCost + defCost
@@ -1029,7 +1034,7 @@ export default function OrderPage() {
             </div>
             {addDef && (
               <div className="mt-4 space-y-2">
-                {DEF_SIZES.map((opt) => (
+                {defSizes.map((opt) => (
                   <button
                     key={opt.gallons}
                     type="button"

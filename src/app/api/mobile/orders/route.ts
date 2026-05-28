@@ -46,14 +46,46 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Get current fuel prices
-  const fuelPrices = await prisma.fuelPrice.findMany();
+  // Get current fuel prices and DEF pricing
+  const [fuelPrices, defSettings] = await Promise.all([
+    prisma.fuelPrice.findMany(),
+    prisma.siteSetting.findMany({ where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } } }),
+  ]);
   const priceMap = new Map(
     fuelPrices.map((fp: { fuelType: string; basePriceCents: number; markupPercent: number }) => [fp.fuelType, fp])
   );
+  const defPriceMap: Record<string, number> = {};
+  for (const s of defSettings) {
+    defPriceMap[s.key] = parseInt(s.value, 10);
+  }
 
   // Calculate order items with pricing
   const orderItems = items.map((item) => {
+    // DEF add-on uses fixed pricing from admin settings
+    if (item.kind === "DEF_ADDON" || item.kind === "DEF_ONLY") {
+      const defCents = item.gallons === 5
+        ? (defPriceMap.def_price_cents_5 || 5500)
+        : (defPriceMap.def_price_cents_2_5 || 3000);
+      return {
+        kind: item.kind,
+        vehicleId: item.vehicleId || null,
+        boatId: item.boatId || null,
+        fuelType: item.fuelType || "DIESEL",
+        gallons: item.gallons || 2.5,
+        isFillUp: false,
+        pricePerGallonCents: 0,
+        gasCents: defCents,
+        serviceFeeCents: 0,
+        notes: item.notes || null,
+        itemMake: item.itemMake || null,
+        itemModel: item.itemModel || null,
+        itemYear: item.itemYear || null,
+        itemColor: item.itemColor || null,
+        itemPlate: item.itemPlate || null,
+        itemRegNumber: item.itemRegNumber || null,
+      };
+    }
+
     const price = priceMap.get(item.fuelType);
     const baseCents = price
       ? Math.round(price.basePriceCents * (1 + price.markupPercent / 100))

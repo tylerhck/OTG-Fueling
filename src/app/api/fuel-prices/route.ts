@@ -20,13 +20,25 @@ export async function GET() {
   try {
   const session = await auth();
 
-  const [prices, asapSetting] = await Promise.all([
+  const [prices, asapSetting, defSettings] = await Promise.all([
     prisma.fuelPrice.findMany({ orderBy: { fuelType: "asc" } }),
     prisma.siteSetting.findUnique({ where: { key: "asap_enabled" } }),
+    prisma.siteSetting.findMany({ where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } } }),
   ]);
+
+  // Build dynamic DEF pricing from admin settings
+  const defMap: Record<string, string> = {};
+  for (const s of defSettings) {
+    defMap[s.key] = s.value;
+  }
+  const defSizes = [
+    { gallons: 2.5, label: "2.5 gallon", cents: parseInt(defMap.def_price_cents_2_5 || "3000", 10) },
+    { gallons: 5, label: "5 gallon", cents: parseInt(defMap.def_price_cents_5 || "5500", 10) },
+  ];
 
   const result: Record<string, unknown> = {
     prices,
+    defSizes,
     deliveryFeeCents: 1500, // $15 flat delivery fee
     asapEnabled: asapSetting?.value !== "false", // defaults to true
   };
