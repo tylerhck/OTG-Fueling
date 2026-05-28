@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/mobileAuth";
 import { prisma } from "@/lib/prisma";
 import { orderSchema } from "@/lib/validators";
+import { sendOrderNotifications } from "@/lib/sms";
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -127,6 +128,26 @@ export async function POST(req: NextRequest) {
     },
     include: { items: true, address: true },
   });
+
+  // Send SMS to employees (only for ASAP orders; scheduled orders get SMS 1 hour before)
+  if (!scheduledAt) {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true } });
+    const addr = order.address;
+    const addrStr = addr ? `${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}` : "Unknown";
+    const defItem = order.items.find((i: { kind: string }) => i.kind === "DEF_ADDON" || i.kind === "DEF_ONLY");
+    const primaryItem = items[0];
+    sendOrderNotifications({
+      orderId: order.id,
+      customerName: user?.name || "Customer",
+      fuelType: primaryItem.fuelType.replace("_", " "),
+      gallons: primaryItem.isFillUp ? undefined : primaryItem.gallons,
+      isFillUp: primaryItem.isFillUp ?? false,
+      address: addrStr,
+      scheduledAt: null,
+      notes,
+      defAddon: defItem ? { gallons: defItem.gallons || 2.5 } : null,
+    }).catch(() => {});
+  }
 
   return NextResponse.json(order, { status: 201 });
 }

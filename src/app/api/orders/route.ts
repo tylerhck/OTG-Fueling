@@ -5,6 +5,7 @@ import { orderSchema, guestOrderSchema, guestBoatOrderSchema } from "@/lib/valid
 import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 import { geocodeAddress } from "@/lib/geocode";
 import { notifyOrderStatus } from "@/lib/notifications";
+import { sendOrderNotifications } from "@/lib/sms";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
 
 const FILL_UP_MAX_GALLONS = 30;
@@ -139,6 +140,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Send SMS to employees (only for ASAP orders; scheduled orders get SMS 1 hour before)
+    if (!scheduledAt) {
+      sendOrderNotifications({
+        orderId: order.id,
+        customerName: guestName,
+        fuelType: "DEF Fluid",
+        gallons: defGallons,
+        address: fullAddress,
+        scheduledAt: null,
+        notes,
+        isGuest: true,
+      }).catch(() => {});
+    }
+
     return NextResponse.json(order, { status: 201 });
   }
 
@@ -219,6 +234,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Send SMS to employees (only for ASAP orders; scheduled orders get SMS 1 hour before)
+    if (!scheduledAt) {
+      sendOrderNotifications({
+        orderId: order.id,
+        customerName: guestName,
+        fuelType: fuelType.replace("_", " "),
+        gallons: actualGallons,
+        isFillUp: isFillUp ?? false,
+        address: fullAddress,
+        scheduledAt: null,
+        notes,
+        isGuest: true,
+      }).catch(() => {});
+    }
+
     return NextResponse.json(order, { status: 201 });
   }
 
@@ -289,6 +319,20 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    // Send SMS to employees (only for ASAP orders; scheduled orders get SMS 1 hour before)
+    if (!scheduledAt) {
+      sendOrderNotifications({
+        orderId: order.id,
+        customerName: guestName,
+        fuelType: fuelType.replace("_", " "),
+        gallons,
+        address: fullAddress,
+        scheduledAt: null,
+        notes,
+        isGuest: true,
+      }).catch(() => {});
+    }
 
     return NextResponse.json(order, { status: 201 });
   }
@@ -558,6 +602,25 @@ export async function POST(req: NextRequest) {
   });
 
   notifyOrderStatus(order.id, "PENDING").catch(() => {});
+
+  // Send SMS to employees (only for ASAP orders; scheduled orders get SMS 1 hour before)
+  if (!scheduledAt) {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true } });
+    const addr = order.address;
+    const addrStr = addr ? `${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}` : "Unknown";
+    const defItem = order.items.find((i: { kind: string }) => i.kind === "DEF_ADDON" || i.kind === "DEF_ONLY");
+    sendOrderNotifications({
+      orderId: order.id,
+      customerName: user?.name || "Customer",
+      fuelType: primaryItem.fuelType.replace("_", " "),
+      gallons: primaryActualGallons,
+      isFillUp: primaryItem.isFillUp ?? false,
+      address: addrStr,
+      scheduledAt: null,
+      notes,
+      defAddon: defItem ? { gallons: defItem.gallons || 2.5 } : null,
+    }).catch(() => {});
+  }
 
   return NextResponse.json(order, { status: 201 });
 }

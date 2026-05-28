@@ -199,6 +199,8 @@ model Order {
   pinLat Float? @map("pin_lat")
   pinLng Float? @map("pin_lng")
 
+  smsNotifiedAt        DateTime?   @map("sms_notified_at")
+
   // Guest checkout fields (used when userId is null)
   guestName    String? @map("guest_name")
   guestEmail   String? @map("guest_email")
@@ -376,4 +378,15 @@ model RecurringOrder {
   address Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
 
   @@map("recurring_orders")
+}
+
+model SmsRecipient {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_recipients")
 }
