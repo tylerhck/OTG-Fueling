@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import nodemailer from "nodemailer";
+import { sendEmail } from "@/lib/resend";
 import { getDeliveryWindow } from "@/lib/deliveryWindow";
 
 // Strip URLs / control chars from a customer-supplied name before putting it
@@ -40,22 +40,6 @@ const ORDER_STATUS_MESSAGES: Record<string, { subject: string; body: string }> =
     body: "Your fuel delivery order has been cancelled. If you have questions, please contact us.",
   },
 };
-
-function getEmailTransport() {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || "587", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) return null;
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
-}
 
 async function sendSms(to: string, message: string): Promise<boolean> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -102,39 +86,41 @@ export async function notifyOrderStatus(orderId: string, status: string) {
   );
   const recipientPhone = order.user?.phone || order.guestPhone;
 
-  // Send email
-  const transport = getEmailTransport();
+  // Send email via Resend
   const windowLine = window
     ? `\nEstimated vehicle arrival at your location: ${window}`
     : "";
 
-  if (transport && recipientEmail) {
-    try {
-      await transport.sendMail({
-        from: process.env.EMAIL_FROM || "noreply@otgfueling.com",
-        to: recipientEmail,
-        subject: msg.subject,
-        text: `Hi ${recipientName},\n\n${msg.body}${windowLine}\n\nOrder #${order.id.slice(0, 8)}\n\nThank you,\nOn The Go Fueling`,
-      });
-      await prisma.notification.create({
-        data: {
-          orderId: order.id,
-          userId: order.userId,
-          type: "EMAIL",
-          status: "SENT",
-          sentAt: new Date(),
-        },
-      });
-    } catch {
-      await prisma.notification.create({
-        data: {
-          orderId: order.id,
-          userId: order.userId,
-          type: "EMAIL",
-          status: "FAILED",
-        },
-      });
-    }
+  if (recipientEmail) {
+    const sent = await sendEmail({
+      to: recipientEmail,
+      subject: msg.subject,
+      text: `Hi ${recipientName},\n\n${msg.body}${windowLine}\n\nOrder #${order.id.slice(0, 8)}\n\nThank you,\nOn The Go Fueling`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-weight: bold; font-size: 14px; padding: 12px 16px; border-radius: 12px;">OTG</div>
+          </div>
+          <h2 style="color: #1e293b; font-size: 24px; font-weight: 700; margin-bottom: 16px;">${msg.subject.replace(" – On The Go Fueling", "")}</h2>
+          <p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 8px;">Hi ${recipientName},</p>
+          <p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">${msg.body}</p>
+          ${window ? `<p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 16px;"><strong>Estimated arrival:</strong> ${window}</p>` : ""}
+          <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Order #${order.id.slice(0, 8)}</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; text-align: center;">On The Go Fueling &bull; Fort Worth, TX</p>
+        </div>
+      `,
+    });
+
+    await prisma.notification.create({
+      data: {
+        orderId: order.id,
+        userId: order.userId,
+        type: "EMAIL",
+        status: sent ? "SENT" : "FAILED",
+        sentAt: sent ? new Date() : undefined,
+      },
+    });
   }
 
   // Send SMS
