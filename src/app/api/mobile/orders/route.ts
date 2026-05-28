@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   // Get current fuel prices
   const fuelPrices = await prisma.fuelPrice.findMany();
   const priceMap = new Map(
-    fuelPrices.map((fp) => [fp.fuelType, fp])
+    fuelPrices.map((fp: { fuelType: string; basePriceCents: number; markupPercent: number }) => [fp.fuelType, fp])
   );
 
   // Calculate order items with pricing
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       vehicleId: items[0]?.vehicleId || null,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       notes: notes || null,
-      status: "DRAFT",
+      status: "AWAITING_PAYMENT",
       totalCents: totalGasCents,
       items: { create: orderItems },
     },

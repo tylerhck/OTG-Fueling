@@ -3,10 +3,11 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
+export const dynamic = "force-dynamic";
 import { FUEL_TYPE_LABELS } from "@/types";
 
-const PinMap = dynamic(() => import("@/components/PinMap"), { ssr: false });
+const PinMap = nextDynamic(() => import("@/components/PinMap"), { ssr: false });
 
 interface Boat {
   id: string;
