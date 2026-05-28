@@ -17,6 +17,8 @@ export default function GuestOrderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
   const [form, setForm] = useState({
     // Contact
     guestName: "",
@@ -401,10 +403,31 @@ export default function GuestOrderPage() {
           </div>
         </div>
 
+        {/* Terms of Service */}
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="agreeTerms"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+          />
+          <label htmlFor="agreeTerms" className="text-sm text-slate-600">
+            I agree to the{" "}
+            <a href="/terms" target="_blank" className="text-red-600 hover:text-red-500 font-medium underline">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" target="_blank" className="text-red-600 hover:text-red-500 font-medium underline">
+              Privacy Policy
+            </a>
+          </label>
+        </div>
+
         {/* Submit */}
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !agreedToTerms}
           className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-400 hover:to-red-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? "Processing..." : `Proceed to Payment — $${total.toFixed(2)}`}
