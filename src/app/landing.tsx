@@ -61,8 +61,24 @@ export default function HomePage() {
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(500);
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
   const [geocodedPos, setGeocodedPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [videoMuted, setVideoMuted] = useState(true);
+  const [videoMuted, setVideoMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Attempt unmuted autoplay; if browser blocks it, fall back to muted
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Browser blocked unmuted autoplay — fall back to muted
+        video.muted = true;
+        setVideoMuted(true);
+        video.play().catch(() => {});
+      });
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/service-area")
@@ -173,7 +189,6 @@ export default function HomePage() {
                   <video
                     ref={videoRef}
                     src="/v3_final_ad.MOV"
-                    autoPlay
                     loop
                     muted={videoMuted}
                     playsInline
