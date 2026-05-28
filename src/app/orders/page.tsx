@@ -21,6 +21,7 @@ interface Order {
 }
 
 const statusColors: Record<string, string> = {
+  AWAITING_PAYMENT: "bg-orange-100 text-orange-800",
   PENDING: "bg-yellow-100 text-yellow-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
   IN_PROGRESS: "bg-purple-100 text-purple-800",
@@ -33,6 +34,7 @@ export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/signin");
@@ -48,6 +50,30 @@ export default function OrdersPage() {
         });
     }
   }, [session]);
+
+  async function cancelOrder(e: React.MouseEvent, orderId: string) {
+    e.preventDefault(); // Prevent Link navigation
+    e.stopPropagation();
+    if (!confirm("Cancel this order?")) return;
+
+    setCancellingId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      if (res.ok) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: "CANCELLED" } : o))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   if (status === "loading" || loading) {
     return (
@@ -104,7 +130,7 @@ export default function OrdersPage() {
                         statusColors[order.status] || "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS]}
+                      {ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS] || order.status}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
@@ -148,9 +174,20 @@ export default function OrdersPage() {
                     );
                   })()}
                 </div>
-                <span className="text-lg font-bold text-gray-900">
-                  ${(order.totalCents / 100).toFixed(2)}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="text-lg font-bold text-gray-900">
+                    ${(order.totalCents / 100).toFixed(2)}
+                  </span>
+                  {(order.status === "AWAITING_PAYMENT" || order.status === "PENDING") && (
+                    <button
+                      onClick={(e) => cancelOrder(e, order.id)}
+                      disabled={cancellingId === order.id}
+                      className="rounded-lg border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {cancellingId === order.id ? "Cancelling..." : "Cancel"}
+                    </button>
+                  )}
+                </div>
               </div>
             </Link>
           ))}

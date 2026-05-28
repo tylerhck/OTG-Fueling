@@ -86,6 +86,45 @@ export async function PUT(
   return NextResponse.json(order);
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const body = await req.json();
+
+  // Customers can only cancel their own orders that are in AWAITING_PAYMENT or PENDING
+  if (body.status !== "CANCELLED") {
+    return NextResponse.json({ error: "Only cancellation is allowed" }, { status: 400 });
+  }
+
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  const isAdmin = (session.user as { role: string }).role === "ADMIN";
+  if (!isAdmin && order.userId !== session.user.id) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  if (!isAdmin && order.status !== "AWAITING_PAYMENT" && order.status !== "PENDING") {
+    return NextResponse.json({ error: "Cannot cancel an order that is already in progress" }, { status: 400 });
+  }
+
+  const updated = await prisma.order.update({
+    where: { id },
+    data: { status: "CANCELLED" },
+  });
+
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -42,6 +42,16 @@ export async function GET() {
   const isAdmin = (session.user as { role: string }).role === "ADMIN";
 
   try {
+    // Auto-cancel orders stuck in AWAITING_PAYMENT for more than 10 minutes
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    await prisma.order.updateMany({
+      where: {
+        status: "AWAITING_PAYMENT",
+        createdAt: { lt: tenMinutesAgo },
+      },
+      data: { status: "CANCELLED" },
+    });
+
     const orders = await prisma.order.findMany({
       where: isAdmin ? {} : { userId: session.user.id },
       include: {
