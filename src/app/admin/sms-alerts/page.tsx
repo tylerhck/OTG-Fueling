@@ -14,7 +14,7 @@ export default function SmsAlertsPage() {
   const [recipients, setRecipients] = useState<SmsRecipient[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+1 ");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,15 +36,64 @@ export default function SmsAlertsPage() {
     fetchRecipients();
   }, []);
 
+  // Auto-format phone number as user types: +1 XXX-XXX-XXXX
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+
+    // Don't allow removing the "+1 " prefix
+    if (input.length < 3) {
+      setPhone("+1 ");
+      return;
+    }
+
+    // Extract only digits after the +1 prefix
+    const afterPrefix = input.slice(3); // everything after "+1 "
+    const digits = afterPrefix.replace(/\D/g, "");
+
+    // Limit to 10 digits (US phone number)
+    const limited = digits.slice(0, 10);
+
+    // Format: XXX-XXX-XXXX
+    let formatted = "+1 ";
+    if (limited.length <= 3) {
+      formatted += limited;
+    } else if (limited.length <= 6) {
+      formatted += limited.slice(0, 3) + "-" + limited.slice(3);
+    } else {
+      formatted += limited.slice(0, 3) + "-" + limited.slice(3, 6) + "-" + limited.slice(6);
+    }
+
+    setPhone(formatted);
+  };
+
+  // Normalize phone to E.164 format for saving: +1XXXXXXXXXX
+  const normalizePhone = (formatted: string): string => {
+    const digits = formatted.replace(/\D/g, "");
+    if (digits.length === 11 && digits.startsWith("1")) {
+      return "+" + digits;
+    }
+    if (digits.length === 10) {
+      return "+1" + digits;
+    }
+    return "";
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      setError("Please enter a complete 10-digit phone number");
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/admin/sms-recipients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name, phone: normalized }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -52,7 +101,7 @@ export default function SmsAlertsPage() {
         return;
       }
       setName("");
-      setPhone("");
+      setPhone("+1 ");
       fetchRecipients();
     } catch (err) {
       setError("Network error");
@@ -77,10 +126,10 @@ export default function SmsAlertsPage() {
   };
 
   const formatPhone = (phone: string) => {
-    // Format +1XXXXXXXXXX to (XXX) XXX-XXXX
+    // Format +1XXXXXXXXXX to +1 XXX-XXX-XXXX
     const digits = phone.replace(/\D/g, "");
     if (digits.length === 11 && digits.startsWith("1")) {
-      return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+      return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
     }
     return phone;
   };
@@ -106,10 +155,9 @@ export default function SmsAlertsPage() {
           />
           <input
             type="tel"
-            placeholder="Phone (e.g. 817-555-1234)"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-red-500 focus:outline-none"
+            onChange={handlePhoneChange}
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-mono focus:border-red-500 focus:outline-none"
             required
           />
           <button
