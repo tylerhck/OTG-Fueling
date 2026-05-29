@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { DayOfWeek } from "@prisma/client";
-import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 // Map JS day (0=Sunday) to our DayOfWeek enum
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -270,8 +269,6 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Fire SMS — recurring order is active immediately
-      notifyOrderActive(order.id, "Recurring").catch(() => {});
 
       results.push({ id: recurring.id, status: "created", orderId: order.id });
     } catch (error: any) {

@@ -17,7 +17,7 @@ export default function ServiceAreaMap({
   centerLng,
   radiusMiles,
   onCenterChange,
-  height = "350px",
+  height = "600px",
 }: ServiceAreaMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);

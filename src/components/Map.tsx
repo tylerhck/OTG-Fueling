@@ -9,6 +9,7 @@ interface ServiceArea {
   centerLng: number;
   radiusMiles: number;
   name: string;
+  polygon?: [number, number][] | null;
 }
 
 interface MapProps {
@@ -39,18 +40,47 @@ export default function Map({ serviceAreas, height = "400px", markerPos }: MapPr
       maxZoom: 20,
     }).addTo(map);
 
+    const allBounds: L.LatLngBoundsExpression[] = [];
+
     serviceAreas.forEach((area) => {
-      const radiusMeters = area.radiusMiles * 1609.34;
-      L.circle([area.centerLat, area.centerLng], {
-        radius: radiusMeters,
-        color: "#ea580c",
-        fillColor: "#fed7aa",
-        fillOpacity: 0.3,
-        weight: 2,
-      })
-        .addTo(map)
-        .bindPopup(`<b>${area.name}</b><br>${area.radiusMiles} mile radius`);
+      // If the area has a polygon with 3+ points, draw the polygon
+      if (area.polygon && Array.isArray(area.polygon) && area.polygon.length >= 3) {
+        const latlngs = area.polygon.map((p) => [p[0], p[1]] as L.LatLngTuple);
+        const poly = L.polygon(latlngs, {
+          color: "#ea580c",
+          fillColor: "#fed7aa",
+          fillOpacity: 0.25,
+          weight: 2,
+        })
+          .addTo(map)
+          .bindPopup(`<b>${area.name}</b><br>Custom boundary`);
+        allBounds.push(poly.getBounds());
+      } else {
+        // Fall back to circle
+        const radiusMeters = area.radiusMiles * 1609.34;
+        const circle = L.circle([area.centerLat, area.centerLng], {
+          radius: radiusMeters,
+          color: "#ea580c",
+          fillColor: "#fed7aa",
+          fillOpacity: 0.3,
+          weight: 2,
+        })
+          .addTo(map)
+          .bindPopup(`<b>${area.name}</b><br>${area.radiusMiles} mile radius`);
+        allBounds.push(circle.getBounds());
+      }
     });
+
+    // Fit map to show all service areas
+    if (allBounds.length > 0) {
+      const combined = allBounds.reduce((acc, b) => {
+        const bounds = L.latLngBounds(b);
+        return acc ? acc.extend(bounds) : bounds;
+      }, null as L.LatLngBounds | null);
+      if (combined) {
+        map.fitBounds(combined, { padding: [30, 30] });
+      }
+    }
 
     return () => {
       map.remove();

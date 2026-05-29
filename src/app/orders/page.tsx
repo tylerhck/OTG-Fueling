@@ -12,6 +12,8 @@ interface Order {
   fuelType: string;
   gallons: number;
   totalCents: number;
+  pricePerGallonCents: number;
+  deliveryFeeCents: number;
   status: string;
   scheduledAt: string | null;
   etaMinutes: number | null;
@@ -125,6 +127,11 @@ export default function OrdersPage() {
                     <h3 className="font-semibold text-gray-900">
                       {order.gallons} gal{" "}
                       {FUEL_TYPE_LABELS[order.fuelType as keyof typeof FUEL_TYPE_LABELS]}
+                      {order.pricePerGallonCents > 0 && (
+                        <span className="ml-2 text-sm font-normal text-gray-500">
+                          @ ${(order.pricePerGallonCents / 100).toFixed(2)}/gal
+                        </span>
+                      )}
                     </h3>
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${

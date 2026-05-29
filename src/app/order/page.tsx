@@ -444,7 +444,7 @@ export default function OrderPage() {
               "OTG Subscriber — delivery included."
             )
           ) : (
-            "Not subscribed — $15 delivery fee applies. Subscribe for $35/month to get free deliveries."
+            `Not subscribed — $${Math.round(deliveryFeeCents / 100)} delivery fee applies. Subscribe for $35/month to get free deliveries.`
           )}
         </div>
       )}

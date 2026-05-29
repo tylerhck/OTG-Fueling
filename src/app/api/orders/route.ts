@@ -6,11 +6,14 @@ import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 import { geocodeAddress } from "@/lib/geocode";
 import { notifyOrderStatus } from "@/lib/notifications";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
-import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 const FILL_UP_MAX_GALLONS = 30;
 const FILL_UP_MAX_GALLONS_BOAT = 100;
-const DELIVERY_FEE_STANDARD_CENTS = 1500; // $15 for non-subscribers and extra orders
+// Delivery fee is now read from admin settings (siteSetting table)
+async function getDeliveryFeeCents(): Promise<number> {
+  const setting = await prisma.siteSetting.findUnique({ where: { key: "delivery_fee_cents" } });
+  return setting ? parseInt(setting.value, 10) : 1500; // fallback $15 if not set
+}
 const SECOND_FILLUP_FEE_CENTS = 1000;     // $10 for subscriber's 2nd weekly fill-up
 const SECOND_VEHICLE_ADDON_CENTS = 500;   // $5 service fee for 2nd vehicle add-on
 const TRAILERED_BOAT_ADDON_CENTS = 1000;  // $10 service fee for trailered boat add-on
@@ -107,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     const defPriceCents = DEF_PRICES[defGallons];
-    const deliveryFeeCents = DELIVERY_FEE_STANDARD_CENTS;
+    const deliveryFeeCents = await getDeliveryFeeCents();
     const totalCents = defPriceCents + deliveryFeeCents;
 
     const order = await prisma.order.create({
@@ -142,11 +145,6 @@ export async function POST(req: NextRequest) {
         },
       },
     });
-
-    // Fire SMS if ASAP order (no scheduledAt = active immediately)
-    if (!scheduledAt) {
-      notifyOrderActive(order.id, "ASAP").catch(() => {});
-    }
 
     return NextResponse.json(order, { status: 201 });
   }
@@ -231,11 +229,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Fire SMS if ASAP order (no scheduledAt = active immediately)
-    if (!scheduledAt) {
-      notifyOrderActive(order.id, "ASAP").catch(() => {});
-    }
-
     return NextResponse.json(order, { status: 201 });
   }
 
@@ -270,7 +263,7 @@ export async function POST(req: NextRequest) {
     }
 
     const pricePerGallonCents = fuelPrice.effectivePriceCents;
-    const deliveryFeeCents = DELIVERY_FEE_STANDARD_CENTS;
+    const deliveryFeeCents = await getDeliveryFeeCents();
     const totalCents = Math.round(pricePerGallonCents * gallons) + deliveryFeeCents;
 
     const order = await prisma.order.create({
@@ -309,11 +302,6 @@ export async function POST(req: NextRequest) {
         },
       },
     });
-
-    // Fire SMS if ASAP order (no scheduledAt = active immediately)
-    if (!scheduledAt) {
-      notifyOrderActive(order.id, "ASAP").catch(() => {});
-    }
 
     return NextResponse.json(order, { status: 201 });
   }
@@ -413,12 +401,13 @@ export async function POST(req: NextRequest) {
   const isBoatOnlyOrder = primaryItem.kind === "PRIMARY_BOAT";
   const isDefOnlyOrder = primaryItem.kind === "DEF_ONLY";
 
-  let deliveryFeeCents = DELIVERY_FEE_STANDARD_CENTS;
+  const standardDeliveryFee = await getDeliveryFeeCents();
+  let deliveryFeeCents = standardDeliveryFee;
   let subscriptionDelivery = false;
 
   if (isBoatOnlyOrder || isDefOnlyOrder) {
     // Boats and DEF-only orders never get subscription discount
-    deliveryFeeCents = isBoatOnlyOrder ? BOAT_BASE_FEE_CENTS : DELIVERY_FEE_STANDARD_CENTS;
+    deliveryFeeCents = isBoatOnlyOrder ? BOAT_BASE_FEE_CENTS : standardDeliveryFee;
   } else if (activeSubscription) {
     const { weekStart, weekEnd } = getWeekBounds();
     const fillUpsThisWeek = await prisma.order.count({
@@ -570,10 +559,6 @@ export async function POST(req: NextRequest) {
 
   notifyOrderStatus(order.id, scheduledAt ? "PENDING" : "ACTIVE").catch(() => {});
 
-  // Fire SMS if ASAP order (no scheduledAt = active immediately)
-  if (!scheduledAt) {
-    notifyOrderActive(order.id, "ASAP").catch(() => {});
-  }
 
   return NextResponse.json(order, { status: 201 });
 }

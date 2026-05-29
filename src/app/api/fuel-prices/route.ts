@@ -20,11 +20,14 @@ export async function GET() {
   try {
   const session = await auth();
 
-  const [prices, asapSetting, defSettings] = await Promise.all([
+  const [prices, asapSetting, defSettings, deliveryFeeSetting] = await Promise.all([
     prisma.fuelPrice.findMany({ orderBy: { fuelType: "asc" } }),
     prisma.siteSetting.findUnique({ where: { key: "asap_enabled" } }),
     prisma.siteSetting.findMany({ where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } } }),
+    prisma.siteSetting.findUnique({ where: { key: "delivery_fee_cents" } }),
   ]);
+
+  const deliveryFeeCents = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : 1500;
 
   // Build dynamic DEF pricing from admin settings
   const defMap: Record<string, string> = {};
@@ -39,7 +42,7 @@ export async function GET() {
   const result: Record<string, unknown> = {
     prices,
     defSizes,
-    deliveryFeeCents: 1500, // $15 flat delivery fee
+    deliveryFeeCents,
     asapEnabled: asapSetting?.value !== "false", // defaults to true
   };
 

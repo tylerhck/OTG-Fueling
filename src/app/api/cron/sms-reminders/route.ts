@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { notifyOrderActive } from "@/lib/orderActiveSms";
 import { pushDeliveryReminder } from "@/lib/pushNotifications";
 
 /**
- * Cron job: Activate scheduled orders on their delivery day and send SMS.
+ * Cron job: Activate scheduled orders on their delivery day.
  * 
  * Should be called at 6 AM Central daily.
- * Finds all PENDING orders with scheduledAt = today, moves them to ACTIVE,
- * and fires the SMS notification to all recipients.
+ * Finds all PENDING orders with scheduledAt = today and moves them to ACTIVE.
+ * Also sends push notification reminders for upcoming deliveries.
  */
 export async function GET(req: NextRequest) {
   // Verify cron secret
@@ -51,8 +50,6 @@ export async function GET(req: NextRequest) {
         where: { id: order.id },
         data: { status: "ACTIVE" },
       });
-      // Fire SMS to all recipients
-      await notifyOrderActive(order.id, "Scheduled");
       activated++;
     } catch (err) {
       console.error(`Failed to activate order ${order.id}:`, err);

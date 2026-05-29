@@ -30,7 +30,7 @@ interface ServiceSchedule {
 }
 
 const DAY_NAMES = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
-const DELIVERY_FEE = 15;
+
 
 export default function DefOrderPage() {
   const { data: session, status } = useSession();
@@ -63,19 +63,25 @@ export default function DefOrderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const [deliveryFeeCents, setDeliveryFeeCents] = useState(1500);
+
   const isAuthenticated = status === "authenticated";
   const selectedDef = defSizes.find((s) => s.gallons === defGallons)!;
-  const total = DELIVERY_FEE + (selectedDef?.cents ?? 0) / 100;
+  const deliveryFee = deliveryFeeCents / 100;
+  const total = deliveryFee + (selectedDef?.cents ?? 0) / 100;
 
   useEffect(() => {
     fetch("/api/service-schedules")
       .then((r) => r.json())
       .then((data) => setSchedules(Array.isArray(data) ? data : []));
 
-    // Fetch dynamic DEF pricing
+    // Fetch dynamic DEF pricing and delivery fee
     fetch("/api/fuel-prices")
       .then((r) => r.json())
-      .then((data) => { if (data.defSizes) setDefSizes(data.defSizes); })
+      .then((data) => {
+        if (data.defSizes) setDefSizes(data.defSizes);
+        if (data.deliveryFeeCents !== undefined) setDeliveryFeeCents(data.deliveryFeeCents);
+      })
       .catch(() => {});
 
     if (isAuthenticated) {
@@ -183,7 +189,7 @@ export default function DefOrderPage() {
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-2xl font-bold text-slate-900">Order DEF Fluid</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Diesel Exhaust Fluid delivered to your location. $15 delivery fee.
+        Diesel Exhaust Fluid delivered to your location. ${Math.round(deliveryFee)} delivery fee.
       </p>
 
       {error && (

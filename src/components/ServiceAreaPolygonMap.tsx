@@ -17,7 +17,7 @@ export default function ServiceAreaPolygonMap({
   onPolygonChange,
   centerLat = 32.7555,
   centerLng = -97.3308,
-  height = "450px",
+  height = "600px",
   readOnly = false,
 }: ServiceAreaPolygonMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);

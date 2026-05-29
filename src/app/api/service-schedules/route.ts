@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const schedules = await prisma.serviceSchedule.findMany({
       where: { isActive: true },
-      include: { serviceArea: { select: { name: true } } },
+      include: { serviceArea: { select: { id: true, name: true } } },
       orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
     });
     return NextResponse.json(schedules);
