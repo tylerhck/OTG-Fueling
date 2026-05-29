@@ -42,7 +42,7 @@ export default function AdminDashboard() {
     }
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ""}&libraries=visualization`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCmQiUHADayXtjP5wPIX0MdYnrPRdAI7QA&libraries=visualization`;
     script.async = true;
     script.onload = initMap;
     document.head.appendChild(script);
