@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { notifyOrderStatus } from "@/lib/notifications";
+import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 export const dynamic = "force-dynamic";
 
@@ -26,37 +27,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // Standard payment: move to PENDING so admin reviews before confirming
+  // Standard payment: move to ACTIVE (ASAP) or PENDING (scheduled)
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
     const orderId = paymentIntent.metadata.orderId;
 
     if (orderId) {
+      // Check if this is an ASAP order (no scheduledAt) → ACTIVE, else PENDING
+      const existingOrder = await prisma.order.findUnique({ where: { id: orderId }, select: { scheduledAt: true } });
+      const isAsap = !existingOrder?.scheduledAt;
+      const newStatus = isAsap ? "ACTIVE" : "PENDING";
+
       await prisma.order.update({
         where: { id: orderId },
         data: {
-          status: "PENDING",
+          status: newStatus,
           stripePaymentIntentId: paymentIntent.id,
         },
       });
-      // Notify admin / internal — customer is NOT notified until admin confirms
-      notifyOrderStatus(orderId, "PENDING").catch(() => {});
+      notifyOrderStatus(orderId, newStatus).catch(() => {});
+      // Fire SMS for ASAP orders
+      if (isAsap) {
+        notifyOrderActive(orderId, "ASAP").catch(() => {});
+      }
     }
   }
 
-  // Fill-up: card authorized for $1 → save payment method, move to PENDING
+  // Fill-up: card authorized for $1 → save payment method, move to ACTIVE or PENDING
   if (event.type === "payment_intent.amount_capturable_updated") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
     const orderId = paymentIntent.metadata.orderId;
     if (orderId && paymentIntent.metadata.isFillUp === "true") {
+      const existingOrder = await prisma.order.findUnique({ where: { id: orderId }, select: { scheduledAt: true } });
+      const isAsap = !existingOrder?.scheduledAt;
+      const newStatus = isAsap ? "ACTIVE" : "PENDING";
+
       await prisma.order.update({
         where: { id: orderId },
         data: {
-          status: "PENDING",
+          status: newStatus,
           stripePaymentMethodId: paymentIntent.payment_method as string,
         },
       });
-      notifyOrderStatus(orderId, "PENDING").catch(() => {});
+      notifyOrderStatus(orderId, newStatus).catch(() => {});
+      if (isAsap) {
+        notifyOrderActive(orderId, "ASAP").catch(() => {});
+      }
     }
   }
 

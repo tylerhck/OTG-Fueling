@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
           totalCents: authAmountCents, // Will be updated after actual fill
           subscriptionDelivery: true,
           isFillUp: recurring.isFillUp,
+          status: "ACTIVE",
           authAmountCents,
           scheduledAt,
           notes: recurring.notes ? `[Recurring] ${recurring.notes}` : "[Recurring order]",
@@ -225,7 +226,7 @@ export async function POST(req: NextRequest) {
               stripePaymentIntentId: paymentIntent.id,
               stripeCustomerId,
               stripePaymentMethodId: paymentMethod.id,
-              status: "PENDING",
+              status: "ACTIVE",
             },
           });
         } else {
