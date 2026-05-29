@@ -57,7 +57,6 @@ export async function PUT(
   const validStatuses = [
     "PENDING",
     "CONFIRMED",
-    "ACTIVE",
     "IN_PROGRESS",
     "COMPLETED",
     "CANCELLED",
@@ -114,7 +113,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  if (!isAdmin && order.status !== "AWAITING_PAYMENT" && order.status !== "PENDING" && order.status !== "ACTIVE") {
+  if (!isAdmin && order.status !== "AWAITING_PAYMENT" && order.status !== "PENDING") {
     return NextResponse.json({ error: "Cannot cancel an order that is already in progress" }, { status: 400 });
   }
 

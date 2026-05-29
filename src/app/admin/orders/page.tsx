@@ -4,24 +4,22 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getDeliveryWindow, formatCentralTime } from "@/lib/deliveryWindow";
 
-const ACTIVE_STATUSES = ["ACTIVE", "PENDING", "CONFIRMED", "IN_PROGRESS"];
+const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS"];
 const HISTORY_STATUSES = ["COMPLETED", "CANCELLED"];
 
 const STATUS_COLORS: Record<string, string> = {
   AWAITING_PAYMENT: "bg-slate-100 text-slate-500",
   PENDING: "bg-yellow-100 text-yellow-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
-  ACTIVE: "bg-emerald-100 text-emerald-800",
   IN_PROGRESS: "bg-indigo-100 text-indigo-800",
   COMPLETED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
 };
 
 const STATUS_PRIORITY: Record<string, number> = {
-  ACTIVE: 0,
-  PENDING: 1,
-  CONFIRMED: 2,
-  IN_PROGRESS: 3,
+  PENDING: 0,
+  CONFIRMED: 1,
+  IN_PROGRESS: 2,
 };
 
 interface Order {
@@ -390,31 +388,6 @@ export default function AdminOrders() {
                         ✕
                       </button>
                     </div>
-                  )}
-                  {order.status === "ACTIVE" && (
-                    <>
-                      <button
-                        onClick={() => updateStatus(order.id, "CONFIRMED")}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => updateStatus(order.id, "IN_PROGRESS")}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        Start Delivery
-                      </button>
-                      <button
-                        onClick={() => updateStatus(order.id, "CANCELLED")}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </>
                   )}
                   {order.status === "CONFIRMED" && (
                     <button

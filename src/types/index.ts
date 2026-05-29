@@ -4,7 +4,6 @@ export type OrderStatus =
   | "AWAITING_PAYMENT"
   | "PENDING"
   | "CONFIRMED"
-  | "ACTIVE"
   | "IN_PROGRESS"
   | "COMPLETED"
   | "CANCELLED";
@@ -34,7 +33,6 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   AWAITING_PAYMENT: "Awaiting Payment",
   PENDING: "Paid – Pending Review",
   CONFIRMED: "Confirmed",
-  ACTIVE: "Active",
   IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",

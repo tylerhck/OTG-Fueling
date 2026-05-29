@@ -48,16 +48,10 @@ export async function GET(req: NextRequest) {
 
   for (const order of orders) {
     try {
-      // Move order to ACTIVE status (this is what shows up in the Active tab)
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: "ACTIVE" },
-      });
-      // Send SMS notification
       await notifyOrderActive(order.id, "Scheduled");
       sent++;
     } catch (err) {
-      console.error(`Failed to activate/notify order ${order.id}:`, err);
+      console.error(`Failed to notify order ${order.id}:`, err);
     }
   }
 

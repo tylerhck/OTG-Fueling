@@ -118,7 +118,6 @@ export async function POST(req: NextRequest) {
         deliveryFeeCents,
         totalCents,
         isFillUp: false,
-        status: scheduledAt ? "PENDING" : "ACTIVE",
         pinLat,
         pinLng,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -196,7 +195,6 @@ export async function POST(req: NextRequest) {
         deliveryFeeCents,
         totalCents,
         isFillUp: isFillUp ?? false,
-        status: scheduledAt ? "PENDING" : "ACTIVE",
         authAmountCents,
         pinLat,
         pinLng,
@@ -276,7 +274,6 @@ export async function POST(req: NextRequest) {
         pricePerGallonCents,
         deliveryFeeCents,
         totalCents,
-        status: scheduledAt ? "PENDING" : "ACTIVE",
         pinLat,
         pinLng,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -562,7 +559,6 @@ export async function POST(req: NextRequest) {
       totalCents,
       subscriptionDelivery,
       isFillUp: primaryItem.isFillUp ?? false,
-      status: scheduledAt ? "PENDING" : "ACTIVE",
       authAmountCents,
       pinLat,
       pinLng,
@@ -577,7 +573,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  notifyOrderStatus(order.id, scheduledAt ? "PENDING" : "ACTIVE").catch(() => {});
+  notifyOrderStatus(order.id, "PENDING").catch(() => {});
 
   // Fire SMS if ASAP order (no scheduledAt = active immediately)
   if (!scheduledAt) {
