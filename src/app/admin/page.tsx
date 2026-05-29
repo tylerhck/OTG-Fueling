@@ -21,7 +21,7 @@ interface Stats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const mapInitialized = useRef(false);
 
   useEffect(() => {
     fetch("/api/admin/stats")
@@ -32,42 +32,71 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!stats?.heatMapPoints?.length || !mapRef.current) return;
-    if (mapInstanceRef.current) return; // already initialized
+    if (mapInitialized.current) return;
 
-    // Load Google Maps script
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      initMap();
-      return;
+    // Load Leaflet CSS
+    const existingCss = document.querySelector('link[href*="leaflet"]');
+    if (!existingCss) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
     }
 
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCmQiUHADayXtjP5wPIX0MdYnrPRdAI7QA&libraries=visualization`;
-    script.async = true;
-    script.onload = initMap;
-    document.head.appendChild(script);
+    // Load Leaflet JS
+    const existingScript = document.querySelector('script[src*="leaflet"]');
+    if (existingScript) {
+      initMap();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.async = true;
+      script.onload = () => {
+        // Load leaflet.heat plugin for heat map
+        const heatScript = document.createElement("script");
+        heatScript.src = "https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js";
+        heatScript.async = true;
+        heatScript.onload = initMap;
+        document.head.appendChild(heatScript);
+      };
+      document.head.appendChild(script);
+    }
 
     function initMap() {
-      if (!mapRef.current || !stats?.heatMapPoints?.length) return;
-      const map = new google.maps.Map(mapRef.current, {
-        center: { lat: 32.87, lng: -97.32 }, // Fort Worth area
-        zoom: 11,
-        mapTypeId: "roadmap",
-        styles: [
-          { featureType: "poi", stylers: [{ visibility: "off" }] },
-        ],
-      });
-      mapInstanceRef.current = map;
+      if (!mapRef.current || !stats?.heatMapPoints?.length || mapInitialized.current) return;
+      mapInitialized.current = true;
 
-      const heatmapData = stats.heatMapPoints.map(
-        (p) => new google.maps.LatLng(p.lat, p.lng)
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const L = (window as any).L;
+      if (!L) return;
 
-      new google.maps.visualization.HeatmapLayer({
-        data: heatmapData,
-        map,
-        radius: 30,
-        opacity: 0.7,
+      const map = L.map(mapRef.current).setView([32.87, -97.32], 11);
+
+      // Free OpenStreetMap tiles - no API key needed
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Add heat map layer
+      const heatData = stats.heatMapPoints.map((p) => [p.lat, p.lng, 1]);
+      L.heatLayer(heatData, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17,
+        gradient: { 0.4: "blue", 0.6: "cyan", 0.7: "lime", 0.8: "yellow", 1.0: "red" },
+      }).addTo(map);
+
+      // Also add individual markers for each delivery
+      stats.heatMapPoints.forEach((p) => {
+        L.circleMarker([p.lat, p.lng], {
+          radius: 6,
+          fillColor: "#E53935",
+          color: "#fff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8,
+        }).addTo(map);
       });
     }
   }, [stats]);
