@@ -268,8 +268,8 @@ export default function AdminOrders() {
                     {" "}
                     <a
                       href={order.pinLat && order.pinLng
-                        ? `https://maps.google.com/?q=${order.pinLat},${order.pinLng}`
-                        : `https://maps.google.com/?q=${encodeURIComponent(`${order.address?.street}, ${order.address?.city}, ${order.address?.state || ''} ${order.address?.zip || ''}`)}`
+                        ? `https://maps.apple.com/?ll=${order.pinLat},${order.pinLng}&q=Delivery`
+                        : `https://maps.apple.com/?q=${encodeURIComponent(`${order.address?.street}, ${order.address?.city}, ${order.address?.state || ''} ${order.address?.zip || ''}`)}`
                       }
                       target="_blank"
                       rel="noopener noreferrer"
