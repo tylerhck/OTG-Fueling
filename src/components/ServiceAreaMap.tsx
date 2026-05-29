@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+interface ExistingArea {
+  id: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  radiusMiles: number;
+  polygon: [number, number][] | null;
+}
 
 interface ServiceAreaMapProps {
   centerLat: number;
@@ -10,6 +19,8 @@ interface ServiceAreaMapProps {
   radiusMiles: number;
   onCenterChange?: (lat: number, lng: number) => void;
   height?: string;
+  existingAreas?: ExistingArea[];
+  editingAreaId?: string | null;
 }
 
 export default function ServiceAreaMap({
@@ -17,12 +28,51 @@ export default function ServiceAreaMap({
   centerLng,
   radiusMiles,
   onCenterChange,
-  height = "600px",
+  height = "700px",
+  existingAreas = [],
+  editingAreaId = null,
 }: ServiceAreaMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const markerRef = useRef<L.CircleMarker | null>(null);
+  const existingLayersRef = useRef<L.Layer[]>([]);
+
+  const drawExistingAreas = useCallback((map: L.Map, areas: ExistingArea[], skipId: string | null) => {
+    existingLayersRef.current.forEach((l) => l.remove());
+    existingLayersRef.current = [];
+
+    areas.forEach((area) => {
+      if (skipId && area.id === skipId) return;
+
+      if (area.polygon && Array.isArray(area.polygon) && area.polygon.length >= 3) {
+        const poly = L.polygon(
+          area.polygon.map((p) => [p[0], p[1]] as L.LatLngTuple),
+          {
+            color: "#6b7280",
+            fillColor: "#d1d5db",
+            fillOpacity: 0.15,
+            weight: 2,
+            dashArray: "5, 5",
+          }
+        ).addTo(map);
+        poly.bindTooltip(area.name, { sticky: true, className: "existing-area-label" });
+        existingLayersRef.current.push(poly);
+      } else {
+        const radiusMeters = area.radiusMiles * 1609.34;
+        const circle = L.circle([area.centerLat, area.centerLng], {
+          radius: radiusMeters,
+          color: "#6b7280",
+          fillColor: "#d1d5db",
+          fillOpacity: 0.15,
+          weight: 2,
+          dashArray: "5, 5",
+        }).addTo(map);
+        circle.bindTooltip(area.name, { sticky: true, className: "existing-area-label" });
+        existingLayersRef.current.push(circle);
+      }
+    });
+  }, []);
 
   // Initialize map once
   useEffect(() => {
@@ -37,12 +87,13 @@ export default function ServiceAreaMap({
       maxZoom: 20,
     }).addTo(map);
 
-    // Click handler to reposition center
     if (onCenterChange) {
       map.on("click", (e: L.LeafletMouseEvent) => {
         onCenterChange(e.latlng.lat, e.latlng.lng);
       });
     }
+
+    drawExistingAreas(map, existingAreas, editingAreaId);
 
     return () => {
       map.remove();
@@ -56,7 +107,6 @@ export default function ServiceAreaMap({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // Remove old
     if (circleRef.current) {
       circleRef.current.remove();
       circleRef.current = null;
@@ -76,7 +126,6 @@ export default function ServiceAreaMap({
       weight: 2,
     }).addTo(map);
 
-    // Small dot for center
     markerRef.current = L.circleMarker([centerLat, centerLng], {
       radius: 6,
       color: "#ea580c",
@@ -85,15 +134,38 @@ export default function ServiceAreaMap({
       weight: 2,
     }).addTo(map);
 
-    // Fit map to the circle bounds
     map.fitBounds(circleRef.current.getBounds(), { padding: [20, 20] });
   }, [centerLat, centerLng, radiusMiles]);
 
+  // Redraw existing areas when they change
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    drawExistingAreas(map, existingAreas, editingAreaId);
+  }, [existingAreas, editingAreaId, drawExistingAreas]);
+
   return (
-    <div
-      ref={mapRef}
-      style={{ height, width: "100%" }}
-      className="rounded-xl z-0 border border-slate-200"
-    />
+    <>
+      <div
+        ref={mapRef}
+        style={{ height, width: "100%" }}
+        className="rounded-xl z-0 border border-slate-200"
+      />
+      <style jsx global>{`
+        .existing-area-label {
+          background: #374151 !important;
+          border: none !important;
+          color: white !important;
+          font-size: 11px !important;
+          font-weight: 600 !important;
+          padding: 2px 8px !important;
+          border-radius: 6px !important;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+        }
+        .existing-area-label::before {
+          display: none !important;
+        }
+      `}</style>
+    </>
   );
 }

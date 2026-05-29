@@ -12,7 +12,7 @@ interface Order {
   fuelType: string;
   gallons: number;
   totalCents: number;
-  pricePerGallonCents: number;
+  pricePerGallonCents: number | null;
   deliveryFeeCents: number;
   status: string;
   scheduledAt: string | null;
@@ -20,6 +20,7 @@ interface Order {
   createdAt: string;
   vehicle: { make: string; model: string; year: number; nickname: string | null } | null;
   address: { street: string; city: string; state: string; zip: string; label: string | null } | null;
+  items?: { pricePerGallonCents: number; fuelType: string; gallons: number | null }[];
 }
 
 const statusColors: Record<string, string> = {
@@ -127,11 +128,16 @@ export default function OrdersPage() {
                     <h3 className="font-semibold text-gray-900">
                       {order.gallons} gal{" "}
                       {FUEL_TYPE_LABELS[order.fuelType as keyof typeof FUEL_TYPE_LABELS]}
-                      {order.pricePerGallonCents > 0 && (
-                        <span className="ml-2 text-sm font-normal text-gray-500">
-                          @ ${(order.pricePerGallonCents / 100).toFixed(2)}/gal
-                        </span>
-                      )}
+                      {(() => {
+                        const ppg = order.pricePerGallonCents && order.pricePerGallonCents > 0
+                          ? order.pricePerGallonCents
+                          : order.items?.find((i) => i.pricePerGallonCents > 0)?.pricePerGallonCents ?? null;
+                        return ppg ? (
+                          <span className="ml-2 text-sm font-normal text-gray-500">
+                            @ ${(ppg / 100).toFixed(2)}/gal
+                          </span>
+                        ) : null;
+                      })()}
                     </h3>
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${

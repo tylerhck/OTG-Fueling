@@ -15,7 +15,6 @@ const adminLinks = [
   { href: "/admin/recurring", label: "Recurring" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/waitlist", label: "Waitlist" },
-  { href: "/admin/sms-alerts", label: "SMS Alerts" },
 ];
 
 export default function AdminLayout({

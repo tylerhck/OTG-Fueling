@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 const ServiceAreaMap = dynamic(() => import("@/components/ServiceAreaMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[600px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+    <div className="flex h-[700px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-red-500" />
     </div>
   ),
@@ -15,7 +15,7 @@ const ServiceAreaMap = dynamic(() => import("@/components/ServiceAreaMap"), {
 const ServiceAreaPolygonMap = dynamic(() => import("@/components/ServiceAreaPolygonMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[600px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+    <div className="flex h-[700px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-red-500" />
     </div>
   ),
@@ -364,6 +364,8 @@ export default function ServiceAreaAdmin() {
               centerLng={form.centerLng}
               radiusMiles={form.radiusMiles}
               onCenterChange={handleMapClick}
+              existingAreas={areas}
+              editingAreaId={editingId}
             />
           ) : (
             <ServiceAreaPolygonMap
@@ -371,6 +373,8 @@ export default function ServiceAreaAdmin() {
               onPolygonChange={setPolygonPoints}
               centerLat={form.centerLat}
               centerLng={form.centerLng}
+              existingAreas={areas}
+              editingAreaId={editingId}
             />
           )}
         </div>

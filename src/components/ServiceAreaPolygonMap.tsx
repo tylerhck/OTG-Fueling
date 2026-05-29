@@ -3,6 +3,15 @@ import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+interface ExistingArea {
+  id: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  radiusMiles: number;
+  polygon: [number, number][] | null;
+}
+
 interface ServiceAreaPolygonMapProps {
   polygon: [number, number][];
   onPolygonChange?: (polygon: [number, number][]) => void;
@@ -10,6 +19,8 @@ interface ServiceAreaPolygonMapProps {
   centerLng?: number;
   height?: string;
   readOnly?: boolean;
+  existingAreas?: ExistingArea[];
+  editingAreaId?: string | null;
 }
 
 export default function ServiceAreaPolygonMap({
@@ -17,18 +28,58 @@ export default function ServiceAreaPolygonMap({
   onPolygonChange,
   centerLat = 32.7555,
   centerLng = -97.3308,
-  height = "600px",
+  height = "700px",
   readOnly = false,
+  existingAreas = [],
+  editingAreaId = null,
 }: ServiceAreaPolygonMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
   const markersRef = useRef<L.CircleMarker[]>([]);
+  const existingLayersRef = useRef<L.Layer[]>([]);
   const polygonRef = useRef<[number, number][]>(polygon);
 
   useEffect(() => {
     polygonRef.current = polygon;
   }, [polygon]);
+
+  const drawExistingAreas = useCallback((map: L.Map, areas: ExistingArea[], skipId: string | null) => {
+    // Remove old existing area layers
+    existingLayersRef.current.forEach((l) => l.remove());
+    existingLayersRef.current = [];
+
+    areas.forEach((area) => {
+      if (skipId && area.id === skipId) return; // Don't draw the one being edited
+
+      if (area.polygon && Array.isArray(area.polygon) && area.polygon.length >= 3) {
+        const poly = L.polygon(
+          area.polygon.map((p) => [p[0], p[1]] as L.LatLngTuple),
+          {
+            color: "#6b7280",
+            fillColor: "#d1d5db",
+            fillOpacity: 0.15,
+            weight: 2,
+            dashArray: "5, 5",
+          }
+        ).addTo(map);
+        poly.bindTooltip(area.name, { sticky: true, className: "existing-area-label" });
+        existingLayersRef.current.push(poly);
+      } else {
+        const radiusMeters = area.radiusMiles * 1609.34;
+        const circle = L.circle([area.centerLat, area.centerLng], {
+          radius: radiusMeters,
+          color: "#6b7280",
+          fillColor: "#d1d5db",
+          fillOpacity: 0.15,
+          weight: 2,
+          dashArray: "5, 5",
+        }).addTo(map);
+        circle.bindTooltip(area.name, { sticky: true, className: "existing-area-label" });
+        existingLayersRef.current.push(circle);
+      }
+    });
+  }, []);
 
   const drawPolygon = useCallback((map: L.Map, points: [number, number][]) => {
     if (polygonLayerRef.current) {
@@ -98,6 +149,9 @@ export default function ServiceAreaPolygonMap({
       });
     }
 
+    // Draw existing saved areas as background
+    drawExistingAreas(map, existingAreas, editingAreaId);
+
     if (polygon.length > 0) {
       drawPolygon(map, polygon);
       if (polygon.length >= 3) {
@@ -119,6 +173,13 @@ export default function ServiceAreaPolygonMap({
     drawPolygon(map, polygon);
   }, [polygon, drawPolygon]);
 
+  // Redraw existing areas when they change
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    drawExistingAreas(map, existingAreas, editingAreaId);
+  }, [existingAreas, editingAreaId, drawExistingAreas]);
+
   return (
     <div>
       <div
@@ -138,6 +199,19 @@ export default function ServiceAreaPolygonMap({
           box-shadow: none !important;
         }
         .polygon-vertex-label::before {
+          display: none !important;
+        }
+        .existing-area-label {
+          background: #374151 !important;
+          border: none !important;
+          color: white !important;
+          font-size: 11px !important;
+          font-weight: 600 !important;
+          padding: 2px 8px !important;
+          border-radius: 6px !important;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+        }
+        .existing-area-label::before {
           display: none !important;
         }
       `}</style>
