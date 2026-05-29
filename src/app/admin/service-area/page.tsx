@@ -191,7 +191,7 @@ export default function ServiceAreaAdmin() {
         Define where you deliver. Draw a polygon boundary or use a circle radius.
       </p>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 grid-cols-1">
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="font-semibold text-slate-900">
