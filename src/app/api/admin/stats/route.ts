@@ -15,20 +15,27 @@ export async function GET() {
     totalOrders,
     pendingOrders,
     todayOrders,
+    completedOrders,
+    cancelledOrders,
     revenueResult,
     totalCustomers,
+    totalSubscribers,
     gallonsResult,
     pageViews,
     uniqueVisitors,
+    heatMapData,
   ] = await Promise.all([
     prisma.order.count({ where: { status: { not: "AWAITING_PAYMENT" } } }),
     prisma.order.count({ where: { status: "PENDING" } }),
     prisma.order.count({ where: { createdAt: { gte: today }, status: { not: "AWAITING_PAYMENT" } } }),
+    prisma.order.count({ where: { status: "COMPLETED" } }),
+    prisma.order.count({ where: { status: "CANCELLED" } }),
     prisma.order.aggregate({
       _sum: { totalCents: true },
       where: { status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] } },
     }),
     prisma.user.count({ where: { role: "CUSTOMER" } }),
+    prisma.subscription.count({ where: { status: "ACTIVE" } }),
     // Total gallons delivered across all completed order items
     prisma.orderItem.aggregate({
       _sum: { gallons: true },
@@ -38,16 +45,33 @@ export async function GET() {
     }),
     prisma.siteSetting.findUnique({ where: { key: "page_views_total" } }),
     prisma.siteSetting.findUnique({ where: { key: "unique_visitors_total" } }),
+    prisma.order.findMany({
+      where: { pinLat: { not: null }, pinLng: { not: null }, status: { not: "AWAITING_PAYMENT" } },
+      select: { pinLat: true, pinLng: true, status: true },
+    }),
   ]);
+
+  const totalNonAwaitingOrders = totalOrders;
+  const cancellationRate = totalNonAwaitingOrders > 0
+    ? Math.round((cancelledOrders / totalNonAwaitingOrders) * 100)
+    : 0;
 
   return NextResponse.json({
     totalOrders,
     pendingOrders,
     todayOrders,
+    completedOrders,
+    cancelledOrders,
+    cancellationRate,
     totalRevenueCents: revenueResult._sum.totalCents || 0,
     totalCustomers,
+    totalSubscribers,
     totalGallons: gallonsResult._sum.gallons || 0,
     pageViewsTotal: parseInt(pageViews?.value || "0", 10),
     uniqueVisitorsTotal: parseInt(uniqueVisitors?.value || "0", 10),
+    heatMapPoints: heatMapData.map((o: { pinLat: number | null; pinLng: number | null }) => ({
+      lat: o.pinLat,
+      lng: o.pinLng,
+    })),
   });
 }
