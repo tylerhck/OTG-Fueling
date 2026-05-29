@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderActive } from "@/lib/orderActiveSms";
+import { pushDeliveryReminder } from "@/lib/pushNotifications";
 
 /**
  * Cron job: Activate scheduled orders on their delivery day and send SMS.
@@ -58,10 +59,54 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // --- Push notification reminders (24h and 1h before delivery) ---
+  let reminders24h = 0;
+  let reminders1h = 0;
+
+  // Find orders scheduled ~24 hours from now (23-25h window)
+  const in23h = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+  const in25h = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+  const orders24h = await prisma.order.findMany({
+    where: {
+      scheduledAt: { gte: in23h, lt: in25h },
+      status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+      userId: { not: null },
+    },
+    select: { id: true, userId: true },
+  });
+
+  for (const o of orders24h) {
+    if (o.userId) {
+      await pushDeliveryReminder(o.userId, o.id, "24h").catch(() => {});
+      reminders24h++;
+    }
+  }
+
+  // Find orders scheduled ~1 hour from now (45min-75min window)
+  const in45m = new Date(now.getTime() + 45 * 60 * 1000);
+  const in75m = new Date(now.getTime() + 75 * 60 * 1000);
+  const orders1h = await prisma.order.findMany({
+    where: {
+      scheduledAt: { gte: in45m, lt: in75m },
+      status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+      userId: { not: null },
+    },
+    select: { id: true, userId: true },
+  });
+
+  for (const o of orders1h) {
+    if (o.userId) {
+      await pushDeliveryReminder(o.userId, o.id, "1h").catch(() => {});
+      reminders1h++;
+    }
+  }
+
   return NextResponse.json({
     success: true,
     found: orders.length,
     activated,
+    reminders24h,
+    reminders1h,
     date: todayStr,
     timestamp: now.toISOString(),
   });

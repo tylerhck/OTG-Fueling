@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderStatus } from "@/lib/notifications";
+import { pushOrderStatus } from "@/lib/pushNotifications";
 
 export async function GET(
   _req: NextRequest,
@@ -80,8 +81,9 @@ export async function PUT(
     },
   });
 
-  // Fire-and-forget notification
+  // Fire-and-forget notifications (email + push)
   notifyOrderStatus(order.id, status).catch(() => {});
+  pushOrderStatus(order.id, status).catch(() => {});
 
   return NextResponse.json(order);
 }

@@ -37,6 +37,7 @@ enum OrderStatus {
 enum NotificationType {
   EMAIL
   SMS
+  PUSH
 }
 
 enum NotificationStatus {
@@ -75,6 +76,7 @@ model User {
   addresses     Address[]
   orders        Order[]
   notifications Notification[]
+  pushTokens    PushToken[]
     subscriptions Subscription[]
   recurringOrders RecurringOrder[]
   passwordResetTokens PasswordResetToken[]
@@ -394,4 +396,19 @@ model SmsRecipient {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("sms_recipients")
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String
+  platform  String   @default("ios")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@map("push_tokens")
 }
