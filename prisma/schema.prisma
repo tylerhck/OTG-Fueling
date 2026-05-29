@@ -200,7 +200,6 @@ model Order {
   pinLat Float? @map("pin_lat")
   pinLng Float? @map("pin_lng")
 
-  smsNotifiedAt        DateTime?   @map("sms_notified_at")
 
   // Guest checkout fields (used when userId is null)
   guestName    String? @map("guest_name")
