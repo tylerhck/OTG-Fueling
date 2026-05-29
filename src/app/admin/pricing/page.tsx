@@ -26,7 +26,6 @@ interface ExternalPrice {
 export default function PricingAdmin() {
   const [prices, setPrices] = useState<FuelPrice[]>([]);
   const [deliveryFeeDollars, setDeliveryFeeDollars] = useState("5.00");
-  const [defaultMarkup, setDefaultMarkup] = useState("10");
   const [asapEnabled, setAsapEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,7 +38,6 @@ export default function PricingAdmin() {
   // Edit form for individual fuel types
   const [editFuel, setEditFuel] = useState<string | null>(null);
   const [editBase, setEditBase] = useState("");
-  const [editMarkup, setEditMarkup] = useState("");
 
   // DEF pricing
   const [defPrice2_5, setDefPrice2_5] = useState("30.00");
@@ -57,7 +55,6 @@ export default function PricingAdmin() {
 
     setPrices(priceData.prices || []);
     setDeliveryFeeDollars((settingsData.deliveryFeeCents / 100).toFixed(2));
-    setDefaultMarkup(String(settingsData.defaultMarkupPercent));
     setAsapEnabled(settingsData.asapEnabled !== false);
     setDefPrice2_5((settingsData.defPriceCents2_5 / 100).toFixed(2));
     setDefPrice5((settingsData.defPriceCents5 / 100).toFixed(2));
@@ -107,8 +104,6 @@ export default function PricingAdmin() {
     setSaving(true);
     setError("");
 
-    const markup = parseFloat(defaultMarkup) || 10;
-
     for (const ext of externalPrices) {
       await fetch("/api/fuel-prices", {
         method: "POST",
@@ -116,13 +111,13 @@ export default function PricingAdmin() {
         body: JSON.stringify({
           fuelType: ext.fuelType,
           basePriceCents: ext.priceCents,
-          markupPercent: markup,
+          markupPercent: 0,
         }),
       });
     }
 
     setExternalPrices([]);
-    setSuccess("Prices updated from market data!");
+    setSuccess("Prices applied!");
     await loadData();
     setSaving(false);
     setTimeout(() => setSuccess(""), 3000);
@@ -133,15 +128,9 @@ export default function PricingAdmin() {
     setError("");
 
     const basePriceCents = Math.round(parseFloat(editBase) * 100);
-    const markupPercent = parseFloat(editMarkup);
 
     if (isNaN(basePriceCents) || basePriceCents <= 0) {
-      setError("Base price must be a positive number");
-      setSaving(false);
-      return;
-    }
-    if (isNaN(markupPercent) || markupPercent < 0) {
-      setError("Markup must be 0 or greater");
+      setError("Price must be a positive number");
       setSaving(false);
       return;
     }
@@ -149,7 +138,7 @@ export default function PricingAdmin() {
     const res = await fetch("/api/fuel-prices", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fuelType, basePriceCents, markupPercent }),
+      body: JSON.stringify({ fuelType, basePriceCents, markupPercent: 0 }),
     });
 
     if (res.ok) {
@@ -170,15 +159,9 @@ export default function PricingAdmin() {
     setError("");
 
     const feeCents = Math.round(parseFloat(deliveryFeeDollars) * 100);
-    const markup = parseFloat(defaultMarkup);
 
     if (isNaN(feeCents) || feeCents < 0) {
       setError("Delivery fee must be 0 or greater");
-      setSaving(false);
-      return;
-    }
-    if (isNaN(markup) || markup < 0) {
-      setError("Markup must be 0 or greater");
       setSaving(false);
       return;
     }
@@ -188,7 +171,7 @@ export default function PricingAdmin() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         deliveryFeeCents: feeCents,
-        defaultMarkupPercent: markup,
+        defaultMarkupPercent: 0,
         asapEnabled,
       }),
     });
@@ -207,14 +190,12 @@ export default function PricingAdmin() {
   function startEdit(price: FuelPrice) {
     setEditFuel(price.fuelType);
     setEditBase((price.basePriceCents / 100).toFixed(2));
-    setEditMarkup(String(price.markupPercent));
     setError("");
   }
 
   function startNew(fuelType: string) {
     setEditFuel(fuelType);
     setEditBase("");
-    setEditMarkup(defaultMarkup);
     setError("");
   }
 
@@ -244,46 +225,28 @@ export default function PricingAdmin() {
         </div>
       )}
 
-      {/* Delivery Fee & Markup Settings */}
+      {/* Delivery Fee & Settings */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">Delivery & Markup Settings</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Delivery Settings</h2>
         <p className="mt-1 text-sm text-slate-500">
           These settings apply to all new orders.
         </p>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Delivery Fee ($)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={deliveryFeeDollars}
-              onChange={(e) => setDeliveryFeeDollars(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-            />
-            <p className="mt-1 text-xs text-slate-400">
-              Flat fee charged per delivery (e.g., 5.00 = $5.00)
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Default Markup (%)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              value={defaultMarkup}
-              onChange={(e) => setDefaultMarkup(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-            />
-            <p className="mt-1 text-xs text-slate-400">
-              Default markup applied on base gas price (e.g., 10 = +10%)
-            </p>
-          </div>
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700">
+            Delivery Fee ($)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={deliveryFeeDollars}
+            onChange={(e) => setDeliveryFeeDollars(e.target.value)}
+            className="mt-1 w-full max-w-xs rounded-lg border px-3 py-2"
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Flat fee charged per delivery (e.g., 5.00 = $5.00)
+          </p>
         </div>
 
         <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -343,10 +306,7 @@ export default function PricingAdmin() {
                       Fuel Type
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
-                      Market Price
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
-                      With {defaultMarkup}% Markup
+                      Price
                     </th>
                   </tr>
                 </thead>
@@ -354,11 +314,8 @@ export default function PricingAdmin() {
                   {externalPrices.map((p) => (
                     <tr key={p.fuelType}>
                       <td className="px-4 py-3 text-sm font-medium">{p.label}</td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-3 text-sm font-medium text-green-700">
                         ${p.pricePerGallon.toFixed(2)}/gal
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600">
-                        ${(p.pricePerGallon * (1 + parseFloat(defaultMarkup) / 100)).toFixed(2)}/gal
                       </td>
                     </tr>
                   ))}
@@ -388,7 +345,7 @@ export default function PricingAdmin() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Current Fuel Prices</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Click &quot;Edit&quot; to manually override any price. Customer price = base price + markup %.
+          Click &quot;Edit&quot; to manually override any price.
         </p>
 
         {prices.length === 0 && missingTypes.length === 0 ? (
@@ -402,41 +359,20 @@ export default function PricingAdmin() {
                     <p className="text-sm font-semibold text-gray-900">
                       {FUEL_TYPE_LABELS[p.fuelType as FuelType] || p.fuelType}
                     </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500">Base Price</label>
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="text-sm text-slate-400">$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            value={editBase}
-                            onChange={(e) => setEditBase(e.target.value)}
-                            className="w-full rounded-lg border px-3 py-2 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500">Markup</label>
-                        <div className="mt-1 flex items-center gap-1">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            value={editMarkup}
-                            onChange={(e) => setEditMarkup(e.target.value)}
-                            className="w-full rounded-lg border px-3 py-2 text-sm"
-                          />
-                          <span className="text-sm text-slate-400">%</span>
-                        </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500">Price per Gallon</label>
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-sm text-slate-400">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={editBase}
+                          onChange={(e) => setEditBase(e.target.value)}
+                          className="w-full max-w-xs rounded-lg border px-3 py-2 text-sm"
+                        />
                       </div>
                     </div>
-                    {editBase && editMarkup && (
-                      <p className="text-sm font-medium text-red-600">
-                        Customer: ${(parseFloat(editBase) * (1 + parseFloat(editMarkup) / 100)).toFixed(2)}/gal
-                      </p>
-                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => savePrice(p.fuelType)}
@@ -460,7 +396,7 @@ export default function PricingAdmin() {
                         {FUEL_TYPE_LABELS[p.fuelType as FuelType] || p.fuelType}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500">
-                        Base: ${(p.basePriceCents / 100).toFixed(2)} &middot; Markup: {p.markupPercent}% &middot; Updated: {new Date(p.updatedAt).toLocaleDateString()}
+                        Updated: {new Date(p.updatedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -487,41 +423,20 @@ export default function PricingAdmin() {
                     <p className="text-sm font-semibold text-gray-900">
                       {FUEL_TYPE_LABELS[ft]}
                     </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500">Base Price</label>
-                        <div className="mt-1 flex items-center gap-1">
-                          <span className="text-sm text-slate-400">$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            value={editBase}
-                            onChange={(e) => setEditBase(e.target.value)}
-                            className="w-full rounded-lg border px-3 py-2 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500">Markup</label>
-                        <div className="mt-1 flex items-center gap-1">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            value={editMarkup}
-                            onChange={(e) => setEditMarkup(e.target.value)}
-                            className="w-full rounded-lg border px-3 py-2 text-sm"
-                          />
-                          <span className="text-sm text-slate-400">%</span>
-                        </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500">Price per Gallon</label>
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-sm text-slate-400">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={editBase}
+                          onChange={(e) => setEditBase(e.target.value)}
+                          className="w-full max-w-xs rounded-lg border px-3 py-2 text-sm"
+                        />
                       </div>
                     </div>
-                    {editBase && editMarkup && (
-                      <p className="text-sm font-medium text-red-600">
-                        Customer: ${(parseFloat(editBase) * (1 + parseFloat(editMarkup) / 100)).toFixed(2)}/gal
-                      </p>
-                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => savePrice(ft)}
@@ -631,16 +546,13 @@ export default function PricingAdmin() {
         <h3 className="text-sm font-semibold text-slate-700">How Pricing Works</h3>
         <ul className="mt-2 space-y-1 text-sm text-slate-600">
           <li>
-            <strong>Base Price</strong> — your cost per gallon (set manually or fetched from market data)
-          </li>
-          <li>
-            <strong>Markup %</strong> — percentage added on top of base price (e.g., 10% on $3.00 = $3.30 customer price)
+            <strong>Fuel Prices</strong> — pulled daily at 5 AM from QuikTrip (Basswood & I-35) or set manually
           </li>
           <li>
             <strong>Delivery Fee</strong> — flat fee added to every order (shown separately to customers)
           </li>
           <li>
-            <strong>Customer Total</strong> = (Customer Price x Gallons) + Delivery Fee
+            <strong>Customer Total</strong> = (Price per Gallon x Gallons) + Delivery Fee
           </li>
         </ul>
       </div>
