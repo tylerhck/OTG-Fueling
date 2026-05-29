@@ -11,7 +11,9 @@ const recurringOrderSchema = z.object({
   isFillUp: z.boolean().default(true),
   gallons: z.number().positive().max(50).optional(),
   dayOfWeek: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]),
-  preferredTime: z.string().regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format"),
+  preferredTime: z.string().regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format").optional(),
+  windowFrom: z.string().regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format"),
+  windowTo: z.string().regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format"),
   notes: z.string().max(500).optional(),
 });
 
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { vehicleId, boatId, addressId, fuelType, isFillUp, gallons, dayOfWeek, preferredTime, notes } = parsed.data;
+  const { vehicleId, boatId, addressId, fuelType, isFillUp, gallons, dayOfWeek, preferredTime, windowFrom, windowTo, notes } = parsed.data;
 
   // Verify address belongs to user
   const address = await prisma.address.findFirst({
@@ -89,7 +91,9 @@ export async function POST(req: NextRequest) {
       isFillUp,
       gallons: isFillUp ? null : gallons,
       dayOfWeek,
-      preferredTime,
+      preferredTime: windowFrom,
+      windowFrom,
+      windowTo,
       notes: notes || null,
     },
     include: {
@@ -168,10 +172,14 @@ export async function PUT(req: NextRequest) {
     );
   }
 
+  const { windowFrom: wf, windowTo: wt, ...restData } = parsed.data;
   const updated = await prisma.recurringOrder.update({
     where: { id },
     data: {
-      ...parsed.data,
+      ...restData,
+      preferredTime: wf,
+      windowFrom: wf,
+      windowTo: wt,
       isActive: isActive ?? existing.isActive,
     },
     include: {

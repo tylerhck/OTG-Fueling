@@ -107,6 +107,8 @@ const orderItemSchema = z.object({
 export const orderSchema = z.object({
   addressId: z.string().min(1),
   scheduledAt: z.string().datetime().optional(),
+  availableFrom: z.string().optional(),
+  availableTo: z.string().optional(),
   notes: z.string().max(500).optional(),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
 });
@@ -115,6 +117,8 @@ export const guestOrderSchema = z.object({
   fuelType: z.enum(["REGULAR_87", "PREMIUM_93", "DIESEL"]),
   gallons: z.number().positive().max(50),
   scheduledAt: z.string().datetime().optional(),
+  availableFrom: z.string().optional(),
+  availableTo: z.string().optional(),
   notes: z.string().max(500).optional(),
   // Guest contact
   guestName: z.string().min(1, "Name is required"),
@@ -137,6 +141,8 @@ export const guestBoatOrderSchema = z.object({
   gallons: z.number().positive().max(200),
   isFillUp: z.boolean().optional(),
   scheduledAt: z.string().datetime().optional(),
+  availableFrom: z.string().optional(),
+  availableTo: z.string().optional(),
   notes: z.string().max(500).optional(),
   // Guest contact
   guestName: z.string().min(1, "Name is required"),

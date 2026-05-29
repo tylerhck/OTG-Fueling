@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
   // --- GUEST DEF ORDER ---
   if (isDefGuest) {
-    const { guestName, guestEmail, guestPhone, street, city, state, zip, scheduledAt, notes, gallons: defGallons } = body;
+    const { guestName, guestEmail, guestPhone, street, city, state, zip, scheduledAt, notes, gallons: defGallons, availableFrom, availableTo } = body;
     if (!guestName || !guestEmail || !street || !city || !zip) {
       return NextResponse.json({ error: "Name, email, and address are required" }, { status: 400 });
     }
@@ -122,6 +122,8 @@ export async function POST(req: NextRequest) {
         pinLat,
         pinLng,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        availableFrom: availableFrom || null,
+        availableTo: availableTo || null,
         notes,
         guestName,
         guestEmail,
@@ -157,7 +159,7 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      fuelType, gallons, isFillUp, scheduledAt, notes,
+      fuelType, gallons, isFillUp, scheduledAt, notes, availableFrom, availableTo,
       guestName, guestEmail, guestPhone,
       boatMake, boatModel, boatYear, boatColor, boatRegistrationNumber, boatNotes,
       street, city, state, zip,
@@ -201,6 +203,8 @@ export async function POST(req: NextRequest) {
         pinLat,
         pinLng,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        availableFrom: availableFrom || null,
+        availableTo: availableTo || null,
         notes,
         guestName,
         guestEmail,
@@ -243,7 +247,7 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      fuelType, gallons, scheduledAt, notes,
+      fuelType, gallons, scheduledAt, notes, availableFrom, availableTo,
       guestName, guestEmail, guestPhone,
       vehicleMake, vehicleModel, vehicleYear, vehicleColor,
       street, city, state, zip,
@@ -280,6 +284,8 @@ export async function POST(req: NextRequest) {
         pinLat,
         pinLng,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        availableFrom: availableFrom || null,
+        availableTo: availableTo || null,
         notes,
         guestName,
         guestEmail,
@@ -322,7 +328,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { addressId, scheduledAt, notes, items } = parsed.data;
+  const { addressId, scheduledAt, notes, items, availableFrom, availableTo } = parsed.data;
 
   const primaryItem = items.find(
     (i) => i.kind === "PRIMARY_VEHICLE" || i.kind === "PRIMARY_BOAT" || i.kind === "DEF_ONLY"
@@ -347,33 +353,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
   }
 
-  // Validate scheduledAt slot capacity if scheduling
+  // Validate that the scheduled date falls on an open day
   if (scheduledAt) {
     const slotTime = new Date(scheduledAt);
-    const slotEnd = new Date(slotTime.getTime() + 15 * 60 * 1000);
-    const booked = await prisma.order.count({
-      where: {
-        scheduledAt: { gte: slotTime, lt: slotEnd },
-        status: { notIn: ["CANCELLED"] },
-      },
-    });
-    // Find schedule to get capacity
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
     const dayOfWeek = dayNames[slotTime.getDay()];
-    const slotStartStr = `${slotTime.getHours().toString().padStart(2, "0")}:${slotTime.getMinutes().toString().padStart(2, "0")}`;
     const schedule = await prisma.serviceSchedule.findFirst({
       where: { dayOfWeek: dayOfWeek as never, isActive: true },
-      include: { slotOverrides: { where: { slotStart: slotStartStr } } },
     });
-    if (schedule) {
-      const override = schedule.slotOverrides[0];
-      if (override?.isClosed) {
-        return NextResponse.json({ error: "That time slot is not available." }, { status: 400 });
-      }
-      const capacity = override?.capacityOverride ?? schedule.capacityPerSlot;
-      if (booked >= capacity) {
-        return NextResponse.json({ error: "That time slot is full. Please choose another." }, { status: 400 });
-      }
+    if (!schedule) {
+      return NextResponse.json({ error: "We are not available on that day. Please choose another date." }, { status: 400 });
     }
   }
 
@@ -567,6 +556,8 @@ export async function POST(req: NextRequest) {
       pinLat,
       pinLng,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      availableFrom: availableFrom || null,
+      availableTo: availableTo || null,
       notes,
       items: { create: orderItemsData },
     },

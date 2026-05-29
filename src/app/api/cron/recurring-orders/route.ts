@@ -143,12 +143,24 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Calculate scheduled time — preferredTime is in Central Time (America/Chicago)
-      // Convert to UTC by adding the offset (5 for CDT, 6 for CST)
-      const [hours, minutes] = recurring.preferredTime.split(":").map(Number);
+      // Calculate scheduled time — use start of window (windowFrom) for scheduledAt
+      // windowFrom/windowTo are stored as "HH:MM" in Central Time
+      const windowFrom = (recurring as any).windowFrom || recurring.preferredTime || "08:00";
+      const windowTo = (recurring as any).windowTo || "17:00";
+      const [hours, minutes] = windowFrom.split(":").map(Number);
       const scheduledAt = new Date(now);
       const centralOffset = getCentralUtcOffset(now);
       scheduledAt.setUTCHours(hours + centralOffset, minutes, 0, 0);
+
+      // Format window times for display (e.g., "8:00 AM")
+      const fmtWindowTime = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        const ampm = h >= 12 ? "PM" : "AM";
+        const hour = h % 12 || 12;
+        return `${hour}:${m.toString().padStart(2, "0")} ${ampm}`;
+      };
+      const availableFromStr = fmtWindowTime(windowFrom);
+      const availableToStr = fmtWindowTime(windowTo);
 
       // For fill-ups, we authorize $1 (100 cents) to verify card
       const authAmountCents = 100; // $1 pre-authorization
@@ -168,6 +180,8 @@ export async function POST(req: NextRequest) {
           isFillUp: recurring.isFillUp,
           authAmountCents,
           scheduledAt,
+          availableFrom: availableFromStr,
+          availableTo: availableToStr,
           notes: recurring.notes ? `[Recurring] ${recurring.notes}` : "[Recurring order]",
           pinLat: recurring.address.lat,
           pinLng: recurring.address.lng,

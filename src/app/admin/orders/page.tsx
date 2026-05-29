@@ -24,6 +24,8 @@ interface Order {
   isFillUp: boolean;
   deliveryType: string;
   scheduledAt: string | null;
+  availableFrom: string | null;
+  availableTo: string | null;
   etaMinutes: number | null;
   createdAt: string;
   notes: string | null;
@@ -274,6 +276,14 @@ export default function AdminOrders() {
                     {new Date(order.createdAt).toLocaleString()}
                   </p>
                   {(() => {
+                    if (order.availableFrom && order.availableTo) {
+                      return (
+                        <p className="mt-0.5 text-xs font-medium text-blue-700">
+                          {order.subscriptionDelivery ? "🔁 Recurring — " : ""}Available: {order.availableFrom} – {order.availableTo}
+                          {order.scheduledAt && ` · ${new Date(order.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" })}`}
+                        </p>
+                      );
+                    }
                     if (order.subscriptionDelivery && order.scheduledAt) {
                       const timeStr = formatCentralTime(order.scheduledAt);
                       return (

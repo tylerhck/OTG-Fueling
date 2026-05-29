@@ -37,6 +37,8 @@ interface OrderSmsData {
   isFillUp?: boolean;
   address: string;
   scheduledAt?: string | Date | null;
+  availableFrom?: string | null;
+  availableTo?: string | null;
   notes?: string | null;
   isGuest?: boolean;
   defAddon?: { gallons: number } | null;
@@ -67,7 +69,11 @@ export async function sendOrderNotifications(data: OrderSmsData) {
 
   if (data.scheduledAt) {
     const scheduled = new Date(data.scheduledAt);
-    lines.push(`Time: ${scheduled.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" })} at ${scheduled.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" })}`);
+    lines.push(`Date: ${scheduled.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" })}`);
+  }
+
+  if (data.availableFrom && data.availableTo) {
+    lines.push(`Available: ${data.availableFrom} – ${data.availableTo}`);
   }
 
   if (data.notes) {

@@ -38,7 +38,9 @@ export default function GuestOrderPage() {
     fuelType: "REGULAR_87",
     gallons: 10,
     deliveryType: "asap" as "asap" | "scheduled",
-    scheduledAt: "",
+    scheduledDate: "",
+    availableFrom: "",
+    availableTo: "",
     notes: "",
   });
 
@@ -89,8 +91,16 @@ export default function GuestOrderPage() {
         fuelType: form.fuelType,
         gallons: form.gallons,
         scheduledAt:
-          form.deliveryType === "scheduled" && form.scheduledAt
-            ? new Date(form.scheduledAt).toISOString()
+          form.deliveryType === "scheduled" && form.scheduledDate && form.availableFrom
+            ? (() => { const [h, m] = form.availableFrom.split(":").map(Number); const dt = new Date(form.scheduledDate + "T00:00:00"); dt.setHours(h, m, 0, 0); return dt.toISOString(); })()
+            : undefined,
+        availableFrom:
+          form.deliveryType === "scheduled" && form.availableFrom
+            ? (() => { const [h, m] = form.availableFrom.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; })()
+            : undefined,
+        availableTo:
+          form.deliveryType === "scheduled" && form.availableTo
+            ? (() => { const [h, m] = form.availableTo.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; })()
             : undefined,
         notes: form.notes || undefined,
       }),
@@ -355,14 +365,73 @@ export default function GuestOrderPage() {
           </div>
 
           {form.deliveryType === "scheduled" && (
-            <div className="mt-3">
-              <input
-                type="datetime-local"
-                value={form.scheduledAt}
-                onChange={(e) => updateForm({ scheduledAt: e.target.value })}
-                min={new Date().toISOString().slice(0, 16)}
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-              />
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Select a Date</label>
+                <input
+                  type="date"
+                  value={form.scheduledDate}
+                  onChange={(e) => updateForm({ scheduledDate: e.target.value, availableFrom: "", availableTo: "" })}
+                  min={new Date().toISOString().slice(0, 10)}
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                />
+              </div>
+              {form.scheduledDate && (() => {
+                const timeOptions: { value: string; label: string }[] = [];
+                for (let t = 480; t <= 1200; t += 30) {
+                  const h = Math.floor(t / 60);
+                  const m = t % 60;
+                  const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                  const ampm = h >= 12 ? "PM" : "AM";
+                  const hour = h % 12 || 12;
+                  timeOptions.push({ value: val, label: `${hour}:${m.toString().padStart(2, "0")} ${ampm}` });
+                }
+                const fromIdx = timeOptions.findIndex((o) => o.value === form.availableFrom);
+                const toOptions = form.availableFrom ? timeOptions.filter((_, i) => i > fromIdx) : [];
+                return (
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">What hours will your vehicle be at this location?</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">From</label>
+                        <select
+                          value={form.availableFrom}
+                          onChange={(e) => updateForm({ availableFrom: e.target.value, availableTo: "" })}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                        >
+                          <option value="">Select start</option>
+                          {timeOptions.slice(0, -1).map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">To</label>
+                        <select
+                          value={form.availableTo}
+                          onChange={(e) => updateForm({ availableTo: e.target.value })}
+                          disabled={!form.availableFrom}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
+                        >
+                          <option value="">Select end</option>
+                          {toOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+              {form.scheduledDate && form.availableFrom && form.availableTo && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium">
+                  <p>Scheduled: {new Date(form.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">Vehicle available: {(() => {
+                    const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; };
+                    return `${fmt(form.availableFrom)} \u2013 ${fmt(form.availableTo)}`;
+                  })()}</p>
+                </div>
+              )}
             </div>
           )}
         </div>

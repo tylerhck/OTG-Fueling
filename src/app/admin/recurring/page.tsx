@@ -11,6 +11,8 @@ interface RecurringOrder {
   gallons: number | null;
   dayOfWeek: string;
   preferredTime: string;
+  windowFrom: string | null;
+  windowTo: string | null;
   isActive: boolean;
   notes: string | null;
   lastOrderDate: string | null;
@@ -87,7 +89,7 @@ export default function AdminRecurringPage() {
                       : "—"}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium">{DAY_LABELS[order.dayOfWeek]}</td>
-                  <td className="px-4 py-3 text-sm">{order.preferredTime}</td>
+                  <td className="px-4 py-3 text-sm">{order.windowFrom && order.windowTo ? (() => { const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; }; return `${fmt(order.windowFrom)} \u2013 ${fmt(order.windowTo)}`; })() : order.preferredTime}</td>
                   <td className="px-4 py-3 text-sm">
                     {order.isFillUp ? "Fill up" : `${order.gallons} gal`}
                     <br />

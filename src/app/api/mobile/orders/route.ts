@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { addressId, scheduledAt, notes, items } = parsed.data;
+  const { addressId, scheduledAt, availableFrom, availableTo, notes, items } = parsed.data;
 
   // Verify address belongs to user
   const address = await prisma.address.findFirst({
@@ -121,6 +121,8 @@ export async function POST(req: NextRequest) {
       addressId,
       vehicleId: items[0]?.vehicleId || null,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      availableFrom: availableFrom || null,
+      availableTo: availableTo || null,
       notes: notes || null,
       status: "AWAITING_PAYMENT",
       totalCents: totalGasCents,

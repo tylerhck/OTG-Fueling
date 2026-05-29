@@ -46,48 +46,11 @@ interface ServiceSchedule {
   capacityPerSlot: number;
 }
 
-interface SlotAvailability {
-  slotStart: string;
-  isClosed: boolean;
-  isFull: boolean;
-  remaining: number;
-}
-
 const DAY_NAMES = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const FILL_UP_MAX_GALLONS_BOAT = 100;
 const BOAT_BASE_FEE = 20;
 
-function generateSlots(
-  startTime: string,
-  endTime: string,
-  slotMinutes: number
-): { label: string; startH: number; startM: number; slotKey: string }[] {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  const startMins = sh * 60 + sm;
-  const endMins = eh * 60 + em;
-  const slots: { label: string; startH: number; startM: number; slotKey: string }[] = [];
-  for (let t = startMins; t < endMins; t += slotMinutes) {
-    const slotEnd = Math.min(t + slotMinutes, endMins);
-    const startH = Math.floor(t / 60);
-    const startM = t % 60;
-    slots.push({
-      label: `${fmtTime(t)} – ${fmtTime(slotEnd)}`,
-      startH,
-      startM,
-      slotKey: `${startH.toString().padStart(2, "0")}:${startM.toString().padStart(2, "0")}`,
-    });
-  }
-  return slots;
-}
 
-function fmtTime(mins: number): string {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${m.toString().padStart(2, "0")} ${ampm}`;
-}
 
 function getNextDays(n: number): Date[] {
   const days: Date[] = [];
@@ -112,7 +75,7 @@ export default function BoatOrderPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [prices, setPrices] = useState<FuelPrice[]>([]);
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
-  const [slotAvailability, setSlotAvailability] = useState<SlotAvailability[]>([]);
+
   const [asapEnabled, setAsapEnabled] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -127,8 +90,8 @@ export default function BoatOrderPage() {
     isFillUp: false,
     deliveryType: "asap" as "asap" | "scheduled",
     scheduledDate: "",
-    scheduledSlotStart: "",
-    scheduledSlotLabel: "",
+    availableFrom: "",
+    availableTo: "",
     notes: "",
     // Signed-in: boat + address
     boatId: "",
@@ -204,15 +167,7 @@ export default function BoatOrderPage() {
     else if (status === "unauthenticated") fetchGuestData();
   }, [status, fetchAuthData, fetchGuestData]);
 
-  // Fetch slot availability when date changes
-  useEffect(() => {
-    if (form.deliveryType === "scheduled" && form.scheduledDate) {
-      fetch(`/api/service-schedules/availability?date=${form.scheduledDate}`)
-        .then((r) => r.json())
-        .then((data) => setSlotAvailability(Array.isArray(data) ? data : []))
-        .catch(() => setSlotAvailability([]));
-    }
-  }, [form.scheduledDate, form.deliveryType]);
+
 
   const selectedPrice = prices.find((p) => p.fuelType === form.fuelType);
   const pricePerGallon = selectedPrice ? selectedPrice.effectivePriceCents / 100 : 0;
@@ -221,34 +176,35 @@ export default function BoatOrderPage() {
     ? pricePerGallon * FILL_UP_MAX_GALLONS_BOAT + BOAT_BASE_FEE
     : fuelCost + BOAT_BASE_FEE;
 
-  const generatedSlots = (() => {
-    if (!form.scheduledDate || form.deliveryType !== "scheduled") return [];
-    const d = new Date(form.scheduledDate + "T00:00:00");
-    const dayName = DAY_NAMES[d.getDay()];
-    return schedules
-      .filter((s) => s.dayOfWeek === dayName)
-      .flatMap((s) => generateSlots(s.startTime, s.endTime, s.slotMinutes || 15));
-  })();
 
-  const availabilityMap = new Map(slotAvailability.map((s) => [s.slotStart, s]));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSubmitting(true);
 
-    if (form.deliveryType === "scheduled" && (!form.scheduledDate || !form.scheduledSlotStart)) {
-      setError("Please select a delivery date and time slot.");
+    if (form.deliveryType === "scheduled" && (!form.scheduledDate || !form.availableFrom || !form.availableTo)) {
+      setError("Please select a delivery date and availability window.");
       setSubmitting(false);
       return;
     }
 
     let scheduledAt: string | undefined;
-    if (form.deliveryType === "scheduled" && form.scheduledDate && form.scheduledSlotStart) {
-      const [h, m] = form.scheduledSlotStart.split(":").map(Number);
+    let availableFrom: string | undefined;
+    let availableTo: string | undefined;
+    if (form.deliveryType === "scheduled" && form.scheduledDate && form.availableFrom) {
+      const [h, m] = form.availableFrom.split(":").map(Number);
       const dt = new Date(form.scheduledDate + "T00:00:00");
       dt.setHours(h, m, 0, 0);
       scheduledAt = dt.toISOString();
+      const fmtT = (t: string) => {
+        const [hr, mn] = t.split(":").map(Number);
+        const ampm = hr >= 12 ? "PM" : "AM";
+        const hour = hr % 12 || 12;
+        return `${hour}:${mn.toString().padStart(2, "0")} ${ampm}`;
+      };
+      availableFrom = fmtT(form.availableFrom);
+      availableTo = fmtT(form.availableTo);
     }
 
     if (isAuthenticated) {
@@ -291,6 +247,8 @@ export default function BoatOrderPage() {
         body: JSON.stringify({
           addressId: form.addressId,
           scheduledAt,
+          availableFrom,
+          availableTo,
           notes: form.notes || undefined,
           items: [boatItem],
           ...(pinLat !== null && pinLng !== null ? { pinLat, pinLng } : {}),
@@ -338,6 +296,8 @@ export default function BoatOrderPage() {
           gallons: form.isFillUp ? undefined : form.gallons,
           isFillUp: form.isFillUp,
           scheduledAt,
+          availableFrom,
+          availableTo,
           notes: form.notes || undefined,
           guestName: form.guestName,
           guestEmail: form.guestEmail,
@@ -672,7 +632,7 @@ export default function BoatOrderPage() {
             {asapEnabled && (
               <button
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, deliveryType: "asap", scheduledDate: "", scheduledSlotStart: "", scheduledSlotLabel: "" }))}
+                onClick={() => setForm((p) => ({ ...p, deliveryType: "asap", scheduledDate: "", availableFrom: "", availableTo: "" }))}
                 className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${form.deliveryType === "asap" ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}
               >
                 ASAP
@@ -695,15 +655,15 @@ export default function BoatOrderPage() {
                   {nextDays.map((d) => {
                     const iso = d.toISOString().slice(0, 10);
                     const dayName = DAY_NAMES[d.getDay()];
-                    const hasSlots = schedules.some((s) => s.dayOfWeek === dayName);
+                    const isOpen = schedules.some((s) => s.dayOfWeek === dayName);
                     const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
                     return (
                       <button
                         key={iso}
                         type="button"
-                        disabled={!hasSlots}
-                        onClick={() => setForm((p) => ({ ...p, scheduledDate: iso, scheduledSlotStart: "", scheduledSlotLabel: "" }))}
-                        className={`rounded-lg border-2 px-3 py-2 text-xs font-medium transition-colors ${form.scheduledDate === iso ? "border-red-500 bg-red-50 text-red-700" : hasSlots ? "border-slate-200 text-slate-700 hover:border-slate-300" : "border-slate-100 text-slate-300 cursor-not-allowed"}`}
+                        disabled={!isOpen}
+                        onClick={() => setForm((p) => ({ ...p, scheduledDate: iso, availableFrom: "", availableTo: "" }))}
+                        className={`rounded-lg border-2 px-3 py-2 text-xs font-medium transition-colors ${form.scheduledDate === iso ? "border-red-500 bg-red-50 text-red-700" : isOpen ? "border-slate-200 text-slate-700 hover:border-slate-300" : "border-slate-100 text-slate-300 cursor-not-allowed"}`}
                       >
                         {label}
                       </button>
@@ -712,55 +672,72 @@ export default function BoatOrderPage() {
                 </div>
               </div>
 
-              {form.scheduledDate && (
-                <div>
-                  <p className="text-sm font-medium text-slate-700 mb-2">Select a Time Slot</p>
-                  {generatedSlots.length === 0 ? (
-                    <p className="text-sm text-slate-400">No delivery slots available on this day.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {generatedSlots.map((slot) => {
-                        const avail = availabilityMap.get(slot.slotKey);
-                        const isClosed = avail?.isClosed ?? false;
-                        const isFull = avail?.isFull ?? false;
-                        const isDisabled = isClosed || isFull;
-                        return (
-                          <button
-                            key={slot.slotKey}
-                            type="button"
-                            disabled={isDisabled}
-                            onClick={() => setForm((p) => ({ ...p, scheduledSlotStart: slot.slotKey, scheduledSlotLabel: slot.label }))}
-                            className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${form.scheduledSlotStart === slot.slotKey ? "border-red-500 bg-red-50 text-red-700" : isDisabled ? "border-slate-100 text-slate-300 cursor-not-allowed" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}
-                          >
-                            {slot.label}
-                            {isClosed && <span className="ml-1 text-xs text-slate-300">(closed)</span>}
-                            {isFull && !isClosed && <span className="ml-1 text-xs text-slate-300">(full)</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+              {form.scheduledDate && (() => {
+                const d = new Date(form.scheduledDate + "T00:00:00");
+                const dayName = DAY_NAMES[d.getDay()];
+                const daySchedule = schedules.find((s) => s.dayOfWeek === dayName);
+                const startMins = daySchedule ? parseInt(daySchedule.startTime.split(":")[0]) * 60 + parseInt(daySchedule.startTime.split(":")[1]) : 480;
+                const endMins = daySchedule ? parseInt(daySchedule.endTime.split(":")[0]) * 60 + parseInt(daySchedule.endTime.split(":")[1]) : 1200;
+                const timeOptions: { value: string; label: string }[] = [];
+                for (let t = startMins; t <= endMins; t += 30) {
+                  const h = Math.floor(t / 60);
+                  const m = t % 60;
+                  const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                  const ampm = h >= 12 ? "PM" : "AM";
+                  const hour = h % 12 || 12;
+                  const lbl = `${hour}:${m.toString().padStart(2, "0")} ${ampm}`;
+                  timeOptions.push({ value: val, label: lbl });
+                }
+                const fromIdx = timeOptions.findIndex((o) => o.value === form.availableFrom);
+                const toOptions = form.availableFrom ? timeOptions.filter((_, i) => i > fromIdx) : [];
 
-              {form.scheduledDate && form.scheduledSlotLabel && (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium space-y-0.5">
+                return (
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">What hours will your boat be at this location?</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">From</label>
+                        <select
+                          value={form.availableFrom}
+                          onChange={(e) => setForm((p) => ({ ...p, availableFrom: e.target.value, availableTo: "" }))}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                        >
+                          <option value="">Select start</option>
+                          {timeOptions.slice(0, -1).map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">To</label>
+                        <select
+                          value={form.availableTo}
+                          onChange={(e) => setForm((p) => ({ ...p, availableTo: e.target.value }))}
+                          disabled={!form.availableFrom}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
+                        >
+                          <option value="">Select end</option>
+                          {toOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {form.scheduledDate && form.availableFrom && form.availableTo && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium">
                   <p>
-                    Scheduled: {new Date(form.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} &middot; {form.scheduledSlotLabel}
+                    Scheduled: {new Date(form.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                   </p>
-                  {(() => {
-                    if (!form.scheduledSlotStart) return null;
-                    const [h, m] = form.scheduledSlotStart.split(":").map(Number);
-                    const start = new Date(form.scheduledDate + "T00:00:00");
-                    start.setHours(h, m, 0, 0);
-                    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-                    const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-                    return (
-                      <p className="text-xs text-emerald-600">
-                        Vehicle will be at your location: {fmt(start)} – {fmt(end)}
-                      </p>
-                    );
-                  })()}
+                  <p className="text-xs text-emerald-600 mt-0.5">
+                    Boat available: {(() => {
+                      const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; };
+                      return `${fmt(form.availableFrom)} \u2013 ${fmt(form.availableTo)}`;
+                    })()}
+                  </p>
                 </div>
               )}
             </div>

@@ -17,11 +17,13 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  // Map to include dayOfWeek and preferredTime for display
+  // Map to include dayOfWeek and window fields for display
   const mapped = recurringOrders.map((ro) => ({
     ...ro,
     dayOfWeek: ro.dayOfWeek,
     preferredTime: ro.preferredTime,
+    windowFrom: ro.windowFrom,
+    windowTo: ro.windowTo,
   }));
 
   return NextResponse.json(mapped);

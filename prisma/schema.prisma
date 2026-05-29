@@ -189,6 +189,8 @@ model Order {
   stripePaymentMethodId String?     @map("stripe_payment_method_id")
   status                OrderStatus @default(AWAITING_PAYMENT)
   scheduledAt           DateTime?   @map("scheduled_at")
+  availableFrom         String?     @map("available_from") // e.g. "08:00"
+  availableTo           String?     @map("available_to")   // e.g. "17:00"
   etaMinutes            Int?        @map("eta_minutes")
   notes                 String?     @db.Text
   subscriptionDelivery  Boolean     @default(false) @map("subscription_delivery")
@@ -367,6 +369,8 @@ model RecurringOrder {
   gallons       Float?
   dayOfWeek     DayOfWeek @map("day_of_week")
   preferredTime String    @default("09:00") @map("preferred_time")
+  windowFrom    String?   @map("window_from") // e.g. "08:00"
+  windowTo      String?   @map("window_to")   // e.g. "17:00"
   isActive      Boolean   @default(true) @map("is_active")
   notes         String?   @db.Text
   lastOrderId   String?   @map("last_order_id")

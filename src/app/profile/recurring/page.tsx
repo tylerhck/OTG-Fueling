@@ -30,6 +30,8 @@ interface RecurringOrder {
   gallons: number | null;
   dayOfWeek: string;
   preferredTime: string;
+  windowFrom: string | null;
+  windowTo: string | null;
   isActive: boolean;
   notes: string | null;
   lastOrderDate: string | null;
@@ -67,7 +69,8 @@ export default function RecurringOrdersPage() {
     isFillUp: true,
     gallons: 15,
     dayOfWeek: "MONDAY",
-    preferredTime: "09:00",
+    windowFrom: "08:00",
+    windowTo: "17:00",
     notes: "",
   });
 
@@ -240,27 +243,60 @@ export default function RecurringOrdersPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Day of Week</label>
-                <select
-                  value={formData.dayOfWeek}
-                  onChange={(e) => setFormData({ ...formData, dayOfWeek: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  {DAYS.map((d) => (
-                    <option key={d} value={d}>{DAY_LABELS[d]}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
-                <input
-                  type="time"
-                  value={formData.preferredTime}
-                  onChange={(e) => setFormData({ ...formData, preferredTime: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Day of Week</label>
+              <select
+                value={formData.dayOfWeek}
+                onChange={(e) => setFormData({ ...formData, dayOfWeek: e.target.value })}
+                className="w-full border rounded-lg px-3 py-2"
+              >
+                {DAYS.map((d) => (
+                  <option key={d} value={d}>{DAY_LABELS[d]}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">What hours will your vehicle be at this location?</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">From</label>
+                  <select
+                    value={formData.windowFrom}
+                    onChange={(e) => setFormData({ ...formData, windowFrom: e.target.value, windowTo: e.target.value >= formData.windowTo ? "" : formData.windowTo })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    {Array.from({ length: 25 }, (_, i) => {
+                      const h = Math.floor(i / 2) + 8;
+                      const m = (i % 2) * 30;
+                      if (h > 19 || (h === 19 && m > 30)) return null;
+                      const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                      const ampm = h >= 12 ? "PM" : "AM";
+                      const label = `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`;
+                      return <option key={val} value={val}>{label}</option>;
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">To</label>
+                  <select
+                    value={formData.windowTo}
+                    onChange={(e) => setFormData({ ...formData, windowTo: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="">Select end</option>
+                    {Array.from({ length: 25 }, (_, i) => {
+                      const h = Math.floor(i / 2) + 8;
+                      const m = (i % 2) * 30;
+                      if (h > 20 || (h === 20 && m > 0)) return null;
+                      const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                      if (val <= formData.windowFrom) return null;
+                      const ampm = h >= 12 ? "PM" : "AM";
+                      const label = `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`;
+                      return <option key={val} value={val}>{label}</option>;
+                    })}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -315,9 +351,11 @@ export default function RecurringOrdersPage() {
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-              <strong>How it works:</strong> Every {DAY_LABELS[formData.dayOfWeek]} around{" "}
-              {formData.preferredTime}, we&apos;ll automatically create an order and pre-authorize $1 on your
-              card. After we fill up, we&apos;ll charge the actual fuel cost.
+              <strong>How it works:</strong> Every {DAY_LABELS[formData.dayOfWeek]}, we&apos;ll deliver
+              during your availability window ({(() => {
+                const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; };
+                return `${fmt(formData.windowFrom)} \u2013 ${fmt(formData.windowTo || "20:00")}`;
+              })()}). We&apos;ll pre-authorize $1 on your card, then charge the actual fuel cost after fill-up.
             </div>
 
             <button
@@ -358,7 +396,11 @@ export default function RecurringOrdersPage() {
                       <span className="font-semibold text-gray-900">
                         Every {DAY_LABELS[order.dayOfWeek]}
                       </span>
-                      <span className="text-sm text-gray-500">at {order.preferredTime}</span>
+                      <span className="text-sm text-gray-500">
+                        {order.windowFrom && order.windowTo
+                          ? (() => { const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; }; return `${fmt(order.windowFrom)} \u2013 ${fmt(order.windowTo)}`; })()
+                          : `at ${order.preferredTime}`}
+                      </span>
                       {order.isActive ? (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>
                       ) : (

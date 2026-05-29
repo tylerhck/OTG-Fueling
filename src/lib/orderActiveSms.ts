@@ -60,6 +60,8 @@ export async function notifyOrderActive(
     isFillUp,
     address,
     scheduledAt: order.scheduledAt,
+    availableFrom: (order as any).availableFrom || null,
+    availableTo: (order as any).availableTo || null,
     notes: order.notes,
     isGuest,
     defAddon: defItem ? { gallons: defItem.gallons || 2.5 } : null,

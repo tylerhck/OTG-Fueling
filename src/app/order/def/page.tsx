@@ -29,46 +29,8 @@ interface ServiceSchedule {
   capacityPerSlot: number;
 }
 
-interface SlotAvailability {
-  slotStart: string;
-  isClosed: boolean;
-  isFull: boolean;
-  remaining: number;
-}
-
 const DAY_NAMES = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
 const DELIVERY_FEE = 15;
-
-function generateSlots(
-  startTime: string,
-  endTime: string,
-  slotMinutes: number
-): { label: string; startH: number; startM: number; slotKey: string }[] {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  const startMins = sh * 60 + sm;
-  const endMins = eh * 60 + em;
-  const slots: { label: string; startH: number; startM: number; slotKey: string }[] = [];
-  for (let t = startMins; t < endMins; t += slotMinutes) {
-    const slotEnd = Math.min(t + slotMinutes, endMins);
-    const fmt = (mins: number) => {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      const period = h >= 12 ? "PM" : "AM";
-      const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      return `${displayH}:${m.toString().padStart(2, "0")} ${period}`;
-    };
-    const startH = Math.floor(t / 60);
-    const startM = t % 60;
-    slots.push({
-      label: `${fmt(t)} – ${fmt(slotEnd)}`,
-      startH,
-      startM,
-      slotKey: `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`,
-    });
-  }
-  return slots;
-}
 
 export default function DefOrderPage() {
   const { data: session, status } = useSession();
@@ -76,14 +38,13 @@ export default function DefOrderPage() {
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
-  const [slotAvailability, setSlotAvailability] = useState<SlotAvailability[]>([]);
 
   const [addressId, setAddressId] = useState("");
   const [defGallons, setDefGallons] = useState(2.5);
   const [deliveryType, setDeliveryType] = useState<"asap" | "scheduled">("asap");
   const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledSlotStart, setScheduledSlotStart] = useState("");
-  const [scheduledSlotLabel, setScheduledSlotLabel] = useState("");
+  const [availableFrom, setAvailableFrom] = useState("");
+  const [availableTo, setAvailableTo] = useState("");
   const [notes, setNotes] = useState("");
   const [defSizes, setDefSizes] = useState<{gallons: number; label: string; cents: number}[]>([
     { gallons: 2.5, label: "2.5 gallon", cents: 3000 },
@@ -129,32 +90,6 @@ export default function DefOrderPage() {
     }
   }, [isAuthenticated]);
 
-  // Fetch slot availability when date changes
-  useEffect(() => {
-    if (!scheduledDate) return;
-    fetch(`/api/slots?date=${scheduledDate}`)
-      .then((r) => r.json())
-      .then((data) => setSlotAvailability(Array.isArray(data) ? data : []));
-  }, [scheduledDate]);
-
-  const generatedSlots = (() => {
-    if (!scheduledDate || deliveryType !== "scheduled") return [];
-    const d = new Date(scheduledDate + "T00:00:00");
-    const dayName = DAY_NAMES[d.getDay()];
-    const sched = schedules.find((s) => s.dayOfWeek === dayName);
-    if (!sched) return [];
-    return generateSlots(sched.startTime, sched.endTime, sched.slotMinutes);
-  })();
-
-  function getSlotStatus(slotKey: string) {
-    return slotAvailability.find((s) => {
-      const d = new Date(s.slotStart);
-      const h = d.getHours().toString().padStart(2, "0");
-      const m = d.getMinutes().toString().padStart(2, "0");
-      return `${h}:${m}` === slotKey;
-    });
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -162,17 +97,24 @@ export default function DefOrderPage() {
 
     try {
       let scheduledAt: string | undefined;
-      if (deliveryType === "scheduled" && scheduledDate && scheduledSlotStart) {
-        const [h, m] = scheduledSlotStart.split(":").map(Number);
+      let availableFromFmt: string | undefined;
+      let availableToFmt: string | undefined;
+      if (deliveryType === "scheduled" && scheduledDate && availableFrom) {
+        const [h, m] = availableFrom.split(":").map(Number);
         const dt = new Date(scheduledDate + "T00:00:00");
         dt.setHours(h, m, 0, 0);
         scheduledAt = dt.toISOString();
+        const fmtT = (t: string) => { const [hr, mn] = t.split(":").map(Number); const ampm = hr >= 12 ? "PM" : "AM"; return `${hr % 12 || 12}:${mn.toString().padStart(2, "0")} ${ampm}`; };
+        availableFromFmt = fmtT(availableFrom);
+        availableToFmt = fmtT(availableTo);
       }
 
       const body = isAuthenticated
         ? {
             addressId,
             scheduledAt,
+            availableFrom: availableFromFmt,
+            availableTo: availableToFmt,
             notes: notes || undefined,
             items: [
               {
@@ -193,6 +135,8 @@ export default function DefOrderPage() {
             state: guestState,
             zip: guestZip,
             scheduledAt,
+            availableFrom: availableFromFmt,
+            availableTo: availableToFmt,
             notes: notes || undefined,
             gallons: defGallons,
           };
@@ -393,8 +337,8 @@ export default function DefOrderPage() {
                   setDeliveryType(t);
                   if (t === "asap") {
                     setScheduledDate("");
-                    setScheduledSlotStart("");
-                    setScheduledSlotLabel("");
+                    setAvailableFrom("");
+                    setAvailableTo("");
                   }
                 }}
                 className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-medium transition-colors ${
@@ -416,65 +360,72 @@ export default function DefOrderPage() {
                   min={new Date().toISOString().split("T")[0]}
                   onChange={(e) => {
                     setScheduledDate(e.target.value);
-                    setScheduledSlotStart("");
-                    setScheduledSlotLabel("");
+                    setAvailableFrom("");
+                    setAvailableTo("");
                   }}
                   className="mt-1 block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 focus:border-red-500 focus:outline-none"
                 />
               </div>
-              {scheduledDate && (
-                generatedSlots.length === 0 ? (
-                  <p className="text-sm text-slate-500">No service scheduled for this day.</p>
-                ) : (
+              {scheduledDate && (() => {
+                const d = new Date(scheduledDate + "T00:00:00");
+                const dayName = DAY_NAMES[d.getDay()];
+                const daySchedule = schedules.find((s) => s.dayOfWeek === dayName);
+                if (!daySchedule) return <p className="text-sm text-slate-500">No service scheduled for this day.</p>;
+                const startMins = parseInt(daySchedule.startTime.split(":")[0]) * 60 + parseInt(daySchedule.startTime.split(":")[1]);
+                const endMins = parseInt(daySchedule.endTime.split(":")[0]) * 60 + parseInt(daySchedule.endTime.split(":")[1]);
+                const timeOptions: { value: string; label: string }[] = [];
+                for (let t = startMins; t <= endMins; t += 30) {
+                  const h = Math.floor(t / 60);
+                  const m = t % 60;
+                  const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                  const ampm = h >= 12 ? "PM" : "AM";
+                  const hour = h % 12 || 12;
+                  timeOptions.push({ value: val, label: `${hour}:${m.toString().padStart(2, "0")} ${ampm}` });
+                }
+                const fromIdx = timeOptions.findIndex((o) => o.value === availableFrom);
+                const toOptions = availableFrom ? timeOptions.filter((_, i) => i > fromIdx) : [];
+                return (
                   <div>
-                    <label className="block text-sm font-medium text-slate-700">Time Slot</label>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {generatedSlots.map((slot) => {
-                        const avail = getSlotStatus(slot.slotKey);
-                        const disabled = avail?.isClosed || avail?.isFull;
-                        return (
-                          <button
-                            key={slot.slotKey}
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => {
-                              setScheduledSlotStart(slot.slotKey);
-                              setScheduledSlotLabel(slot.label);
-                            }}
-                            className={`rounded-lg border-2 px-2 py-2 text-xs font-medium transition-colors ${
-                              scheduledSlotStart === slot.slotKey
-                                ? "border-red-500 bg-red-50 text-red-700"
-                                : disabled
-                                ? "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
-                                : "border-slate-200 text-slate-700 hover:border-red-300"
-                            }`}
-                          >
-                            {slot.label}
-                          </button>
-                        );
-                      })}
+                    <p className="text-sm font-medium text-slate-700 mb-2">What hours will your vehicle be at this location?</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">From</label>
+                        <select
+                          value={availableFrom}
+                          onChange={(e) => { setAvailableFrom(e.target.value); setAvailableTo(""); }}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                        >
+                          <option value="">Select start</option>
+                          {timeOptions.slice(0, -1).map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">To</label>
+                        <select
+                          value={availableTo}
+                          onChange={(e) => setAvailableTo(e.target.value)}
+                          disabled={!availableFrom}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
+                        >
+                          <option value="">Select end</option>
+                          {toOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                )
-              )}
-              {scheduledDate && scheduledSlotLabel && (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium space-y-0.5">
-                  <p>
-                    Scheduled: {new Date(scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} &middot; {scheduledSlotLabel}
-                  </p>
-                  {(() => {
-                    if (!scheduledSlotStart) return null;
-                    const [h, m] = scheduledSlotStart.split(":").map(Number);
-                    const start = new Date(scheduledDate + "T00:00:00");
-                    start.setHours(h, m, 0, 0);
-                    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-                    const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-                    return (
-                      <p className="text-xs text-emerald-600">
-                        Vehicle will be at your location: {fmt(start)} – {fmt(end)}
-                      </p>
-                    );
-                  })()}
+                );
+              })()}
+              {scheduledDate && availableFrom && availableTo && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium">
+                  <p>Scheduled: {new Date(scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">Vehicle available: {(() => {
+                    const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; };
+                    return `${fmt(availableFrom)} \u2013 ${fmt(availableTo)}`;
+                  })()}</p>
                 </div>
               )}
             </div>
@@ -521,11 +472,11 @@ export default function DefOrderPage() {
             submitting ||
             (isAuthenticated && !addressId) ||
             (!isAuthenticated && (!guestName || !guestEmail || !guestStreet || !guestCity || !guestZip)) ||
-            (deliveryType === "scheduled" && (!scheduledDate || !scheduledSlotStart))
+            (deliveryType === "scheduled" && (!scheduledDate || !availableFrom || !availableTo))
           }
           className="w-full rounded-2xl bg-red-600 py-4 text-base font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 transition-colors"
         >
-          {submitting ? "Placing Order…" : `Place Order · $${total.toFixed(2)}`}
+          {submitting ? "Placing Order\u2026" : `Place Order \u00b7 $${total.toFixed(2)}`}
         </button>
       </form>
     </div>

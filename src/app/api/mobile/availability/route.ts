@@ -3,25 +3,28 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  let serviceAreaId = searchParams.get("serviceAreaId");
   const dateStr = searchParams.get("date"); // YYYY-MM-DD
 
-  // If no serviceAreaId provided, use the first active service area
-  if (!serviceAreaId) {
-    const defaultArea = await prisma.serviceArea.findFirst({
-      where: { isActive: true },
-      select: { id: true },
-    });
-    if (!defaultArea) {
-      return NextResponse.json({ schedules: [] });
-    }
-    serviceAreaId = defaultArea.id;
+  // Get the first active service area
+  const defaultArea = await prisma.serviceArea.findFirst({
+    where: { isActive: true },
+    select: { id: true },
+  });
+  if (!defaultArea) {
+    return NextResponse.json({ schedules: [] });
   }
 
   const schedules = await prisma.serviceSchedule.findMany({
-    where: { serviceAreaId, isActive: true },
-    include: { slotOverrides: true },
+    where: { serviceAreaId: defaultArea.id, isActive: true },
   });
+
+  // Transform to simplified day-level format
+  const daySchedules = schedules.map((s) => ({
+    dayOfWeek: s.dayOfWeek,
+    isOpen: true,
+    startTime: s.startTime,
+    endTime: s.endTime,
+  }));
 
   // If a specific date is requested, filter to that day of week
   if (dateStr) {
@@ -36,9 +39,9 @@ export async function GET(req: NextRequest) {
       "SATURDAY",
     ];
     const dayOfWeek = days[date.getUTCDay()];
-    const filtered = schedules.filter((s) => s.dayOfWeek === dayOfWeek);
+    const filtered = daySchedules.filter((s) => s.dayOfWeek === dayOfWeek);
     return NextResponse.json({ schedules: filtered, date: dateStr, dayOfWeek });
   }
 
-  return NextResponse.json({ schedules });
+  return NextResponse.json({ schedules: daySchedules });
 }
