@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 /**
  * Cron job: Update fuel prices from Google Places API.
@@ -38,11 +39,18 @@ interface GooglePlaceDetails {
 }
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret
+  // Allow access via cron secret OR admin session
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const hasCronAuth = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+  if (!hasCronAuth) {
+    // Check if user is logged in as admin
+    const session = await auth();
+    const isAdmin = session?.user?.id && (session.user as { role?: string }).role === "ADMIN";
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
