@@ -65,4 +65,9 @@ export async function notifyOrderActive(
     defAddon: defItem ? { gallons: defItem.gallons || 2.5 } : null,
   });
 
+  // Mark as SMS notified to prevent duplicates
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { smsNotifiedAt: new Date() },
+  });
 }

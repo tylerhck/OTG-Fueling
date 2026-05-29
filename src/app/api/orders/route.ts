@@ -71,7 +71,7 @@ export async function GET() {
     return NextResponse.json(orders);
   } catch (err: any) {
     console.error("GET /api/orders error:", err);
-    return NextResponse.json({ error: "Failed to load orders", details: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load orders" }, { status: 500 });
   }
 }
 

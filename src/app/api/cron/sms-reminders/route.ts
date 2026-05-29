@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
         lt: todayEnd,
       },
       status: { in: ["PENDING", "AWAITING_PAYMENT", "CONFIRMED"] },
+      smsNotifiedAt: null,
     },
     select: { id: true },
   });
