@@ -322,21 +322,7 @@ export default function PricingAdmin() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={applyExternalPrices}
-                disabled={saving}
-                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-              >
-                {saving ? "Applying..." : "Apply These Prices"}
-              </button>
-              <button
-                onClick={() => setExternalPrices([])}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Dismiss
-              </button>
-            </div>
+
           </div>
         )}
       </div>
