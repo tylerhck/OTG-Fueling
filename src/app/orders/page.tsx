@@ -23,6 +23,7 @@ interface Order {
 const statusColors: Record<string, string> = {
   AWAITING_PAYMENT: "bg-orange-100 text-orange-800",
   PENDING: "bg-yellow-100 text-yellow-800",
+  ACTIVE: "bg-green-100 text-green-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
   IN_PROGRESS: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-green-100 text-green-800",

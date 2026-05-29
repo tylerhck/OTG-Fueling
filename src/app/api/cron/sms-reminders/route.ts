@@ -3,13 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 /**
- * Cron job: Activate scheduled orders on their day and send SMS.
+ * Cron job: Activate scheduled orders on their delivery day and send SMS.
  * 
- * Should be called at 6 AM Central daily (same time as recurring orders cron).
- * Finds all orders with scheduledAt = today that are still in PENDING/AWAITING_PAYMENT/CONFIRMED
- * and haven't been SMS-notified yet, then fires the SMS.
- * 
- * This moves scheduled orders from "Pending" to "Active" in the admin view.
+ * Should be called at 6 AM Central daily.
+ * Finds all PENDING orders with scheduledAt = today, moves them to ACTIVE,
+ * and fires the SMS notification to all recipients.
  */
 export async function GET(req: NextRequest) {
   // Verify cron secret
@@ -31,34 +29,39 @@ export async function GET(req: NextRequest) {
   todayStart.setTime(todayStart.getTime() + centralOffset * 60 * 60 * 1000); // Convert Central midnight to UTC
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-  // Find scheduled orders for today that haven't been SMS-notified
+  // Find PENDING scheduled orders for today
   const orders = await prisma.order.findMany({
     where: {
       scheduledAt: {
         gte: todayStart,
         lt: todayEnd,
       },
-      status: { in: ["PENDING", "AWAITING_PAYMENT", "CONFIRMED"] },
-      smsNotifiedAt: null,
+      status: "PENDING",
     },
     select: { id: true },
   });
 
-  let sent = 0;
+  let activated = 0;
 
   for (const order of orders) {
     try {
+      // Move to ACTIVE status
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: "ACTIVE" },
+      });
+      // Fire SMS to all recipients
       await notifyOrderActive(order.id, "Scheduled");
-      sent++;
+      activated++;
     } catch (err) {
-      console.error(`Failed to notify order ${order.id}:`, err);
+      console.error(`Failed to activate order ${order.id}:`, err);
     }
   }
 
   return NextResponse.json({
     success: true,
     found: orders.length,
-    sent,
+    activated,
     date: todayStr,
     timestamp: now.toISOString(),
   });

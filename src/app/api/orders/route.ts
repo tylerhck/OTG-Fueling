@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.create({
       data: {
+        status: scheduledAt ? "PENDING" : "ACTIVE",
         fuelType: "DIESEL",
         gallons: defGallons,
         pricePerGallonCents: 0,
@@ -189,6 +190,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.create({
       data: {
+        status: scheduledAt ? "PENDING" : "ACTIVE",
         fuelType,
         gallons: actualGallons,
         pricePerGallonCents,
@@ -269,6 +271,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.create({
       data: {
+        status: scheduledAt ? "PENDING" : "ACTIVE",
         fuelType,
         gallons,
         pricePerGallonCents,
@@ -549,6 +552,7 @@ export async function POST(req: NextRequest) {
 
   const order = await prisma.order.create({
     data: {
+      status: scheduledAt ? "PENDING" : "ACTIVE",
       userId: session.user.id,
       vehicleId: primaryItem.vehicleId,
       addressId,
@@ -573,7 +577,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  notifyOrderStatus(order.id, "PENDING").catch(() => {});
+  notifyOrderStatus(order.id, scheduledAt ? "PENDING" : "ACTIVE").catch(() => {});
 
   // Fire SMS if ASAP order (no scheduledAt = active immediately)
   if (!scheduledAt) {

@@ -218,14 +218,14 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Update order with Stripe info
+          // Update order with Stripe info — recurring orders go straight to ACTIVE
           await prisma.order.update({
             where: { id: order.id },
             data: {
               stripePaymentIntentId: paymentIntent.id,
               stripeCustomerId,
               stripePaymentMethodId: paymentMethod.id,
-              status: "PENDING",
+              status: "ACTIVE",
             },
           });
         } else {

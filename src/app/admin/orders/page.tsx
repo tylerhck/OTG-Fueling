@@ -4,22 +4,13 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getDeliveryWindow, formatCentralTime } from "@/lib/deliveryWindow";
 
-const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "IN_PROGRESS"];
-const HISTORY_STATUSES = ["COMPLETED", "CANCELLED"];
-
 const STATUS_COLORS: Record<string, string> = {
   AWAITING_PAYMENT: "bg-slate-100 text-slate-500",
   PENDING: "bg-yellow-100 text-yellow-800",
-  CONFIRMED: "bg-blue-100 text-blue-800",
+  ACTIVE: "bg-green-100 text-green-800",
   IN_PROGRESS: "bg-indigo-100 text-indigo-800",
   COMPLETED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
-};
-
-const STATUS_PRIORITY: Record<string, number> = {
-  PENDING: 0,
-  CONFIRMED: 1,
-  IN_PROGRESS: 2,
 };
 
 interface Order {
@@ -41,16 +32,13 @@ interface Order {
   address: { street: string; city: string };
 }
 
-type Tab = "active" | "history";
+type Tab = "active" | "pending" | "history";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [tab, setTab] = useState<Tab>("active");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
-  const [etaInput, setEtaInput] = useState<Record<string, string>>({});
-  const [showEta, setShowEta] = useState<string | null>(null);
   const [captureGallons, setCaptureGallons] = useState<Record<string, string>>({});
   const [capturePricePerGallon, setCapturePricePerGallon] = useState<Record<string, string>>({});
   const [showCapture, setShowCapture] = useState<string | null>(null);
@@ -75,11 +63,6 @@ export default function AdminOrders() {
   useEffect(() => {
     loadOrders();
   }, []);
-
-  // Reset status filter when switching tabs
-  useEffect(() => {
-    setStatusFilter("ALL");
-  }, [tab]);
 
   async function capturePayment(orderId: string) {
     const gallons = parseFloat(captureGallons[orderId] || "");
@@ -109,34 +92,30 @@ export default function AdminOrders() {
     setUpdating(null);
   }
 
-  async function updateStatus(orderId: string, newStatus: string, eta?: number | null) {
+  async function updateStatus(orderId: string, newStatus: string) {
     setUpdating(orderId);
-    const body: Record<string, unknown> = { status: newStatus };
-    if (eta !== undefined) body.etaMinutes = eta;
     const res = await fetch(`/api/orders/${orderId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ status: newStatus }),
     });
     if (res.ok) {
       await loadOrders();
-      setShowEta(null);
     }
     setUpdating(null);
   }
 
-  function handleConfirmWithEta(orderId: string) {
-    const mins = etaInput[orderId];
-    const eta = mins ? parseInt(mins, 10) : null;
-    updateStatus(orderId, "CONFIRMED", eta);
-  }
-
+  // Tab groups
   const activeOrders = useMemo(
-    () => orders.filter((o) => ACTIVE_STATUSES.includes(o.status)),
+    () => orders.filter((o) => o.status === "ACTIVE" || o.status === "IN_PROGRESS"),
+    [orders]
+  );
+  const pendingOrders = useMemo(
+    () => orders.filter((o) => o.status === "PENDING"),
     [orders]
   );
   const historyOrders = useMemo(
-    () => orders.filter((o) => HISTORY_STATUSES.includes(o.status)),
+    () => orders.filter((o) => o.status === "COMPLETED" || o.status === "CANCELLED"),
     [orders]
   );
   const awaitingPaymentOrders = useMemo(
@@ -144,11 +123,10 @@ export default function AdminOrders() {
     [orders]
   );
 
-  const tabStatuses = tab === "active" ? ACTIVE_STATUSES : HISTORY_STATUSES;
-  const tabOrders = tab === "active" ? activeOrders : historyOrders;
+  const tabOrders = tab === "active" ? activeOrders : tab === "pending" ? pendingOrders : historyOrders;
 
   const filtered = useMemo(() => {
-    let list = statusFilter === "ALL" ? tabOrders : tabOrders.filter((o) => o.status === statusFilter);
+    let list = tabOrders;
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -162,15 +140,17 @@ export default function AdminOrders() {
       );
     }
 
-    // Active orders sorted by urgency (PENDING first), history sorted newest first
+    // Active tab: ACTIVE first, then IN_PROGRESS
     if (tab === "active") {
-      list = [...list].sort(
-        (a, b) => (STATUS_PRIORITY[a.status] ?? 99) - (STATUS_PRIORITY[b.status] ?? 99)
-      );
+      list = [...list].sort((a, b) => {
+        if (a.status === "ACTIVE" && b.status !== "ACTIVE") return -1;
+        if (a.status !== "ACTIVE" && b.status === "ACTIVE") return 1;
+        return 0;
+      });
     }
 
     return list;
-  }, [tabOrders, statusFilter, search, tab]);
+  }, [tabOrders, search, tab]);
 
   return (
     <div>
@@ -193,50 +173,37 @@ export default function AdminOrders() {
 
       {/* Tabs */}
       <div className="mt-4 flex border-b border-gray-200">
-        <button
-          onClick={() => setTab("active")}
-          className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
-            tab === "active"
-              ? "text-red-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Active Orders
-          {activeOrders.length > 0 && (
-            <span className={`ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-              tab === "active" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
-            }`}>
-              {activeOrders.length}
-            </span>
-          )}
-          {tab === "active" && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />
-          )}
-        </button>
-        <button
-          onClick={() => setTab("history")}
-          className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
-            tab === "history"
-              ? "text-red-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          History
-          {historyOrders.length > 0 && (
-            <span className={`ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-              tab === "history" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
-            }`}>
-              {historyOrders.length}
-            </span>
-          )}
-          {tab === "history" && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />
-          )}
-        </button>
+        {([
+          { key: "active" as Tab, label: "Active", orders: activeOrders },
+          { key: "pending" as Tab, label: "Pending", orders: pendingOrders },
+          { key: "history" as Tab, label: "History", orders: historyOrders },
+        ]).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === t.key
+                ? "text-red-600"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {t.label}
+            {t.orders.length > 0 && (
+              <span className={`ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                tab === t.key ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
+              }`}>
+                {t.orders.length}
+              </span>
+            )}
+            {tab === t.key && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Search & Status Filters */}
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Search */}
+      <div className="mt-4">
         <input
           type="text"
           placeholder="Search by name, email, address, or order ID…"
@@ -244,25 +211,6 @@ export default function AdminOrders() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 sm:max-w-xs"
         />
-        <div className="flex flex-wrap gap-2">
-          {["ALL", ...tabStatuses].map((s) => {
-            const count = tabOrders.filter((o) => o.status === s).length;
-            return (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                  statusFilter === s
-                    ? "bg-red-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {s === "ALL" ? "All" : s.replace("_", " ")}
-                {s !== "ALL" && <span className="ml-1">({count})</span>}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Orders List */}
@@ -274,6 +222,8 @@ export default function AdminOrders() {
                 ? "No orders match your search."
                 : tab === "active"
                 ? "No active orders — you're all caught up!"
+                : tab === "pending"
+                ? "No pending orders."
                 : "No order history yet."}
             </p>
           </div>
@@ -282,7 +232,11 @@ export default function AdminOrders() {
             <div
               key={order.id}
               className={`rounded-lg border p-4 ${
-                order.status === "PENDING"
+                order.status === "ACTIVE"
+                  ? "border-green-200 bg-green-50/50"
+                  : order.status === "IN_PROGRESS"
+                  ? "border-indigo-200 bg-indigo-50/50"
+                  : order.status === "PENDING"
                   ? "border-yellow-200 bg-yellow-50/50"
                   : ""
               }`}
@@ -320,7 +274,6 @@ export default function AdminOrders() {
                     {new Date(order.createdAt).toLocaleString()}
                   </p>
                   {(() => {
-                    // For recurring/subscription orders, show just the scheduled time (not a window)
                     if (order.subscriptionDelivery && order.scheduledAt) {
                       const timeStr = formatCentralTime(order.scheduledAt);
                       return (
@@ -337,16 +290,22 @@ export default function AdminOrders() {
                       </p>
                     );
                   })()}
+                  {order.notes && (
+                    <p className="mt-1 text-xs text-gray-500 italic">Note: {order.notes}</p>
+                  )}
                 </div>
+
+                {/* Action buttons */}
                 <div className="flex flex-wrap gap-2">
-                  {order.status === "PENDING" && showEta !== order.id && (
+                  {/* ACTIVE orders: Start Delivery, Cancel, Delete */}
+                  {order.status === "ACTIVE" && (
                     <>
                       <button
-                        onClick={() => setShowEta(order.id)}
+                        onClick={() => updateStatus(order.id, "IN_PROGRESS")}
                         disabled={updating === order.id}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                       >
-                        Confirm
+                        Start Delivery
                       </button>
                       <button
                         onClick={() => updateStatus(order.id, "CANCELLED")}
@@ -364,40 +323,8 @@ export default function AdminOrders() {
                       </button>
                     </>
                   )}
-                  {order.status === "PENDING" && showEta === order.id && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="ETA (min)"
-                        value={etaInput[order.id] || ""}
-                        onChange={(e) => setEtaInput({ ...etaInput, [order.id]: e.target.value })}
-                        className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-red-500 focus:ring-red-500"
-                      />
-                      <button
-                        onClick={() => handleConfirmWithEta(order.id)}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {updating === order.id ? "..." : "Confirm"}
-                      </button>
-                      <button
-                        onClick={() => setShowEta(null)}
-                        className="rounded-lg bg-slate-100 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                  {order.status === "CONFIRMED" && (
-                    <button
-                      onClick={() => updateStatus(order.id, "IN_PROGRESS")}
-                      disabled={updating === order.id}
-                      className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                      Start Delivery
-                    </button>
-                  )}
+
+                  {/* IN_PROGRESS: Complete (or Enter Gallons for fill-ups) */}
                   {order.status === "IN_PROGRESS" && !order.isFillUp && (
                     <button
                       onClick={() => updateStatus(order.id, "COMPLETED")}
@@ -463,7 +390,28 @@ export default function AdminOrders() {
                       </div>
                     </div>
                   )}
-                  {/* Delete button - available on completed, cancelled, and awaiting payment orders */}
+
+                  {/* PENDING orders: Cancel, Delete */}
+                  {order.status === "PENDING" && (
+                    <>
+                      <button
+                        onClick={() => updateStatus(order.id, "CANCELLED")}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => deleteOrder(order.id)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+
+                  {/* History / Awaiting Payment: Delete only */}
                   {(order.status === "AWAITING_PAYMENT" || order.status === "CANCELLED" || order.status === "COMPLETED") && (
                     <button
                       onClick={() => deleteOrder(order.id)}

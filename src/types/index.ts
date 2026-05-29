@@ -3,6 +3,7 @@ export type FuelCapSide = "LEFT" | "RIGHT" | "REAR" | "UNKNOWN";
 export type OrderStatus =
   | "AWAITING_PAYMENT"
   | "PENDING"
+  | "ACTIVE"
   | "CONFIRMED"
   | "IN_PROGRESS"
   | "COMPLETED"
@@ -31,7 +32,8 @@ export const FUEL_CAP_LABELS: Record<FuelCapSide, string> = {
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   AWAITING_PAYMENT: "Awaiting Payment",
-  PENDING: "Paid – Pending Review",
+  PENDING: "Scheduled",
+  ACTIVE: "Active",
   CONFIRMED: "Confirmed",
   IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
