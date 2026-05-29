@@ -65,6 +65,8 @@ export async function notifyOrderActive(
     notes: order.notes,
     isGuest,
     defAddon: defItem ? { gallons: defItem.gallons || 2.5 } : null,
+    pinLat: (order as any).pinLat || null,
+    pinLng: (order as any).pinLng || null,
   });
 
   // Mark as SMS notified to prevent duplicates

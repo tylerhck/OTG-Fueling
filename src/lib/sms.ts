@@ -42,6 +42,8 @@ interface OrderSmsData {
   notes?: string | null;
   isGuest?: boolean;
   defAddon?: { gallons: number } | null;
+  pinLat?: number | null;
+  pinLng?: number | null;
 }
 
 export async function sendOrderNotifications(data: OrderSmsData) {
@@ -66,6 +68,10 @@ export async function sendOrderNotifications(data: OrderSmsData) {
   }
 
   lines.push(`Address: ${data.address}`);
+
+  if (data.pinLat && data.pinLng) {
+    lines.push(`📍 Pin: https://maps.apple.com/?ll=${data.pinLat},${data.pinLng}&q=Delivery`);
+  }
 
   if (data.scheduledAt) {
     const scheduled = new Date(data.scheduledAt);
