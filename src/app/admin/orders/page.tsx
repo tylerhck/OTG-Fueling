@@ -30,8 +30,10 @@ interface Order {
   createdAt: string;
   notes: string | null;
   subscriptionDelivery: boolean;
+  pinLat: number | null;
+  pinLng: number | null;
   user: { name: string; email: string };
-  address: { street: string; city: string };
+  address: { street: string; city: string; state: string; zip: string };
 }
 
 type Tab = "active" | "pending" | "history";
@@ -263,6 +265,18 @@ export default function AdminOrders() {
                   <p className="mt-1 text-sm text-gray-600">
                     {order.user?.name || order.user?.email} &middot;{" "}
                     {order.address?.street}, {order.address?.city}
+                    {" "}
+                    <a
+                      href={order.pinLat && order.pinLng
+                        ? `https://maps.google.com/?q=${order.pinLat},${order.pinLng}`
+                        : `https://maps.google.com/?q=${encodeURIComponent(`${order.address?.street}, ${order.address?.city}, ${order.address?.state || ''} ${order.address?.zip || ''}`)}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium hover:bg-blue-200"
+                    >
+                      📍 Navigate
+                    </a>
                   </p>
                   <p className="text-sm text-gray-500">
                     {order.isFillUp ? (
