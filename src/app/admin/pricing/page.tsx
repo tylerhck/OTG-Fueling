@@ -74,14 +74,27 @@ export default function PricingAdmin() {
     setError("");
 
     try {
-      const res = await fetch("/api/admin/gas-prices");
+      const res = await fetch("/api/cron/update-fuel-prices");
       const data = await res.json();
 
-      setExternalPrices(data.prices || []);
-      setExternalMessage(data.message || "");
-
-      if (data.source === "unavailable") {
-        setError(data.message);
+      if (data.success) {
+        setExternalMessage(
+          `Prices updated from QuikTrip #883 (Basswood & I-35) at ${new Date(data.updatedAt).toLocaleString()}`
+        );
+        setExternalPrices(
+          (data.prices || []).map((p: { fuelType: string; priceDollars: number; priceCents: number }) => ({
+            fuelType: p.fuelType,
+            label: FUEL_TYPE_LABELS[p.fuelType as FuelType] || p.fuelType,
+            pricePerGallon: p.priceDollars,
+            priceCents: p.priceCents,
+            period: "Live",
+          }))
+        );
+        await loadData();
+        setSuccess("Fuel prices updated from local QT!");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError(data.error || "Failed to fetch prices");
       }
     } catch {
       setError("Failed to fetch external prices");
@@ -301,10 +314,10 @@ export default function PricingAdmin() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
-              Fort Worth / Texas Market Prices
+              Live Local Prices — QuikTrip (Basswood & I-35)
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Fetch current Texas retail gas prices from the U.S. Energy Information Administration (EIA).
+              Prices auto-update daily at 5 AM from QuikTrip #883 via Google Places API. Click below to update now.
             </p>
           </div>
           <button
@@ -312,12 +325,12 @@ export default function PricingAdmin() {
             disabled={fetchingExternal}
             className="self-start flex-shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {fetchingExternal ? "Fetching..." : "Fetch Current Prices"}
+            {fetchingExternal ? "Updating..." : "Update Now"}
           </button>
         </div>
 
         {externalMessage && (
-          <p className="mt-3 text-sm text-slate-600">{externalMessage}</p>
+          <p className="mt-3 text-sm text-green-600 font-medium">{externalMessage}</p>
         )}
 
         {externalPrices.length > 0 && (
