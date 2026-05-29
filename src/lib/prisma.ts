@@ -2,11 +2,18 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 const rawUrl = process.env.DATABASE_URL!;
-// Strip existing query params and use ssl=true (the JSON ssl format causes pool timeouts with TiDB)
-const baseUrl = rawUrl.split("?")[0];
-const dbUrl = baseUrl + "?ssl=true&allowPublicKeyRetrieval=true";
+const dbUrl = new URL(rawUrl);
 
-const adapter = new PrismaMariaDb(dbUrl);
+// If the ssl param is a JSON object like {"rejectUnauthorized":true}, replace with simple ssl=true
+// The JSON format causes pool timeouts with the PrismaMariaDb adapter on TiDB
+const sslParam = dbUrl.searchParams.get("ssl");
+if (sslParam && sslParam.startsWith("{")) {
+  dbUrl.searchParams.set("ssl", "true");
+}
+
+dbUrl.searchParams.set("allowPublicKeyRetrieval", "true");
+
+const adapter = new PrismaMariaDb(dbUrl.toString());
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
