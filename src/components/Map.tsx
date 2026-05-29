@@ -40,7 +40,7 @@ export default function Map({ serviceAreas, height = "400px", markerPos }: MapPr
       maxZoom: 20,
     }).addTo(map);
 
-    const allBounds: L.LatLngBoundsExpression[] = [];
+    const allBounds: L.LatLngBounds[] = [];
 
     serviceAreas.forEach((area) => {
       // If the area has a polygon with 3+ points, draw the polygon
@@ -74,7 +74,7 @@ export default function Map({ serviceAreas, height = "400px", markerPos }: MapPr
     // Fit map to show all service areas
     if (allBounds.length > 0) {
       const combined = allBounds.reduce((acc, b) => {
-        const bounds = L.latLngBounds(b);
+        const bounds = b;
         return acc ? acc.extend(bounds) : bounds;
       }, null as L.LatLngBounds | null);
       if (combined) {

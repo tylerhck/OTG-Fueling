@@ -463,7 +463,7 @@ export default function DefOrderPage() {
             </div>
             <div className="flex justify-between text-slate-500">
               <span>Delivery Fee</span>
-              <span>${DELIVERY_FEE.toFixed(2)}</span>
+              <span>${deliveryFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t border-slate-100 pt-2 font-semibold text-slate-900">
               <span>Total</span>
