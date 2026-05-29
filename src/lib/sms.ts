@@ -1,25 +1,25 @@
 import { prisma } from "@/lib/prisma";
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+const telnyxApiKey = process.env.TELNYX_API_KEY;
+const fromNumber = process.env.TELNYX_FROM_NUMBER || "+16825497355";
 
 async function sendSmsToNumber(to: string, message: string): Promise<boolean> {
-  if (!accountSid || !authToken || !fromNumber) {
-    console.warn("Twilio credentials not configured. SMS will not be sent.");
+  if (!telnyxApiKey) {
+    console.warn("Telnyx API key not configured. SMS will not be sent.");
     return false;
   }
 
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
-  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-
-  const res = await fetch(url, {
+  const res = await fetch("https://api.telnyx.com/v2/messages", {
     method: "POST",
     headers: {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${telnyxApiKey}`,
+      "Content-Type": "application/json",
     },
-    body: new URLSearchParams({ To: to, From: fromNumber, Body: message }),
+    body: JSON.stringify({
+      from: fromNumber,
+      to: to,
+      text: message,
+    }),
   });
 
   if (!res.ok) {
@@ -43,7 +43,7 @@ interface OrderSmsData {
 }
 
 export async function sendOrderNotifications(data: OrderSmsData) {
-  if (!accountSid || !authToken || !fromNumber) return;
+  if (!telnyxApiKey) return;
 
   // Get all active SMS recipients
   const recipients = await prisma.smsRecipient.findMany({

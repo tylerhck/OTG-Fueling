@@ -42,22 +42,18 @@ const ORDER_STATUS_MESSAGES: Record<string, { subject: string; body: string }> =
 };
 
 async function sendSms(to: string, message: string): Promise<boolean> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_PHONE_NUMBER;
+  const telnyxApiKey = process.env.TELNYX_API_KEY;
+  const from = process.env.TELNYX_FROM_NUMBER || "+16825497355";
 
-  if (!accountSid || !authToken || !from) return false;
+  if (!telnyxApiKey) return false;
 
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
-  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-
-  const res = await fetch(url, {
+  const res = await fetch("https://api.telnyx.com/v2/messages", {
     method: "POST",
     headers: {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${telnyxApiKey}`,
+      "Content-Type": "application/json",
     },
-    body: new URLSearchParams({ To: to, From: from, Body: message }),
+    body: JSON.stringify({ from, to, text: message }),
   });
 
   return res.ok;
