@@ -13,6 +13,7 @@ export default function GuestOrderPage() {
   const router = useRouter();
   const [prices, setPrices] = useState<FuelPrice[]>([]);
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(1500);
+  const [asapEnabled, setAsapEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +53,12 @@ export default function GuestOrderPage() {
         setPrices(data.prices || []);
         if (data.deliveryFeeCents !== undefined) {
           setDeliveryFeeCents(data.deliveryFeeCents);
+        }
+        if (data.asapEnabled !== undefined) {
+          setAsapEnabled(data.asapEnabled);
+          if (data.asapEnabled === false) {
+            setForm((prev) => ({ ...prev, deliveryType: "scheduled" }));
+          }
         }
         setLoading(false);
       })
@@ -376,17 +383,19 @@ export default function GuestOrderPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Delivery Time</h2>
           <div className="mt-3 flex gap-4">
-            <button
-              type="button"
-              onClick={() => updateForm({ deliveryType: "asap" })}
-              className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
-                form.deliveryType === "asap"
-                  ? "border-red-500 bg-red-50 text-red-700"
-                  : "border-slate-200 text-slate-700 hover:border-slate-300"
-              }`}
-            >
-              ASAP
-            </button>
+            {asapEnabled && (
+              <button
+                type="button"
+                onClick={() => updateForm({ deliveryType: "asap" })}
+                className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
+                  form.deliveryType === "asap"
+                    ? "border-red-500 bg-red-50 text-red-700"
+                    : "border-slate-200 text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                ASAP
+              </button>
+            )}
             <button
               type="button"
               onClick={() => updateForm({ deliveryType: "scheduled" })}
@@ -399,6 +408,10 @@ export default function GuestOrderPage() {
               Schedule
             </button>
           </div>
+
+          {!asapEnabled && (
+            <p className="mt-2 text-xs text-amber-600">ASAP delivery is currently unavailable. Please schedule a time.</p>
+          )}
 
           {form.deliveryType === "scheduled" && (
             <div className="mt-3 space-y-3">
