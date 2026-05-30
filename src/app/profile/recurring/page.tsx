@@ -60,6 +60,7 @@ export default function RecurringOrdersPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [phone, setPhone] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -88,18 +89,21 @@ export default function RecurringOrdersPage() {
 
   async function fetchData() {
     try {
-      const [ordersRes, vehiclesRes, addressesRes] = await Promise.all([
+      const [ordersRes, vehiclesRes, addressesRes, profileRes] = await Promise.all([
         fetch("/api/recurring-orders"),
         fetch("/api/vehicles"),
         fetch("/api/addresses"),
+        fetch("/api/profile"),
       ]);
       const orders = await ordersRes.json();
       const vehs = await vehiclesRes.json();
       const addrs = await addressesRes.json();
+      const profileData = await profileRes.json();
 
       setRecurringOrders(Array.isArray(orders) ? orders : []);
       setVehicles(Array.isArray(vehs) ? vehs : []);
       setAddresses(Array.isArray(addrs) ? addrs : []);
+      setPhone(profileData.phone || null);
 
       // Set defaults
       if (vehs.length > 0) setFormData((f) => ({ ...f, vehicleId: vehs[0].id }));
@@ -190,13 +194,45 @@ export default function RecurringOrdersPage() {
               Set it and forget it — we&apos;ll automatically create your order every week.
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium"
-          >
-            {showForm ? "Cancel" : "+ New Recurring"}
-          </button>
+          {vehicles.length > 0 && addresses.length > 0 && phone && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium"
+            >
+              {showForm ? "Cancel" : "+ New Recurring"}
+            </button>
+          )}
         </div>
+
+        {/* Missing requirements banner */}
+        {(vehicles.length === 0 || addresses.length === 0 || !phone) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
+            <h3 className="font-semibold text-amber-900">Complete your profile first</h3>
+            <p className="text-sm text-amber-700 mt-1">
+              Before setting up a recurring fill-up, you need to add the following:
+            </p>
+            <ul className="mt-3 space-y-2">
+              {!phone && (
+                <li className="flex items-center gap-2 text-sm text-amber-800">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-amber-700 text-xs font-bold">!</span>
+                  <span>Phone number — <Link href="/profile" className="underline font-medium hover:text-amber-900">Edit profile</Link></span>
+                </li>
+              )}
+              {vehicles.length === 0 && (
+                <li className="flex items-center gap-2 text-sm text-amber-800">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-amber-700 text-xs font-bold">!</span>
+                  <span>At least one vehicle — <Link href="/profile/vehicles" className="underline font-medium hover:text-amber-900">Add vehicle</Link></span>
+                </li>
+              )}
+              {addresses.length === 0 && (
+                <li className="flex items-center gap-2 text-sm text-amber-800">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-amber-700 text-xs font-bold">!</span>
+                  <span>At least one delivery address — <Link href="/profile/addresses" className="underline font-medium hover:text-amber-900">Add address</Link></span>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
