@@ -33,7 +33,7 @@ export default function TermsOfServicePage() {
             Important: Fuel Price Disclaimer
           </p>
           <p className="text-slate-600 leading-relaxed">
-            All fuel prices displayed on the Service are based on current market rates and the Texas regional average at the time of listing. <strong>Prices are subject to change and the final charge will be determined at the time of fill-up, not at the time of order placement.</strong> Fuel prices fluctuate based on market conditions, and the actual amount charged to your payment method may differ from the price displayed when you placed your order. By placing an order, you acknowledge and agree to this pricing structure.
+            All fuel prices displayed on the Service are based on current local rates at the time of listing. <strong>Prices are subject to change and the final charge will be determined at the time of fill-up, not at the time of order placement.</strong> Fuel prices fluctuate based on market conditions, and the actual amount charged to your payment method may differ from the price displayed when you placed your order. By placing an order, you acknowledge and agree to this pricing structure.
           </p>
         </div>
         <p className="text-slate-600 leading-relaxed mb-4">
