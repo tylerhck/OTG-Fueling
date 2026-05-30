@@ -18,6 +18,7 @@ export default function GuestOrderPage() {
   const [error, setError] = useState("");
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showRecurringPrompt, setShowRecurringPrompt] = useState(true);
 
   const [form, setForm] = useState({
     // Contact
@@ -148,6 +149,41 @@ export default function GuestOrderPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      {/* Recurring order prompt for guests */}
+      {showRecurringPrompt && (
+        <div className="mb-8 rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-white p-8 shadow-sm">
+          <div className="text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+              <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-slate-900">Want to never worry about fuel again?</h2>
+            <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
+              Sign up, set a recurring delivery day, and we&apos;ll top off your tank every week automatically. No scheduling, no gas stations.
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href="/signup"
+                className="w-full sm:w-auto inline-block rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:from-red-400 hover:to-red-500 transition-all text-center"
+              >
+                Sign Up &amp; Set Recurring
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowRecurringPrompt(false)}
+                className="w-full sm:w-auto rounded-xl border border-slate-300 px-6 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                No Thanks, Just a One-Time Order
+              </button>
+            </div>
+            <p className="mt-4 text-xs text-slate-400">
+              Recurring deliveries include a $35/mo subscription with free weekly delivery.
+            </p>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold text-slate-900">Order Fuel as Guest</h1>
       <p className="mt-1 text-sm text-slate-500">
         No account needed. Fill in your details below.
