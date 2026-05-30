@@ -176,6 +176,28 @@ function ProfileContent() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      {/* Recurring Fill-Ups — Hero CTA at very top */}
+      <Link
+        href="/profile/recurring"
+        className="mb-8 block rounded-2xl border-2 border-red-300 bg-gradient-to-br from-red-50 via-white to-red-50 p-8 shadow-md hover:shadow-lg transition-all"
+      >
+        <div className="flex flex-col items-center text-center sm:flex-row sm:text-left sm:items-center gap-5">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-200">
+            <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-2xl font-extrabold text-slate-900">Set Up Recurring Fill-Ups</p>
+            <p className="mt-1 text-base text-slate-600">Pick a day and we&apos;ll top you off every week automatically — never worry about fuel again.</p>
+            <p className="mt-2 text-sm font-semibold text-red-600">Set it &amp; forget it →</p>
+          </div>
+          <svg className="hidden sm:block h-6 w-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </Link>
+
       <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
 
       {message && (
@@ -321,24 +343,7 @@ function ProfileContent() {
         )}
       </div>
 
-      {/* Recurring Fill-Ups — Primary CTA */}
-      <Link
-        href="/profile/recurring"
-        className="mt-6 flex items-center gap-5 rounded-2xl border-2 border-red-200 bg-gradient-to-r from-red-50 to-white p-6 shadow-sm hover:shadow-md transition-all"
-      >
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-100 text-red-600">
-          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-lg font-bold text-slate-900">Set Up Recurring Fill-Ups</p>
-          <p className="text-sm text-slate-600">Pick a day and we&apos;ll top you off every week automatically — never worry about fuel again.</p>
-        </div>
-        <svg className="ml-auto h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </Link>
+
 
       {/* Quick Links */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
