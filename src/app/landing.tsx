@@ -148,29 +148,27 @@ export default function HomePage() {
                 </span>
               </h1>
               <p className="mt-8 text-lg leading-relaxed text-slate-300 max-w-md">
-                On The Go Fueling delivers gas and diesel straight to your vehicle — home, work, or anywhere you&apos;re parked. No detours, no lines, no hassle.
+                Subscribe, set a recurring delivery, and never think about fuel again. We come by once a week and top you off — no scheduling, no gas stations, no hassle.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
                 <Link
-                  href={session ? "/order" : "/order/guest"}
+                  href={session ? "/profile" : "/signup"}
                   className="group rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/40 hover:from-red-400 hover:to-red-500 transition-all"
                 >
-                  Order Fuel Now
+                  Set Up Weekly Delivery
                   <span className="inline-block ml-2 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
                 </Link>
-                {!session && (
-                  <Link
-                    href="/signin"
-                    className="rounded-xl border border-white/[0.15] px-8 py-4 text-sm font-semibold text-slate-300 hover:bg-white/[0.06] hover:border-white/[0.25] transition-all"
-                  >
-                    Sign In
-                  </Link>
-                )}
+                <Link
+                  href={session ? "/order" : "/order/guest"}
+                  className="rounded-xl border border-white/[0.15] px-8 py-4 text-sm font-semibold text-slate-300 hover:bg-white/[0.06] hover:border-white/[0.25] transition-all"
+                >
+                  One-Time Order
+                </Link>
               </div>
 
               {/* Trust indicators */}
               <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-400">
-                {["No account required", "Same-day delivery", "Secure payment"].map((item) => (
+                {["Set it & forget it", "Weekly top-offs included", "Cancel anytime"].map((item) => (
                   <div key={item} className="flex items-center gap-2">
                     <svg className="h-4 w-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -233,10 +231,10 @@ export default function HomePage() {
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-2xl shadow-slate-900/[0.08]">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:divide-x sm:divide-slate-100">
             {[
-              { value: "3", label: "Fuel Types", sub: "87 · 93 · Diesel" },
-              { value: "$35", label: "Monthly Plan", sub: "1 free delivery/week" },
-              { value: "ASAP", label: "Or Scheduled", sub: "You pick the time" },
-              { value: "0", label: "Account Needed", sub: "Guest checkout OK" },
+              { value: "1x", label: "Weekly Top-Off", sub: "We come to you" },
+              { value: "$35", label: "/Month", sub: "Free weekly delivery" },
+              { value: "Set It", label: "& Forget It", sub: "Recurring auto-fills" },
+              { value: "$0", label: "To Sign Up", sub: "Cancel anytime" },
             ].map((stat) => (
               <div key={stat.label} className="text-center px-2">
                 <p className="text-3xl font-black text-slate-900 sm:text-4xl tabular-nums">{stat.value}</p>
@@ -252,20 +250,20 @@ export default function HomePage() {
       <section className="py-24 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto">
-            <p className="text-sm font-semibold uppercase tracking-wider text-red-600">Simple process</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-red-600">How it works</p>
             <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">
-              Three steps to a full tank
+              Never visit a gas station again
             </h2>
             <p className="mt-4 text-slate-500 leading-relaxed">
-              No app download — just fuel when you need it.
+              Set up once, and we handle the rest — every single week.
             </p>
           </div>
           <div className="mt-16 grid gap-6 sm:grid-cols-3 lg:gap-10">
             {[
               {
                 step: "01",
-                title: "Enter Your Details",
-                desc: "Tell us your vehicle, delivery address, and fuel needs. No account required — order as a guest anytime.",
+                title: "Subscribe & Add Your Vehicle",
+                desc: "Create a free account, subscribe for $35/mo, and add your vehicle and delivery address.",
                 icon: (
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -274,18 +272,18 @@ export default function HomePage() {
               },
               {
                 step: "02",
-                title: "Pick Fuel & Time",
-                desc: "Choose unleaded, premium, or diesel. Select the amount and schedule a delivery or request ASAP.",
+                title: "Set Your Recurring Day",
+                desc: "Pick which day of the week works best. We'll come by and top off your tank automatically — no scheduling needed.",
                 icon: (
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 ),
               },
               {
                 step: "03",
-                title: "We Fill Your Tank",
-                desc: "Pay securely online and we'll come to your location. No need to be present — just leave your fuel cap accessible.",
+                title: "We Top You Off Weekly",
+                desc: "Every week on your chosen day, we fill your tank. No need to be present — just leave your fuel cap accessible.",
                 icon: (
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -357,10 +355,10 @@ export default function HomePage() {
                 <span className="text-sm text-slate-500">/month</span>
               </div>
               <p className="mt-3 text-sm text-slate-500">
-                One free delivery every week. Extra deliveries are $15.
+                Set a recurring day and we top you off every week. Never think about fuel again.
               </p>
               <ul className="mt-6 space-y-3">
-                {["1 free delivery per week", "Extra deliveries $15 each", "Priority scheduling", "ASAP or scheduled", "All fuel types", "Cancel anytime"].map((item) => (
+                {["1 free weekly top-off included", "Set it and forget it", "Recurring delivery on your day", "All fuel types", "ASAP orders available too", "Cancel anytime"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-sm text-slate-700">
                     <svg className="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     {item}
@@ -638,30 +636,28 @@ export default function HomePage() {
 
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-white sm:text-5xl leading-tight">
-            Ready to skip the pump?
+            Ready to never visit a gas station again?
           </h2>
           <p className="mt-6 text-lg text-slate-300 max-w-lg mx-auto leading-relaxed">
-            Join the growing number of Fort Worth residents and businesses who never visit a gas station again.
+            Subscribe, set your recurring day, and we handle the rest. Your tank stays full without you lifting a finger.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Link
-              href={session ? "/order" : "/order/guest"}
+              href={session ? "/profile" : "/signup"}
               className="group rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/20 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-400 hover:to-red-500 transition-all"
             >
-              Order Fuel Now
+              Set Up Weekly Delivery
               <span className="inline-block ml-2 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
             </Link>
-            {!session && (
-              <Link
-                href="/signup"
-                className="rounded-xl border border-slate-600 px-8 py-4 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:border-slate-500 transition-all"
-              >
-                Create Free Account
-              </Link>
-            )}
+            <Link
+              href={session ? "/order" : "/order/guest"}
+              className="rounded-xl border border-slate-600 px-8 py-4 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:border-slate-500 transition-all"
+            >
+              One-Time Order Instead
+            </Link>
           </div>
           <p className="mt-6 text-xs text-slate-400">
-            {`$35/mo for 1 free delivery per week. $${Math.round(deliveryFeeCents / 100)} delivery fee otherwise.`}
+            {`$35/mo · 1 free weekly top-off included · Cancel anytime · $${Math.round(deliveryFeeCents / 100)} per delivery without subscription`}
           </p>
         </div>
       </section>

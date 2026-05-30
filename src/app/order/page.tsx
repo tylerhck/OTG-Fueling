@@ -103,6 +103,7 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showRecurringPrompt, setShowRecurringPrompt] = useState(true);
 
   // Primary vehicle form
   const [form, setForm] = useState({
@@ -417,6 +418,44 @@ export default function OrderPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      {/* Recurring order prompt */}
+      {showRecurringPrompt && (
+        <div className="mb-8 rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-white p-8 shadow-sm">
+          <div className="text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+              <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-slate-900">Want to set up a recurring delivery?</h2>
+            <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
+              Never schedule again — pick a day of the week and we&apos;ll come by and top off your tank automatically, every single week.
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => router.push("/profile/recurring")}
+                className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:from-red-400 hover:to-red-500 transition-all"
+              >
+                Yes, Set Up Recurring
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRecurringPrompt(false)}
+                className="w-full sm:w-auto rounded-xl border border-slate-300 px-6 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                No, Just a One-Time Order
+              </button>
+            </div>
+            {!isSubscriber && (
+              <p className="mt-4 text-xs text-slate-400">
+                Recurring deliveries require a subscription ($35/mo). You&apos;ll be guided through setup.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold text-slate-900">Order Fuel</h1>
       <p className="mt-1 text-sm text-slate-500">
         Select your vehicle, address, fuel type and amount.
