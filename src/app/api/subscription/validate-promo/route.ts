@@ -11,12 +11,20 @@ async function lookupPromoCode(code: string) {
     code: code.toUpperCase(),
     active: true,
     limit: 1,
+    expand: ["data.coupon"],
   });
 
   if (promoCodes.data.length === 0) return null;
 
   const promoCode = promoCodes.data[0];
-  const coupon = promoCode.coupon;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const coupon = (promoCode as any).coupon as {
+    id: string;
+    percent_off: number | null;
+    amount_off: number | null;
+    duration: string;
+    name: string | null;
+  };
 
   let description = "";
   if (coupon.percent_off === 100 && coupon.duration === "once") {
