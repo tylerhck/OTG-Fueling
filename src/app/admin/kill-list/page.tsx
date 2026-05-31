@@ -20,13 +20,13 @@ const COLOR_OPTIONS = [
   { value: "#6D4C41", label: "Brown", desc: "No interest" },
 ];
 
-type Mode = "mark" | "erase";
+type Mode = "mark" | "erase" | "navigate";
 
 export default function AdminKillListPage() {
   const [pins, setPins] = useState<CanvassPin[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState("#E53935");
-  const [mode, setMode] = useState<Mode>("mark");
+  const [mode, setMode] = useState<Mode>("navigate");
   const [saving, setSaving] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -36,7 +36,19 @@ export default function AdminKillListPage() {
 
   // Keep refs in sync
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => {
+    modeRef.current = mode;
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    // In mark mode, disable map dragging so clicks register as pins
+    if (mode === "mark") {
+      map.dragging.disable();
+      map.doubleClickZoom.disable();
+    } else {
+      map.dragging.enable();
+      map.doubleClickZoom.enable();
+    }
+  }, [mode]);
 
   // Fetch existing pins
   useEffect(() => {
@@ -88,7 +100,12 @@ export default function AdminKillListPage() {
     const L = (window as any).L;
     if (!L) return;
 
-    const map = L.map(mapRef.current).setView([32.87, -97.32], 13);
+    const map = L.map(mapRef.current, {
+      center: [32.87, -97.32],
+      zoom: 13,
+      zoomControl: true,
+      scrollWheelZoom: true,
+    });
     mapInstanceRef.current = map;
 
     // Satellite view for seeing individual houses
@@ -107,7 +124,7 @@ export default function AdminKillListPage() {
     const markersLayer = L.featureGroup().addTo(map);
     markersLayerRef.current = markersLayer;
 
-    // Click handler — add pin or erase
+    // Click handler — add pin when in mark mode
     map.on("click", async (e: any) => {
       if (modeRef.current === "mark") {
         await addPin(e.latlng.lat, e.latlng.lng);
@@ -204,12 +221,22 @@ export default function AdminKillListPage() {
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-2">Kill List</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Tap houses and businesses on the map to mark them. Switch to eraser mode to remove marks.
+        Mark houses and businesses you&apos;ve visited. Use Navigate mode to move around the map, then switch to Mark mode to place pins.
       </p>
 
       {/* Mode Toggle */}
       <div className="mb-4 flex items-center gap-4">
         <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          <button
+            onClick={() => setMode("navigate")}
+            className={`px-4 py-2 text-sm font-medium transition-all ${
+              mode === "navigate"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            🗺️ Navigate
+          </button>
           <button
             onClick={() => setMode("mark")}
             className={`px-4 py-2 text-sm font-medium transition-all ${
@@ -218,7 +245,7 @@ export default function AdminKillListPage() {
                 : "bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            ✏️ Mark
+            📍 Mark
           </button>
           <button
             onClick={() => setMode("erase")}
@@ -231,11 +258,13 @@ export default function AdminKillListPage() {
             🧹 Erase
           </button>
         </div>
-        {mode === "erase" && (
-          <span className="text-xs text-gray-500 italic">Click any marker on the map to remove it</span>
-        )}
+        <span className="text-xs text-gray-500 italic">
+          {mode === "navigate" && "Drag to move map, scroll to zoom. Switch to Mark to place pins."}
+          {mode === "mark" && "Tap the map to drop a pin. Scroll to zoom. Switch to Navigate to move around."}
+          {mode === "erase" && "Tap any marker to remove it."}
+        </span>
         {saving && (
-          <span className="text-xs text-gray-400">Saving...</span>
+          <span className="text-xs text-orange-500 font-medium ml-2">Saving...</span>
         )}
       </div>
 
@@ -265,8 +294,12 @@ export default function AdminKillListPage() {
       {/* Map */}
       <div
         ref={mapRef}
-        className="w-full rounded-xl border border-gray-200 overflow-hidden"
-        style={{ height: "600px", cursor: mode === "mark" ? "crosshair" : "pointer" }}
+        className="w-full rounded-xl border-2 overflow-hidden"
+        style={{
+          height: "600px",
+          cursor: mode === "mark" ? "crosshair" : mode === "erase" ? "not-allowed" : "grab",
+          borderColor: mode === "mark" ? "#E53935" : mode === "erase" ? "#333" : "#e5e7eb",
+        }}
       />
 
       {/* Stats */}
