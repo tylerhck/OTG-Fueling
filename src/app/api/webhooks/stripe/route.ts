@@ -108,7 +108,8 @@ export async function POST(req: NextRequest) {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string | null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subscriptionId = (invoice as any).subscription as string | null;
 
         if (subscriptionId) {
           // Mark subscription as past_due so the user sees a warning
