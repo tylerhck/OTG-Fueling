@@ -21,6 +21,8 @@ interface RecurringOrder {
   address: { street: string; city: string; state: string; zip: string } | null;
 }
 
+const DAYS_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+
 const DAY_LABELS: Record<string, string> = {
   MONDAY: "Mon",
   TUESDAY: "Tue",
@@ -31,9 +33,20 @@ const DAY_LABELS: Record<string, string> = {
   SUNDAY: "Sun",
 };
 
+const DAY_FULL_LABELS: Record<string, string> = {
+  MONDAY: "Monday",
+  TUESDAY: "Tuesday",
+  WEDNESDAY: "Wednesday",
+  THURSDAY: "Thursday",
+  FRIDAY: "Friday",
+  SATURDAY: "Saturday",
+  SUNDAY: "Sunday",
+};
+
 export default function AdminRecurringPage() {
   const [orders, setOrders] = useState<RecurringOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterDay, setFilterDay] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/recurring-orders")
@@ -42,6 +55,20 @@ export default function AdminRecurringPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // Compute tally — only count active recurring orders
+  const activeOrders = orders.filter((o) => o.isActive);
+  const tally: Record<string, number> = {};
+  DAYS_ORDER.forEach((day) => {
+    tally[day] = activeOrders.filter((o) => o.dayOfWeek === day).length;
+  });
+  const maxCount = Math.max(...Object.values(tally), 1);
+  const totalActive = activeOrders.length;
+
+  // Filtered list
+  const displayedOrders = filterDay
+    ? orders.filter((o) => o.dayOfWeek === filterDay)
+    : orders;
 
   if (loading) {
     return (
@@ -59,8 +86,95 @@ export default function AdminRecurringPage() {
         All customer recurring fill-up schedules. The cron job runs daily and creates orders for matching days.
       </p>
 
-      {orders.length === 0 ? (
-        <p className="text-gray-500">No recurring orders set up yet.</p>
+      {/* Weekly Tally */}
+      <div className="mb-8 bg-white border rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Weekly Tally</h2>
+          <span className="text-sm text-gray-500">{totalActive} active recurring orders</span>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Click a day to filter the table below. Use this to balance new subscriber assignments across the week.
+        </p>
+        <div className="grid grid-cols-7 gap-3">
+          {DAYS_ORDER.map((day) => {
+            const count = tally[day];
+            const barHeight = maxCount > 0 ? Math.max((count / maxCount) * 100, 8) : 8;
+            const isSelected = filterDay === day;
+            const isLightest = count === Math.min(...Object.values(tally)) && count < maxCount;
+            const isHeaviest = count === maxCount && count > 0;
+
+            return (
+              <button
+                key={day}
+                onClick={() => setFilterDay(isSelected ? null : day)}
+                className={`flex flex-col items-center rounded-lg p-3 transition-all ${
+                  isSelected
+                    ? "bg-red-50 border-2 border-red-400 shadow-sm"
+                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                <span className="text-xs font-medium text-gray-600 mb-2">{DAY_LABELS[day]}</span>
+                <div className="w-full h-24 flex items-end justify-center">
+                  <div
+                    className={`w-8 rounded-t-md transition-all ${
+                      isHeaviest
+                        ? "bg-red-400"
+                        : isLightest
+                        ? "bg-green-400"
+                        : "bg-blue-400"
+                    }`}
+                    style={{ height: `${barHeight}%` }}
+                  />
+                </div>
+                <span className={`mt-2 text-lg font-bold ${
+                  isHeaviest ? "text-red-600" : isLightest ? "text-green-600" : "text-gray-900"
+                }`}>
+                  {count}
+                </span>
+                {isLightest && count < maxCount && (
+                  <span className="text-[10px] text-green-600 font-medium mt-0.5">Lightest</span>
+                )}
+                {isHeaviest && (
+                  <span className="text-[10px] text-red-600 font-medium mt-0.5">Heaviest</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* Recommendation */}
+        {totalActive > 0 && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-800">
+              <span className="font-semibold">Suggestion:</span> Assign new subscribers to{" "}
+              <span className="font-bold">
+                {DAY_FULL_LABELS[DAYS_ORDER.reduce((lightest, day) => tally[day] < tally[lightest] ? day : lightest, DAYS_ORDER[0])]}
+              </span>{" "}
+              ({Math.min(...Object.values(tally))} orders) to balance the workload.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Filter indicator */}
+      {filterDay && (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-gray-700">
+            Showing <span className="font-semibold">{DAY_FULL_LABELS[filterDay]}</span> orders only
+          </span>
+          <button
+            onClick={() => setFilterDay(null)}
+            className="text-xs text-red-600 hover:text-red-800 underline"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
+      {/* Orders Table */}
+      {displayedOrders.length === 0 ? (
+        <p className="text-gray-500">
+          {filterDay ? `No recurring orders on ${DAY_FULL_LABELS[filterDay]}.` : "No recurring orders set up yet."}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border rounded-lg">
@@ -77,7 +191,7 @@ export default function AdminRecurringPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {orders.map((order) => (
+              {displayedOrders.map((order) => (
                 <tr key={order.id} className={!order.isActive ? "opacity-50" : ""}>
                   <td className="px-4 py-3">
                     <p className="text-sm font-medium">{order.user.name}</p>

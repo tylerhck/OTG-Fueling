@@ -412,3 +412,16 @@ model PushToken {
   @@unique([userId, token])
   @@map("push_tokens")
 }
+
+model CanvassPin {
+  id        String   @id @default(cuid())
+  lat       Float
+  lng       Float
+  color     String   @default("#E53935")
+  label     String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("canvass_pins")
+}
