@@ -49,6 +49,12 @@ function ProfileContent() {
   const [subLoading, setSubLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Promo code state
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState("");
+  const [appliedCoupons, setAppliedCoupons] = useState<Array<{ couponId: string; code: string; description: string }>>([]); 
+
   // Cancel subscription modal state
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelInput, setCancelInput] = useState("");
@@ -124,9 +130,53 @@ function ProfileContent() {
     setSaving(false);
   }
 
+  async function handleApplyPromo() {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    setPromoError("");
+    try {
+      const res = await fetch("/api/subscription/validate-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim() }),
+      });
+      const data = await res.json();
+      if (!data.valid) {
+        setPromoError(data.error || "Invalid code");
+      } else {
+        // Add coupons (handle bundle codes that return multiple)
+        const newCoupons = data.coupons as Array<{ couponId: string; code: string; description: string }>;
+        setAppliedCoupons((prev) => {
+          const existing = new Set(prev.map((c) => c.couponId));
+          const toAdd = newCoupons.filter((c) => !existing.has(c.couponId));
+          if (toAdd.length === 0) {
+            setPromoError("Code already applied");
+            return prev;
+          }
+          return [...prev, ...toAdd];
+        });
+        setPromoCode("");
+      }
+    } catch {
+      setPromoError("Error validating code");
+    }
+    setPromoLoading(false);
+  }
+
+  function handleRemoveCoupon(couponId: string) {
+    setAppliedCoupons((prev) => prev.filter((c) => c.couponId !== couponId));
+  }
+
   async function handleSubscribe() {
     setSubLoading(true);
-    const res = await fetch("/api/subscription", { method: "POST" });
+    const body = appliedCoupons.length > 0
+      ? JSON.stringify({ couponIds: appliedCoupons.map((c) => c.couponId) })
+      : undefined;
+    const res = await fetch("/api/subscription", {
+      method: "POST",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body,
+    });
     if (res.ok) {
       const { url } = await res.json();
       window.location.href = url;
@@ -332,6 +382,50 @@ function ProfileContent() {
               <li>&#x2022; Add 2nd vehicle at same location: +$5</li>
               <li>&#x2022; Add trailered boat: +$10</li>
             </ul>
+
+            {/* Promo Code Section */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+              <p className="text-sm font-medium text-slate-700">Have a promo code?</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter code"
+                  value={promoCode}
+                  onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoError(""); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleApplyPromo(); } }}
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 uppercase placeholder:normal-case focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                />
+                <button
+                  onClick={handleApplyPromo}
+                  disabled={promoLoading || !promoCode.trim()}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                >
+                  {promoLoading ? "..." : "Apply"}
+                </button>
+              </div>
+              {promoError && (
+                <p className="text-xs text-red-600">{promoError}</p>
+              )}
+              {appliedCoupons.length > 0 && (
+                <div className="space-y-2">
+                  {appliedCoupons.map((coupon) => (
+                    <div key={coupon.couponId} className="flex items-center justify-between rounded-lg bg-green-50 border border-green-200 px-3 py-2">
+                      <div>
+                        <span className="text-sm font-medium text-green-800">{coupon.code}</span>
+                        <span className="ml-2 text-xs text-green-600">{coupon.description}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveCoupon(coupon.couponId)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleSubscribe}
               disabled={subLoading}

@@ -67,7 +67,7 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -89,12 +89,22 @@ export async function POST() {
     select: { email: true, name: true },
   });
 
-  // Create Stripe Checkout Session for subscription
-  const checkoutSession = await stripe.checkout.sessions.create({
+  // Parse optional coupon IDs from request body
+  let couponIds: string[] = [];
+  try {
+    const body = await req.json();
+    if (body.couponIds && Array.isArray(body.couponIds)) {
+      couponIds = body.couponIds.filter((id: unknown) => typeof id === "string");
+    }
+  } catch {
+    // No body or invalid JSON — proceed without coupons
+  }
+
+  // Build checkout session params
+  const checkoutParams: Record<string, unknown> = {
     mode: "subscription",
     payment_method_types: ["card"],
     customer_email: user?.email,
-    allow_promotion_codes: true,
     line_items: [
       {
         price_data: {
@@ -114,7 +124,20 @@ export async function POST() {
     },
     success_url: `${process.env.NEXTAUTH_URL}/profile?subscribed=true&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXTAUTH_URL}/profile`,
-  });
+  };
+
+  // If coupons provided, use discounts param (supports multiple)
+  // Otherwise allow manual promo code entry on Stripe page
+  if (couponIds.length > 0) {
+    checkoutParams.discounts = couponIds.map((id) => ({ coupon: id }));
+  } else {
+    checkoutParams.allow_promotion_codes = true;
+  }
+
+  // Create Stripe Checkout Session for subscription
+  const checkoutSession = await stripe.checkout.sessions.create(
+    checkoutParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+  );
 
   return NextResponse.json({ url: checkoutSession.url });
 }
