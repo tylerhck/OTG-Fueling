@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import Stripe from "stripe";
 
 // OTGVIP is a virtual bundle code that maps to both OTGFREE + OTG20
 const BUNDLE_CODES: Record<string, string[]> = {
@@ -11,20 +12,15 @@ async function lookupPromoCode(code: string) {
     code: code.toUpperCase(),
     active: true,
     limit: 1,
-    expand: ["data.coupon"],
   });
 
   if (promoCodes.data.length === 0) return null;
 
   const promoCode = promoCodes.data[0];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const coupon = (promoCode as any).coupon as {
-    id: string;
-    percent_off: number | null;
-    amount_off: number | null;
-    duration: string;
-    name: string | null;
-  };
+
+  // Access coupon through the promotion object
+  const coupon = promoCode.promotion.coupon as Stripe.Coupon;
+  if (!coupon || typeof coupon === "string") return null;
 
   let description = "";
   if (coupon.percent_off === 100 && coupon.duration === "once") {
