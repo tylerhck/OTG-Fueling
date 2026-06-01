@@ -2,24 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Use raw SQL to avoid dependency on Prisma client having the canvassPin model generated
+function generateId() {
+  // cuid-like ID
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "c";
+  for (let i = 0; i < 24; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return id;
+}
+
+async function checkAdmin() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+  if (user?.role !== "ADMIN") return null;
+  return session.user.id;
+}
+
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const userId = await checkAdmin();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
-    if (user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const pins = await prisma.canvassPin.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const pins: any[] = await prisma.$queryRawUnsafe(
+      "SELECT id, lat, lng, color, label, notes, created_at as createdAt, updated_at as updatedAt FROM canvass_pins ORDER BY created_at DESC"
+    );
 
     return NextResponse.json(pins);
   } catch (err: any) {
@@ -33,17 +47,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const userId = await checkAdmin();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
-    if (user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -56,17 +62,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pin = await prisma.canvassPin.create({
-      data: {
-        lat,
-        lng,
-        color: color || "#E53935",
-        label: label || null,
-        notes: notes || null,
-      },
-    });
+    const id = generateId();
+    const now = new Date().toISOString().slice(0, 23).replace("T", " ");
 
-    return NextResponse.json(pin, { status: 201 });
+    await prisma.$executeRawUnsafe(
+      "INSERT INTO canvass_pins (id, lat, lng, color, label, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      id,
+      lat,
+      lng,
+      color || "#E53935",
+      label || null,
+      notes || null,
+      now,
+      now
+    );
+
+    return NextResponse.json(
+      { id, lat, lng, color: color || "#E53935", label, notes, createdAt: now, updatedAt: now },
+      { status: 201 }
+    );
   } catch (err: any) {
     console.error("POST /api/admin/canvass-zones error:", err);
     return NextResponse.json(
@@ -78,17 +92,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const userId = await checkAdmin();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
-    if (user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -98,7 +104,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing pin id" }, { status: 400 });
     }
 
-    await prisma.canvassPin.delete({ where: { id } });
+    await prisma.$executeRawUnsafe(
+      "DELETE FROM canvass_pins WHERE id = ?",
+      id
+    );
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
