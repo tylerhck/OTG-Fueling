@@ -140,8 +140,20 @@ export async function POST(
       stripePaymentIntentId: finalIntentId,
       status: "COMPLETED",
     },
-    include: { user: true },
+    include: { user: true, items: true },
   });
+
+  // Also update OrderItem records with actual gallons so stats aggregate correctly
+  if (updated.items && updated.items.length > 0) {
+    await prisma.orderItem.updateMany({
+      where: { orderId: id },
+      data: {
+        gallons: gallons || 0,
+        pricePerGallonCents,
+        serviceFeeCents,
+      },
+    });
+  }
 
   // Send completion receipt email with breakdown
   sendCompletionReceipt({
