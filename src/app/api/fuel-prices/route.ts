@@ -19,10 +19,11 @@ export async function GET() {
   try {
     const session = await auth();
 
-    const [asapSetting, defSettings, deliveryFeeSetting] = await Promise.all([
+    const [asapSetting, defSettings, deliveryFeeSetting, displayPriceSettings] = await Promise.all([
       prisma.siteSetting.findUnique({ where: { key: "asap_enabled" } }),
       prisma.siteSetting.findMany({ where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } } }),
       prisma.siteSetting.findUnique({ where: { key: "delivery_fee_cents" } }),
+      prisma.siteSetting.findMany({ where: { key: { in: ["display_price_regular_87", "display_price_premium_93", "display_price_diesel"] } } }),
     ]);
 
     const deliveryFeeCents = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : 1500;
@@ -37,8 +38,19 @@ export async function GET() {
       { gallons: 5, label: "5 gallon", cents: parseInt(defMap.def_price_cents_5 || "5500", 10) },
     ];
 
+    // Build display prices map
+    const displayMap: Record<string, string> = {};
+    for (const s of displayPriceSettings) {
+      displayMap[s.key] = s.value;
+    }
+
     const result: Record<string, unknown> = {
       prices: [], // No longer serving live fuel prices — prices entered at completion
+      displayPrices: {
+        regular87: displayMap.display_price_regular_87 || "",
+        premium93: displayMap.display_price_premium_93 || "",
+        diesel: displayMap.display_price_diesel || "",
+      },
       defSizes,
       deliveryFeeCents,
       asapEnabled: asapSetting?.value !== "false", // defaults to true

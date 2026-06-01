@@ -2,7 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const ALLOWED_KEYS = ["delivery_fee_cents", "default_markup_percent", "asap_enabled", "def_price_cents_2_5", "def_price_cents_5"];
+const ALLOWED_KEYS = [
+  "delivery_fee_cents",
+  "default_markup_percent",
+  "asap_enabled",
+  "def_price_cents_2_5",
+  "def_price_cents_5",
+  "display_price_regular_87",
+  "display_price_premium_93",
+  "display_price_diesel",
+];
+
+function buildResponse(map: Record<string, string>) {
+  return {
+    deliveryFeeCents: parseInt(map.delivery_fee_cents || "500", 10),
+    defaultMarkupPercent: parseFloat(map.default_markup_percent || "10"),
+    asapEnabled: map.asap_enabled !== "false",
+    defPriceCents2_5: parseInt(map.def_price_cents_2_5 || "3000", 10),
+    defPriceCents5: parseInt(map.def_price_cents_5 || "5500", 10),
+    displayPriceRegular87: map.display_price_regular_87 || "",
+    displayPricePremium93: map.display_price_premium_93 || "",
+    displayPriceDiesel: map.display_price_diesel || "",
+  };
+}
 
 export async function GET() {
   const settings = await prisma.siteSetting.findMany({
@@ -14,13 +36,7 @@ export async function GET() {
     map[s.key] = s.value;
   }
 
-  return NextResponse.json({
-    deliveryFeeCents: parseInt(map.delivery_fee_cents || "500", 10),
-    defaultMarkupPercent: parseFloat(map.default_markup_percent || "10"),
-    asapEnabled: map.asap_enabled !== "false",
-    defPriceCents2_5: parseInt(map.def_price_cents_2_5 || "3000", 10),
-    defPriceCents5: parseInt(map.def_price_cents_5 || "5500", 10),
-  });
+  return NextResponse.json(buildResponse(map));
 }
 
 export async function POST(req: NextRequest) {
@@ -86,6 +102,29 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Display-only fuel prices (shown on homepage cards, NOT used in checkout or completion)
+  if (body.displayPriceRegular87 !== undefined) {
+    await prisma.siteSetting.upsert({
+      where: { key: "display_price_regular_87" },
+      update: { value: String(body.displayPriceRegular87) },
+      create: { key: "display_price_regular_87", value: String(body.displayPriceRegular87) },
+    });
+  }
+  if (body.displayPricePremium93 !== undefined) {
+    await prisma.siteSetting.upsert({
+      where: { key: "display_price_premium_93" },
+      update: { value: String(body.displayPricePremium93) },
+      create: { key: "display_price_premium_93", value: String(body.displayPricePremium93) },
+    });
+  }
+  if (body.displayPriceDiesel !== undefined) {
+    await prisma.siteSetting.upsert({
+      where: { key: "display_price_diesel" },
+      update: { value: String(body.displayPriceDiesel) },
+      create: { key: "display_price_diesel", value: String(body.displayPriceDiesel) },
+    });
+  }
+
   // Return updated settings
   const settings = await prisma.siteSetting.findMany({
     where: { key: { in: ALLOWED_KEYS } },
@@ -95,11 +134,5 @@ export async function POST(req: NextRequest) {
     map[s.key] = s.value;
   }
 
-  return NextResponse.json({
-    deliveryFeeCents: parseInt(map.delivery_fee_cents || "500", 10),
-    defaultMarkupPercent: parseFloat(map.default_markup_percent || "10"),
-    asapEnabled: map.asap_enabled !== "false",
-    defPriceCents2_5: parseInt(map.def_price_cents_2_5 || "3000", 10),
-    defPriceCents5: parseInt(map.def_price_cents_5 || "5500", 10),
-  });
+  return NextResponse.json(buildResponse(map));
 }

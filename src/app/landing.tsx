@@ -55,6 +55,7 @@ export default function HomePage() {
   const { data: session } = useSession();
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(500);
+  const [displayPrices, setDisplayPrices] = useState<{ regular87: string; premium93: string; diesel: string }>({ regular87: "", premium93: "", diesel: "" });
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
   const [geocodedPos, setGeocodedPos] = useState<{ lat: number; lng: number } | null>(null);
   const [videoMuted, setVideoMuted] = useState(false);
@@ -85,6 +86,7 @@ export default function HomePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.deliveryFeeCents !== undefined) setDeliveryFeeCents(data.deliveryFeeCents);
+        if (data.displayPrices) setDisplayPrices(data.displayPrices);
       })
       .catch(() => {});
     fetch("/api/service-schedules")
@@ -430,9 +432,9 @@ export default function HomePage() {
             {/* Fuel type cards */}
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               {[
-                { name: "Regular", grade: "87", desc: "Standard unleaded", color: "from-emerald-500 to-emerald-600", bgLight: "bg-emerald-50", border: "border-emerald-100" },
-                { name: "Premium", grade: "93", desc: "Super unleaded", color: "from-blue-500 to-blue-600", bgLight: "bg-blue-50", border: "border-blue-100" },
-                { name: "Diesel", grade: "D", desc: "Ultra low sulfur", color: "from-slate-600 to-slate-700", bgLight: "bg-slate-100", border: "border-slate-200" },
+                { name: "Regular", grade: "87", desc: "Standard unleaded", color: "from-emerald-500 to-emerald-600", bgLight: "bg-emerald-50", border: "border-emerald-100", priceKey: "regular87" as const },
+                { name: "Premium", grade: "93", desc: "Super unleaded", color: "from-blue-500 to-blue-600", bgLight: "bg-blue-50", border: "border-blue-100", priceKey: "premium93" as const },
+                { name: "Diesel", grade: "D", desc: "Ultra low sulfur", color: "from-slate-600 to-slate-700", bgLight: "bg-slate-100", border: "border-slate-200", priceKey: "diesel" as const },
               ].map((fuel) => (
                   <div
                     key={fuel.name}
@@ -445,7 +447,11 @@ export default function HomePage() {
                     </div>
                     <h3 className="mt-4 font-bold text-slate-900">{fuel.name}</h3>
                     <p className="mt-1 text-xs text-slate-600">{fuel.desc}</p>
-                    <p className="mt-3 text-sm font-medium text-slate-500">Market price</p>
+                    {displayPrices[fuel.priceKey] ? (
+                      <p className="mt-3 text-lg font-bold text-slate-900">${displayPrices[fuel.priceKey]}<span className="text-xs font-normal text-slate-500">/gal</span></p>
+                    ) : (
+                      <p className="mt-3 text-sm font-medium text-slate-500">Market price</p>
+                    )}
                   </div>
               ))}
 

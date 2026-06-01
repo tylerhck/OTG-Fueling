@@ -15,6 +15,12 @@ export default function PricingAdmin() {
   const [defPrice5, setDefPrice5] = useState("55.00");
   const [savingDef, setSavingDef] = useState(false);
 
+  // Display-only fuel prices (homepage cards)
+  const [displayRegular87, setDisplayRegular87] = useState("");
+  const [displayPremium93, setDisplayPremium93] = useState("");
+  const [displayDiesel, setDisplayDiesel] = useState("");
+  const [savingFuelPrices, setSavingFuelPrices] = useState(false);
+
   const loadData = useCallback(async () => {
     const settingsRes = await fetch("/api/admin/settings");
     const settingsData = await settingsRes.json();
@@ -23,6 +29,9 @@ export default function PricingAdmin() {
     setAsapEnabled(settingsData.asapEnabled !== false);
     setDefPrice2_5((settingsData.defPriceCents2_5 / 100).toFixed(2));
     setDefPrice5((settingsData.defPriceCents5 / 100).toFixed(2));
+    setDisplayRegular87(settingsData.displayPriceRegular87 || "");
+    setDisplayPremium93(settingsData.displayPricePremium93 || "");
+    setDisplayDiesel(settingsData.displayPriceDiesel || "");
     setLoading(false);
   }, []);
 
@@ -85,6 +94,84 @@ export default function PricingAdmin() {
           {success}
         </div>
       )}
+
+      {/* Homepage Fuel Display Prices */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Homepage Fuel Prices</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          These prices are <strong>display only</strong> — shown on the homepage fuel cards. They do NOT affect checkout or order completion.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Regular 87 ($/gal)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 2.89"
+              value={displayRegular87}
+              onChange={(e) => setDisplayRegular87(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Premium 93 ($/gal)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 3.49"
+              value={displayPremium93}
+              onChange={(e) => setDisplayPremium93(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Diesel ($/gal)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 3.19"
+              value={displayDiesel}
+              onChange={(e) => setDisplayDiesel(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+          </div>
+        </div>
+
+        <p className="mt-2 text-xs text-slate-400">
+          Leave blank to show &quot;Market price&quot; on the homepage instead of a number.
+        </p>
+
+        <button
+          onClick={async () => {
+            setSavingFuelPrices(true);
+            setError("");
+            const res = await fetch("/api/admin/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                displayPriceRegular87: displayRegular87.trim(),
+                displayPricePremium93: displayPremium93.trim(),
+                displayPriceDiesel: displayDiesel.trim(),
+              }),
+            });
+            if (res.ok) {
+              setSuccess("Fuel display prices updated!");
+              setTimeout(() => setSuccess(""), 3000);
+            } else {
+              setError("Failed to save fuel prices");
+            }
+            setSavingFuelPrices(false);
+          }}
+          disabled={savingFuelPrices}
+          className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {savingFuelPrices ? "Saving..." : "Save Fuel Prices"}
+        </button>
+      </div>
 
       {/* Delivery Fee & Settings */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -207,6 +294,9 @@ export default function PricingAdmin() {
         <h3 className="text-sm font-semibold text-slate-700">How Pricing Works</h3>
         <ul className="mt-2 space-y-1 text-sm text-slate-600">
           <li>
+            <strong>Homepage Prices</strong> — Display only. You set them above, customers see them on the homepage cards. Not linked to checkout.
+          </li>
+          <li>
             <strong>Fuel Orders</strong> — Customers pre-fund a dollar amount or choose Fill Up ($1 hold). You enter the actual gallons and price per gallon at completion.
           </li>
           <li>
@@ -216,7 +306,7 @@ export default function PricingAdmin() {
             <strong>DEF</strong> — Flat price per container size (set above).
           </li>
           <li>
-            <strong>Completion</strong> — All orders are charged at completion based on actual gallons pumped × current fuel price.
+            <strong>Completion</strong> — All orders are charged at completion based on actual gallons pumped × price per gallon + service fee.
           </li>
         </ul>
       </div>
