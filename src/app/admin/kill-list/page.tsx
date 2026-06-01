@@ -28,6 +28,7 @@ export default function AdminKillListPage() {
   const [selectedColor, setSelectedColor] = useState("#E53935");
   const [mode, setMode] = useState<Mode>("navigate");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [drawPoints, setDrawPoints] = useState<[number, number][]>([]);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -58,9 +59,17 @@ export default function AdminKillListPage() {
   // Fetch existing zones
   useEffect(() => {
     fetch("/api/admin/canvass-zones")
-      .then((r) => r.json())
-      .then((data) => setZones(Array.isArray(data) ? data : []))
-      .catch(console.error)
+      .then((r) => {
+        if (!r.ok) throw new Error(`API returned ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        setZones(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error("Load zones failed:", err);
+        setError(`Failed to load saved areas: ${err.message}`);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -230,27 +239,31 @@ export default function AdminKillListPage() {
   async function saveZone() {
     if (drawPoints.length < 3) return;
     setSaving(true);
+    setError(null);
 
     try {
       const res = await fetch("/api/admin/canvass-zones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lat: drawPoints[0][0], // center-ish point
+          lat: drawPoints[0][0],
           lng: drawPoints[0][1],
           color: selectedColor,
           label: COLOR_OPTIONS.find((c) => c.value === selectedColor)?.desc || "Visited",
-          notes: JSON.stringify(drawPoints), // Store polygon as JSON in notes
+          notes: JSON.stringify(drawPoints),
         }),
       });
       if (res.ok) {
         const newZone = await res.json();
         setZones((prev) => [newZone, ...prev]);
-        // Clear drawing
         setDrawPoints([]);
         if (drawPreviewLayerRef.current) drawPreviewLayerRef.current.clearLayers();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setError(`Save failed (${res.status}): ${errData.error || res.statusText}`);
       }
-    } catch (err) {
+    } catch (err: any) {
+      setError(`Network error: ${err.message}`);
       console.error("Failed to save zone", err);
     } finally {
       setSaving(false);
@@ -393,6 +406,13 @@ export default function AdminKillListPage() {
           >
             Cancel
           </button>
+        </div>
+      )}
+
+      {/* Error display */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-sm text-red-800">
+          {error}
         </div>
       )}
 
