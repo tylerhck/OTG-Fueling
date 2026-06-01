@@ -15,7 +15,7 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: string; total: number; clientSecret: string; isFillUp?: boolean }) {
+function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orderId: string; total: number; clientSecret: string; isFillUp?: boolean; isSetup?: boolean }) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -24,9 +24,9 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
   const [walletAvailable, setWalletAvailable] = useState(false);
 
-  // Set up Apple Pay / Google Pay via Payment Request API
+  // Set up Apple Pay / Google Pay via Payment Request API (only for ASAP/PaymentIntent)
   useEffect(() => {
-    if (!stripe) return;
+    if (!stripe || isSetup) return;
 
     const pr = stripe.paymentRequest({
       country: "US",
@@ -71,7 +71,7 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
         }
       }
     });
-  }, [stripe, total, clientSecret, orderId, router]);
+  }, [stripe, total, clientSecret, orderId, router, isSetup]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,22 +83,37 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
     setProcessing(true);
     setError("");
 
-    const { error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: { card: cardElement },
-    });
+    if (isSetup) {
+      // Scheduled order: confirm SetupIntent (saves card, no hold placed yet)
+      const { error: setupError } = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: { card: cardElement },
+      });
 
-    if (stripeError) {
-      setError(stripeError.message || "Payment failed");
-      setProcessing(false);
+      if (setupError) {
+        setError(setupError.message || "Card verification failed");
+        setProcessing(false);
+      } else {
+        router.push(`/order/confirmation?orderId=${orderId}`);
+      }
     } else {
-      router.push(`/order/confirmation?orderId=${orderId}`);
+      // ASAP order: confirm PaymentIntent (places hold immediately)
+      const { error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: cardElement },
+      });
+
+      if (stripeError) {
+        setError(stripeError.message || "Payment failed");
+        setProcessing(false);
+      } else {
+        router.push(`/order/confirmation?orderId=${orderId}`);
+      }
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Apple Pay / Google Pay button */}
-      {walletAvailable && paymentRequest && (
+      {/* Apple Pay / Google Pay button (ASAP orders only) */}
+      {walletAvailable && paymentRequest && !isSetup && (
         <div>
           <PaymentRequestButtonElement
             options={{
@@ -148,21 +163,16 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
           </div>
         )}
 
-        {isFillUp ? (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
-            <strong>Fill-up order:</strong> A $1.00 hold is placed to verify your card. After delivery, you are charged only for the actual fuel pumped plus any applicable fees.
-          </div>
-        ) : (
-          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
-            <strong>Pre-authorization:</strong> The amount shown is held on your card (not charged). After delivery, you are charged only for the actual fuel delivered. If your tank fills before reaching the full amount, the difference is released.
-          </div>
-        )}
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
+          <strong>Pre-authorized on delivery day.</strong> Card will be charged on delivery for the actual fuel delivered. You can cancel anytime before delivery by contacting us.
+        </div>
+
         <button
           type="submit"
           disabled={!stripe || processing}
           className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/35 hover:from-red-400 hover:to-red-500 transition-all disabled:opacity-50 disabled:shadow-none"
         >
-          {processing ? "Processing..." : isFillUp ? "Authorize $1.00 Hold" : `Authorize $${(total / 100).toFixed(2)} Hold`}
+          {processing ? "Processing..." : "Confirm Order"}
         </button>
       </form>
     </div>
@@ -175,6 +185,7 @@ function PaymentPageContent() {
   const orderId = searchParams.get("orderId");
   const total = parseInt(searchParams.get("total") || "0");
   const isFillUp = searchParams.get("fillup") === "1";
+  const isSetup = searchParams.get("setup") === "1";
 
   if (!clientSecret || !orderId) {
     return (
@@ -187,12 +198,10 @@ function PaymentPageContent() {
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-900">
-        {isFillUp ? "Verify Your Card" : "Authorize Payment"}
+        Confirm Your Order
       </h1>
       <p className="mt-1 text-sm text-gray-500">
-        {isFillUp
-          ? "Enter your card details. A $1.00 hold verifies your card — you are only charged after delivery."
-          : "A hold will be placed on your card. You are only charged for the actual fuel delivered."}
+        Pre-authorized on delivery day. Card will be charged on delivery.
       </p>
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
@@ -208,7 +217,7 @@ function PaymentPageContent() {
             },
           }}
         >
-          <PaymentForm orderId={orderId} total={total} clientSecret={clientSecret} isFillUp={isFillUp} />
+          <PaymentForm orderId={orderId} total={total} clientSecret={clientSecret} isFillUp={isFillUp} isSetup={isSetup} />
         </Elements>
       </div>
     </div>

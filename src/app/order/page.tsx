@@ -376,6 +376,8 @@ export default function OrderPage() {
     const hasFillUp = form.isFillUp || (addSecondVehicle && secondVehicle.isFillUp) || (addTraileredBoat && boatAddon.isFillUp);
     const intentAmount = hasFillUp ? 100 : order.totalCents;
 
+    const isScheduled = form.deliveryType === "scheduled";
+
     const intentRes = await fetch("/api/stripe/create-intent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -383,6 +385,7 @@ export default function OrderPage() {
         amountCents: intentAmount,
         orderId: order.id,
         isFillUp: hasFillUp,
+        isScheduled,
       }),
     });
 
@@ -392,10 +395,10 @@ export default function OrderPage() {
       return;
     }
 
-    const { clientSecret } = await intentRes.json();
+    const { clientSecret, isSetup } = await intentRes.json();
 
     router.push(
-      `/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${hasFillUp ? "&fillup=1" : ""}`
+      `/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${hasFillUp ? "&fillup=1" : ""}${isSetup ? "&setup=1" : ""}`
     );
   }
 
