@@ -1,45 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import Stripe from "stripe";
 
-// OTGVIP is a virtual bundle code that maps to both OTGFREE + OTG20
+// Map customer-facing codes to Stripe coupon IDs
+const COUPON_MAP: Record<string, { stripeCouponId: string; description: string }> = {
+  OTGFREE: { stripeCouponId: "ZTgG31Zw", description: "First month free" },
+  OTG20: { stripeCouponId: "1Xqmx53P", description: "$15 off every month ($20/mo)" },
+};
+
+// OTGVIP is a virtual bundle code that applies both OTGFREE + OTG20
 const BUNDLE_CODES: Record<string, string[]> = {
   OTGVIP: ["OTGFREE", "OTG20"],
 };
 
-async function lookupPromoCode(code: string) {
-  const promoCodes = await stripe.promotionCodes.list({
-    code: code.toUpperCase(),
-    active: true,
-    limit: 1,
-  });
+async function lookupCoupon(code: string) {
+  const mapping = COUPON_MAP[code];
+  if (!mapping) return null;
 
-  if (promoCodes.data.length === 0) return null;
+  try {
+    // Verify the coupon still exists and is valid in Stripe
+    const coupon = await stripe.coupons.retrieve(mapping.stripeCouponId);
+    if (!coupon || !coupon.valid) return null;
 
-  const promoCode = promoCodes.data[0];
-
-  // Access coupon through the promotion object
-  const coupon = promoCode.promotion.coupon as Stripe.Coupon;
-  if (!coupon || typeof coupon === "string") return null;
-
-  let description = "";
-  if (coupon.percent_off === 100 && coupon.duration === "once") {
-    description = "First month free";
-  } else if (coupon.amount_off && coupon.duration === "forever") {
-    const dollars = coupon.amount_off / 100;
-    description = `$${dollars} off every month`;
-  } else if (coupon.percent_off && coupon.duration === "once") {
-    description = `${coupon.percent_off}% off first month`;
-  } else if (coupon.percent_off && coupon.duration === "forever") {
-    description = `${coupon.percent_off}% off every month`;
-  } else if (coupon.amount_off && coupon.duration === "once") {
-    const dollars = coupon.amount_off / 100;
-    description = `$${dollars} off first month`;
-  } else {
-    description = coupon.name || "Discount applied";
+    return {
+      couponId: coupon.id,
+      description: mapping.description,
+      code,
+    };
+  } catch {
+    // Coupon doesn't exist in Stripe
+    return null;
   }
-
-  return { couponId: coupon.id, description, code: code.toUpperCase() };
 }
 
 export async function POST(req: NextRequest) {
@@ -54,7 +44,7 @@ export async function POST(req: NextRequest) {
     // Check if it's a bundle code
     if (BUNDLE_CODES[upperCode]) {
       const bundleCodes = BUNDLE_CODES[upperCode];
-      const results = await Promise.all(bundleCodes.map(lookupPromoCode));
+      const results = await Promise.all(bundleCodes.map(lookupCoupon));
 
       // Verify all bundle codes are valid in Stripe
       const validResults = results.filter((r) => r !== null);
@@ -75,18 +65,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Regular single code lookup
-    const result = await lookupPromoCode(upperCode);
-    if (!result) {
-      return NextResponse.json({ valid: false, error: "Invalid promo code" });
+    if (COUPON_MAP[upperCode]) {
+      const result = await lookupCoupon(upperCode);
+      if (!result) {
+        return NextResponse.json({ valid: false, error: "Invalid or expired promo code" });
+      }
+
+      return NextResponse.json({
+        valid: true,
+        isBundle: false,
+        code: upperCode,
+        description: result.description,
+        coupons: [result],
+      });
     }
 
-    return NextResponse.json({
-      valid: true,
-      isBundle: false,
-      code: upperCode,
-      description: result.description,
-      coupons: [result],
-    });
+    // Code not recognized
+    return NextResponse.json({ valid: false, error: "Invalid promo code" });
   } catch (error) {
     console.error("Promo validation error:", error);
     return NextResponse.json({ valid: false, error: "Error validating code" });
