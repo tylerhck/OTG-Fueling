@@ -45,6 +45,7 @@ export default function AdminOrders() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [captureGallons, setCaptureGallons] = useState<Record<string, string>>({});
   const [capturePricePerGallon, setCapturePricePerGallon] = useState<Record<string, string>>({});
+  const [captureServiceFee, setCaptureServiceFee] = useState<Record<string, string>>({});
   const [showCapture, setShowCapture] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<Record<string, string>>({});
 
@@ -69,22 +70,32 @@ export default function AdminOrders() {
   }, []);
 
   async function capturePayment(orderId: string) {
-    const gallons = parseFloat(captureGallons[orderId] || "");
-    if (isNaN(gallons) || gallons <= 0) {
-      setCaptureError({ ...captureError, [orderId]: "Enter a valid gallon amount" });
+    const gallons = parseFloat(captureGallons[orderId] || "0");
+    const pricePerGallon = parseFloat(capturePricePerGallon[orderId] || "0");
+    const serviceFee = parseFloat(captureServiceFee[orderId] ?? "");
+
+    if (isNaN(serviceFee) || serviceFee < 0) {
+      setCaptureError({ ...captureError, [orderId]: "Enter a valid service fee" });
       return;
     }
-    const pricePerGallon = parseFloat(capturePricePerGallon[orderId] || "");
-    if (isNaN(pricePerGallon) || pricePerGallon <= 0) {
+
+    // Allow 0 gallons (no-show charge), but if gallons > 0 need valid price
+    if (gallons > 0 && (isNaN(pricePerGallon) || pricePerGallon <= 0)) {
       setCaptureError({ ...captureError, [orderId]: "Enter a valid price per gallon" });
       return;
     }
+
+    if (gallons === 0 && serviceFee === 0) {
+      setCaptureError({ ...captureError, [orderId]: "Must charge at least the service fee or fuel" });
+      return;
+    }
+
     setUpdating(orderId);
     setCaptureError({ ...captureError, [orderId]: "" });
     const res = await fetch(`/api/admin/orders/${orderId}/capture`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gallons, pricePerGallon }),
+      body: JSON.stringify({ gallons: gallons || 0, pricePerGallon: pricePerGallon || 0, serviceFeeDollars: serviceFee }),
     });
     if (res.ok) {
       setShowCapture(null);
@@ -94,6 +105,14 @@ export default function AdminOrders() {
       setCaptureError({ ...captureError, [orderId]: data.error || "Capture failed" });
     }
     setUpdating(null);
+  }
+
+  // Pre-fill service fee when opening capture form
+  function openCapture(orderId: string, deliveryFeeCents: number) {
+    setShowCapture(orderId);
+    if (!captureServiceFee[orderId]) {
+      setCaptureServiceFee({ ...captureServiceFee, [orderId]: (deliveryFeeCents / 100).toFixed(2) });
+    }
   }
 
   async function updateStatus(orderId: string, newStatus: string) {
@@ -282,10 +301,11 @@ export default function AdminOrders() {
                     {order.isFillUp ? (
                       <span className="mr-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">Fill Up</span>
                     ) : null}
-                    {order.isFillUp ? `~${order.gallons} gal max` : `${order.gallons} gal`} {order.fuelType.replace("_", " ")} &middot;{" "}
+                    {order.fuelType.replace("_", " ")} &middot;{" "}
                     {order.isFillUp
-                      ? `Card auth: $1.00 · Est. max: $${((order.authAmountCents ?? order.totalCents) / 100).toFixed(2)}`
-                      : `$${(order.totalCents / 100).toFixed(2)}`} &middot;{" "}
+                      ? `$1.00 hold + $${(order.deliveryFeeCents / 100).toFixed(2)} service fee on completion`
+                      : `$${((order.totalCents - order.deliveryFeeCents) / 100).toFixed(2)} fuel + $${(order.deliveryFeeCents / 100).toFixed(2)} fee = $${(order.totalCents / 100).toFixed(2)}`
+                    } &middot;{" "}
                     {order.deliveryType === "ASAP" ? "ASAP" : "Scheduled"} &middot;{" "}
                     {new Date(order.createdAt).toLocaleString()}
                   </p>
@@ -351,7 +371,7 @@ export default function AdminOrders() {
                   {/* IN_PROGRESS: ALL orders require gallons + price entry at completion */}
                   {order.status === "IN_PROGRESS" && showCapture !== order.id && (
                     <button
-                      onClick={() => setShowCapture(order.id)}
+                      onClick={() => openCapture(order.id, order.deliveryFeeCents)}
                       disabled={updating === order.id}
                       className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
                     >
@@ -360,11 +380,11 @@ export default function AdminOrders() {
                   )}
                   {order.status === "IN_PROGRESS" && showCapture === order.id && (
                     <div className="flex flex-wrap items-start gap-2">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
-                            min="0.1"
+                            min="0"
                             step="0.1"
                             placeholder="Gallons"
                             value={captureGallons[order.id] || ""}
@@ -373,13 +393,24 @@ export default function AdminOrders() {
                           />
                           <input
                             type="number"
-                            min="0.01"
+                            min="0"
                             step="0.01"
                             placeholder="$/gal"
                             value={capturePricePerGallon[order.id] || ""}
                             onChange={(e) => setCapturePricePerGallon({ ...capturePricePerGallon, [order.id]: e.target.value })}
                             className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
                           />
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Fee $"
+                            value={captureServiceFee[order.id] || ""}
+                            onChange={(e) => setCaptureServiceFee({ ...captureServiceFee, [order.id]: e.target.value })}
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => capturePayment(order.id)}
                             disabled={updating === order.id}
@@ -394,11 +425,21 @@ export default function AdminOrders() {
                             ✕
                           </button>
                         </div>
-                        {capturePricePerGallon[order.id] && captureGallons[order.id] && (
-                          <p className="text-xs text-slate-500">
-                            Total: ${(parseFloat(captureGallons[order.id]) * parseFloat(capturePricePerGallon[order.id])).toFixed(2)} fuel + ${(order.deliveryFeeCents / 100).toFixed(2)} delivery
-                          </p>
-                        )}
+                        {(() => {
+                          const g = parseFloat(captureGallons[order.id] || "0");
+                          const p = parseFloat(capturePricePerGallon[order.id] || "0");
+                          const f = parseFloat(captureServiceFee[order.id] || "0");
+                          const fuelTotal = g * p;
+                          const grandTotal = fuelTotal + f;
+                          if (grandTotal > 0) {
+                            return (
+                              <p className="text-xs text-slate-600 font-medium">
+                                {fuelTotal > 0 ? `$${fuelTotal.toFixed(2)} fuel` : "No fuel"} + ${f.toFixed(2)} service fee = <span className="text-orange-600 font-bold">${grandTotal.toFixed(2)} total charge</span>
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                         {captureError[order.id] && (
                           <p className="text-xs text-red-600">{captureError[order.id]}</p>
                         )}

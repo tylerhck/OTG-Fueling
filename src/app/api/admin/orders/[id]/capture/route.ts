@@ -15,14 +15,31 @@ export async function POST(
 
   const { id } = await params;
   const body = await req.json();
-  const { gallons, pricePerGallon } = body;
+  const { gallons, pricePerGallon, serviceFeeDollars } = body;
 
-  if (!gallons || typeof gallons !== "number" || gallons <= 0 || gallons > 200) {
+  // Validate service fee (required, can be 0 for waived fee)
+  if (serviceFeeDollars === undefined || serviceFeeDollars === null || typeof serviceFeeDollars !== "number" || serviceFeeDollars < 0) {
+    return NextResponse.json({ error: "Invalid service fee" }, { status: 400 });
+  }
+
+  // Gallons can be 0 (no-show — charge only service fee)
+  if (typeof gallons !== "number" || gallons < 0 || gallons > 200) {
     return NextResponse.json({ error: "Invalid gallons amount" }, { status: 400 });
   }
 
-  if (!pricePerGallon || typeof pricePerGallon !== "number" || pricePerGallon <= 0 || pricePerGallon > 20) {
+  // If gallons > 0, price per gallon must be valid
+  if (gallons > 0 && (typeof pricePerGallon !== "number" || pricePerGallon <= 0 || pricePerGallon > 20)) {
     return NextResponse.json({ error: "Invalid price per gallon" }, { status: 400 });
+  }
+
+  // Must charge something
+  const serviceFeeCents = Math.round(serviceFeeDollars * 100);
+  const pricePerGallonCents = gallons > 0 ? Math.round(pricePerGallon * 100) : 0;
+  const actualFuelCents = gallons > 0 ? Math.round(pricePerGallonCents * gallons) : 0;
+  const actualTotalCents = actualFuelCents + serviceFeeCents;
+
+  if (actualTotalCents <= 0) {
+    return NextResponse.json({ error: "Total charge must be greater than $0" }, { status: 400 });
   }
 
   const order = await prisma.order.findUnique({
@@ -54,11 +71,6 @@ export async function POST(
       { status: 400 }
     );
   }
-
-  // Calculate the actual charge amount
-  const pricePerGallonCents = Math.round(pricePerGallon * 100);
-  const actualFuelCents = Math.round(pricePerGallonCents * gallons);
-  const actualTotalCents = actualFuelCents + order.deliveryFeeCents;
 
   // Try to capture the original pre-auth for the actual amount (partial capture if less than held)
   let capturedViaOriginal = false;
@@ -92,7 +104,13 @@ export async function POST(
         payment_method: paymentMethodId,
         confirm: true,
         off_session: true,
-        metadata: { orderId: order.id, capture: "true", gallons: String(gallons), pricePerGallon: String(pricePerGallon) },
+        metadata: {
+          orderId: order.id,
+          capture: "true",
+          gallons: String(gallons),
+          pricePerGallon: String(pricePerGallon || 0),
+          serviceFeeDollars: String(serviceFeeDollars),
+        },
       });
       finalIntentId = newIntent.id;
 
@@ -114,8 +132,9 @@ export async function POST(
   const updated = await prisma.order.update({
     where: { id },
     data: {
-      gallons,
+      gallons: gallons || 0,
       pricePerGallonCents,
+      deliveryFeeCents: serviceFeeCents,
       totalCents: actualTotalCents,
       authAmountCents: actualTotalCents,
       stripePaymentIntentId: finalIntentId,
@@ -130,10 +149,10 @@ export async function POST(
     recipientEmail: order.user?.email || order.guestEmail || null,
     recipientName: order.user?.name || order.guestName || "Customer",
     fuelType: order.fuelType || "REGULAR_87",
-    gallons,
-    pricePerGallon,
+    gallons: gallons || 0,
+    pricePerGallon: pricePerGallon || 0,
     fuelTotalCents: actualFuelCents,
-    deliveryFeeCents: order.deliveryFeeCents,
+    deliveryFeeCents: serviceFeeCents,
     totalCents: actualTotalCents,
   }).catch((err) => console.error("Failed to send completion receipt:", err));
 
