@@ -349,31 +349,10 @@ export default function RecurringOrdersPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="isFillUp"
-                checked={formData.isFillUp}
-                onChange={(e) => setFormData({ ...formData, isFillUp: e.target.checked })}
-                className="h-4 w-4"
-              />
-              <label htmlFor="isFillUp" className="text-sm text-gray-700">Fill up completely (recommended)</label>
+            <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+              <p className="text-sm text-gray-700 font-medium">All recurring orders are fill-up orders.</p>
+              <p className="text-xs text-gray-500 mt-0.5">We&apos;ll top off your tank each week and charge only for what we pump.</p>
             </div>
-
-            {!formData.isFillUp && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gallons</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  step="0.5"
-                  value={formData.gallons}
-                  onChange={(e) => setFormData({ ...formData, gallons: parseFloat(e.target.value) })}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
@@ -448,7 +427,7 @@ export default function RecurringOrdersPage() {
                         ? `${order.vehicle.nickname || `${order.vehicle.year} ${order.vehicle.make} ${order.vehicle.model}`}`
                         : "No vehicle"}
                       {" • "}
-                      {order.isFillUp ? "Fill up" : `${order.gallons} gal`}
+                      Fill up
                       {" • "}
                       {order.fuelType.replace("_", " ")}
                     </p>

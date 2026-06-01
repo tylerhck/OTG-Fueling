@@ -23,10 +23,6 @@ interface ServiceArea {
   polygon?: [number, number][] | null;
 }
 
-interface FuelPrice {
-  fuelType: string;
-  effectivePriceCents: number;
-}
 
 interface ServiceSchedule {
   id: string;
@@ -58,7 +54,6 @@ const FUEL_GRADE: Record<string, string> = {
 export default function HomePage() {
   const { data: session } = useSession();
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
-  const [fuelPrices, setFuelPrices] = useState<FuelPrice[]>([]);
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(500);
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
   const [geocodedPos, setGeocodedPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -89,7 +84,6 @@ export default function HomePage() {
     fetch("/api/fuel-prices")
       .then((r) => r.json())
       .then((data) => {
-        setFuelPrices(data.prices || []);
         if (data.deliveryFeeCents !== undefined) setDeliveryFeeCents(data.deliveryFeeCents);
       })
       .catch(() => {});
@@ -433,15 +427,13 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Fuel cards with live prices */}
+            {/* Fuel type cards */}
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               {[
-                { name: "Regular", fuelType: "REGULAR_87", grade: "87", desc: "Standard unleaded", color: "from-emerald-500 to-emerald-600", bgLight: "bg-emerald-50", border: "border-emerald-100" },
-                { name: "Premium", fuelType: "PREMIUM_93", grade: "93", desc: "Super unleaded", color: "from-blue-500 to-blue-600", bgLight: "bg-blue-50", border: "border-blue-100" },
-                { name: "Diesel", fuelType: "DIESEL", grade: "D", desc: "Ultra low sulfur", color: "from-slate-600 to-slate-700", bgLight: "bg-slate-100", border: "border-slate-200" },
-              ].map((fuel) => {
-                const price = fuelPrices.find((p) => p.fuelType === fuel.fuelType);
-                return (
+                { name: "Regular", grade: "87", desc: "Standard unleaded", color: "from-emerald-500 to-emerald-600", bgLight: "bg-emerald-50", border: "border-emerald-100" },
+                { name: "Premium", grade: "93", desc: "Super unleaded", color: "from-blue-500 to-blue-600", bgLight: "bg-blue-50", border: "border-blue-100" },
+                { name: "Diesel", grade: "D", desc: "Ultra low sulfur", color: "from-slate-600 to-slate-700", bgLight: "bg-slate-100", border: "border-slate-200" },
+              ].map((fuel) => (
                   <div
                     key={fuel.name}
                     className={`group rounded-2xl ${fuel.bgLight} border ${fuel.border} p-6 text-center hover:shadow-lg transition-all`}
@@ -453,17 +445,9 @@ export default function HomePage() {
                     </div>
                     <h3 className="mt-4 font-bold text-slate-900">{fuel.name}</h3>
                     <p className="mt-1 text-xs text-slate-600">{fuel.desc}</p>
-                    {price ? (
-                      <p className="mt-3 text-xl font-black text-slate-900">
-                        ${(price.effectivePriceCents / 100).toFixed(2)}
-                        <span className="text-xs font-normal text-slate-500">/gal</span>
-                      </p>
-                    ) : (
-                      <p className="mt-3 text-sm text-slate-400">—</p>
-                    )}
+                    <p className="mt-3 text-sm font-medium text-slate-500">Market price</p>
                   </div>
-                );
-              })}
+              ))}
 
               {/* DEF Fluid card */}
               <a

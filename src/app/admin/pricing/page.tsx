@@ -1,43 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { FUEL_TYPE_LABELS } from "@/types";
-import type { FuelType } from "@/types";
-
-const FUEL_TYPES: FuelType[] = ["REGULAR_87", "PREMIUM_93", "DIESEL"];
-
-interface FuelPrice {
-  id: string;
-  fuelType: string;
-  basePriceCents: number;
-  markupPercent: number;
-  effectivePriceCents: number;
-  updatedAt: string;
-}
-
-interface ExternalPrice {
-  fuelType: string;
-  label: string;
-  pricePerGallon: number;
-  priceCents: number;
-  period: string;
-}
 
 export default function PricingAdmin() {
-  const [prices, setPrices] = useState<FuelPrice[]>([]);
-  const [deliveryFeeDollars, setDeliveryFeeDollars] = useState("5.00");
+  const [deliveryFeeDollars, setDeliveryFeeDollars] = useState("15.00");
   const [asapEnabled, setAsapEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [fetchingExternal, setFetchingExternal] = useState(false);
-  const [externalPrices, setExternalPrices] = useState<ExternalPrice[]>([]);
-  const [externalMessage, setExternalMessage] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  // Edit form for individual fuel types
-  const [editFuel, setEditFuel] = useState<string | null>(null);
-  const [editBase, setEditBase] = useState("");
 
   // DEF pricing
   const [defPrice2_5, setDefPrice2_5] = useState("30.00");
@@ -45,15 +16,9 @@ export default function PricingAdmin() {
   const [savingDef, setSavingDef] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [priceRes, settingsRes] = await Promise.all([
-      fetch("/api/fuel-prices"),
-      fetch("/api/admin/settings"),
-    ]);
-
-    const priceData = await priceRes.json();
+    const settingsRes = await fetch("/api/admin/settings");
     const settingsData = await settingsRes.json();
 
-    setPrices(priceData.prices || []);
     setDeliveryFeeDollars((settingsData.deliveryFeeCents / 100).toFixed(2));
     setAsapEnabled(settingsData.asapEnabled !== false);
     setDefPrice2_5((settingsData.defPriceCents2_5 / 100).toFixed(2));
@@ -64,95 +29,6 @@ export default function PricingAdmin() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  async function fetchExternalPrices() {
-    setFetchingExternal(true);
-    setExternalMessage("");
-    setError("");
-
-    try {
-      const res = await fetch("/api/cron/update-fuel-prices");
-      const data = await res.json();
-
-      if (data.success) {
-        setExternalMessage(
-          `Prices updated from QuikTrip #883 (Basswood & I-35) at ${new Date(data.updatedAt).toLocaleString()}`
-        );
-        setExternalPrices(
-          (data.prices || []).map((p: { fuelType: string; priceDollars: number; priceCents: number }) => ({
-            fuelType: p.fuelType,
-            label: FUEL_TYPE_LABELS[p.fuelType as FuelType] || p.fuelType,
-            pricePerGallon: p.priceDollars,
-            priceCents: p.priceCents,
-            period: "Live",
-          }))
-        );
-        await loadData();
-        setSuccess("Fuel prices updated from local QT!");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError(data.error || "Failed to fetch prices");
-      }
-    } catch {
-      setError("Failed to fetch external prices");
-    }
-
-    setFetchingExternal(false);
-  }
-
-  async function applyExternalPrices() {
-    setSaving(true);
-    setError("");
-
-    for (const ext of externalPrices) {
-      await fetch("/api/fuel-prices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fuelType: ext.fuelType,
-          basePriceCents: ext.priceCents,
-          markupPercent: 0,
-        }),
-      });
-    }
-
-    setExternalPrices([]);
-    setSuccess("Prices applied!");
-    await loadData();
-    setSaving(false);
-    setTimeout(() => setSuccess(""), 3000);
-  }
-
-  async function savePrice(fuelType: string) {
-    setSaving(true);
-    setError("");
-
-    const basePriceCents = Math.round(parseFloat(editBase) * 100);
-
-    if (isNaN(basePriceCents) || basePriceCents <= 0) {
-      setError("Price must be a positive number");
-      setSaving(false);
-      return;
-    }
-
-    const res = await fetch("/api/fuel-prices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fuelType, basePriceCents, markupPercent: 0 }),
-    });
-
-    if (res.ok) {
-      setEditFuel(null);
-      setSuccess("Price updated!");
-      await loadData();
-      setTimeout(() => setSuccess(""), 3000);
-    } else {
-      const data = await res.json();
-      setError(data.error || "Failed to save price");
-    }
-
-    setSaving(false);
-  }
 
   async function saveSettings() {
     setSaving(true);
@@ -187,18 +63,6 @@ export default function PricingAdmin() {
     setSaving(false);
   }
 
-  function startEdit(price: FuelPrice) {
-    setEditFuel(price.fuelType);
-    setEditBase((price.basePriceCents / 100).toFixed(2));
-    setError("");
-  }
-
-  function startNew(fuelType: string) {
-    setEditFuel(fuelType);
-    setEditBase("");
-    setError("");
-  }
-
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -207,12 +71,9 @@ export default function PricingAdmin() {
     );
   }
 
-  const configuredTypes = new Set(prices.map((p) => p.fuelType));
-  const missingTypes = FUEL_TYPES.filter((ft) => !configuredTypes.has(ft));
-
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Fuel Pricing & Settings</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Pricing & Settings</h1>
 
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-3.5 text-sm font-medium text-red-700">
@@ -234,7 +95,7 @@ export default function PricingAdmin() {
 
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700">
-            Delivery Fee ($)
+            Service / Delivery Fee ($)
           </label>
           <input
             type="number"
@@ -245,7 +106,7 @@ export default function PricingAdmin() {
             className="mt-1 w-full max-w-xs rounded-lg border px-3 py-2"
           />
           <p className="mt-1 text-xs text-slate-400">
-            Flat fee charged per delivery (e.g., 5.00 = $5.00)
+            Non-subscriber service fee per delivery (e.g., 15.00 = $15.00). Boats use a separate $20 fee.
           </p>
         </div>
 
@@ -272,197 +133,11 @@ export default function PricingAdmin() {
         </button>
       </div>
 
-      {/* Fetch External Prices */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Live Local Prices — QuikTrip (Basswood & I-35)
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Prices auto-update daily at 5 AM from QuikTrip #883 via Google Places API. Click below to update now.
-            </p>
-          </div>
-          <button
-            onClick={fetchExternalPrices}
-            disabled={fetchingExternal}
-            className="self-start flex-shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {fetchingExternal ? "Updating..." : "Update Now"}
-          </button>
-        </div>
-
-        {externalMessage && (
-          <p className="mt-3 text-sm text-green-600 font-medium">{externalMessage}</p>
-        )}
-
-        {externalPrices.length > 0 && (
-          <div className="mt-4">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
-                      Fuel Type
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
-                      Price
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {externalPrices.map((p) => (
-                    <tr key={p.fuelType}>
-                      <td className="px-4 py-3 text-sm font-medium">{p.label}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-green-700">
-                        ${p.pricePerGallon.toFixed(2)}/gal
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-        )}
-      </div>
-
-      {/* Current Prices Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">Current Fuel Prices</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Click &quot;Edit&quot; to manually override any price.
-        </p>
-
-        {prices.length === 0 && missingTypes.length === 0 ? (
-          <p className="mt-4 text-sm text-gray-500">No prices configured yet.</p>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {prices.map((p) => (
-              <div key={p.id} className="rounded-xl border border-gray-200 bg-white p-4">
-                {editFuel === p.fuelType ? (
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {FUEL_TYPE_LABELS[p.fuelType as FuelType] || p.fuelType}
-                    </p>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500">Price per Gallon</label>
-                      <div className="mt-1 flex items-center gap-1">
-                        <span className="text-sm text-slate-400">$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={editBase}
-                          onChange={(e) => setEditBase(e.target.value)}
-                          className="w-full max-w-xs rounded-lg border px-3 py-2 text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => savePrice(p.fuelType)}
-                        disabled={saving}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditFuel(null)}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {FUEL_TYPE_LABELS[p.fuelType as FuelType] || p.fuelType}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        Updated: {new Date(p.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-red-600">
-                        ${(p.effectivePriceCents / 100).toFixed(2)}/gal
-                      </span>
-                      <button
-                        onClick={() => startEdit(p)}
-                        className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Missing fuel types — allow adding */}
-            {missingTypes.map((ft) => (
-              <div key={ft} className="rounded-xl border border-dashed border-gray-200 bg-slate-50 p-4">
-                {editFuel === ft ? (
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {FUEL_TYPE_LABELS[ft]}
-                    </p>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500">Price per Gallon</label>
-                      <div className="mt-1 flex items-center gap-1">
-                        <span className="text-sm text-slate-400">$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={editBase}
-                          onChange={(e) => setEditBase(e.target.value)}
-                          className="w-full max-w-xs rounded-lg border px-3 py-2 text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => savePrice(ft)}
-                        disabled={saving}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditFuel(null)}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-400">
-                      {FUEL_TYPE_LABELS[ft]} — Not set
-                    </p>
-                    <button
-                      onClick={() => startNew(ft)}
-                      className="rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
-                    >
-                      + Set Price
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* DEF Fluid Pricing */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">DEF Fluid Pricing</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Manually set DEF (Diesel Exhaust Fluid) prices. These are flat prices, not per-gallon.
+          Set DEF (Diesel Exhaust Fluid) prices. These are flat prices per container, not per-gallon.
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -532,13 +207,16 @@ export default function PricingAdmin() {
         <h3 className="text-sm font-semibold text-slate-700">How Pricing Works</h3>
         <ul className="mt-2 space-y-1 text-sm text-slate-600">
           <li>
-            <strong>Fuel Prices</strong> — pulled daily at 5 AM from QuikTrip (Basswood & I-35) or set manually
+            <strong>Fuel Orders</strong> — Customers pre-fund a dollar amount or choose Fill Up ($1 hold). You enter the actual gallons and price per gallon at completion.
           </li>
           <li>
-            <strong>Delivery Fee</strong> — flat fee added to every order (shown separately to customers)
+            <strong>Service Fee</strong> — $15 for non-subscribers (vehicles), $20 for boats. Subscribers get free delivery.
           </li>
           <li>
-            <strong>Customer Total</strong> = (Price per Gallon x Gallons) + Delivery Fee
+            <strong>DEF</strong> — Flat price per container size (set above).
+          </li>
+          <li>
+            <strong>Completion</strong> — All orders are charged at completion based on actual gallons pumped × current fuel price.
           </li>
         </ul>
       </div>
