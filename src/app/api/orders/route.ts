@@ -7,8 +7,6 @@ import { geocodeAddress } from "@/lib/geocode";
 import { notifyOrderStatus } from "@/lib/notifications";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
 
-const FILL_UP_MAX_GALLONS = 30;
-const FILL_UP_MAX_GALLONS_BOAT = 100;
 // Delivery fee is now read from admin settings (siteSetting table)
 async function getDeliveryFeeCents(): Promise<number> {
   const setting = await prisma.siteSetting.findUnique({ where: { key: "delivery_fee_cents" } });
@@ -149,7 +147,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(order, { status: 201 });
   }
 
-  // --- GUEST BOAT ORDER ---
+  // --- GUEST BOAT ORDER (dollar amount or fill up) ---
   if (isBoatGuest) {
     const parsed = guestBoatOrderSchema.safeParse(body);
     if (!parsed.success) {
@@ -157,7 +155,7 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      fuelType, gallons, isFillUp, scheduledAt, notes, availableFrom, availableTo,
+      fuelType, prefundedCents, isFillUp, scheduledAt, notes, availableFrom, availableTo,
       guestName, guestEmail, guestPhone,
       boatMake, boatModel, boatYear, boatColor, boatRegistrationNumber, boatNotes,
       street, city, state, zip,
@@ -174,26 +172,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
     }
 
-    const fuelPrice = await prisma.fuelPrice.findUnique({ where: { fuelType } });
-    if (!fuelPrice) {
-      return NextResponse.json({ error: "Fuel pricing not available. Please try again later." }, { status: 400 });
-    }
-
-    const pricePerGallonCents = fuelPrice.effectivePriceCents;
     const deliveryFeeCents = BOAT_BASE_FEE_CENTS;
-    const actualGallons = isFillUp ? FILL_UP_MAX_GALLONS_BOAT : (gallons ?? 0);
-    const gasCents = isFillUp ? 0 : Math.round(pricePerGallonCents * actualGallons);
-    const authAmountCents = isFillUp
-      ? Math.round(pricePerGallonCents * FILL_UP_MAX_GALLONS_BOAT) + deliveryFeeCents
-      : null;
-    const totalCents = isFillUp ? authAmountCents! : gasCents + deliveryFeeCents;
+    // For fill-up: pre-auth $1 + service fee. For dollar amount: prefunded + service fee.
+    const fuelPreAuthCents = isFillUp ? 100 : (prefundedCents ?? 0);
+    const totalCents = fuelPreAuthCents + deliveryFeeCents;
+    // authAmountCents = total hold on the card (fuel + service fee)
+    const authAmountCents = totalCents;
 
     const order = await prisma.order.create({
       data: {
         status: scheduledAt ? "PENDING" : "ACTIVE",
         fuelType,
-        gallons: actualGallons,
-        pricePerGallonCents,
+        gallons: null, // determined at completion
+        pricePerGallonCents: 0, // determined at completion
         deliveryFeeCents,
         totalCents,
         isFillUp: isFillUp ?? false,
@@ -212,10 +203,10 @@ export async function POST(req: NextRequest) {
           create: [{
             kind: "PRIMARY_BOAT",
             fuelType,
-            gallons: actualGallons,
+            gallons: null,
             isFillUp: isFillUp ?? false,
-            pricePerGallonCents,
-            gasCents,
+            pricePerGallonCents: 0,
+            gasCents: fuelPreAuthCents,
             serviceFeeCents: deliveryFeeCents,
             authAmountCents,
             notes: boatNotes,
@@ -232,7 +223,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(order, { status: 201 });
   }
 
-  // --- GUEST VEHICLE ORDER ---
+  // --- GUEST VEHICLE ORDER (dollar amount or fill up) ---
   if (isGuest) {
     const parsed = guestOrderSchema.safeParse(body);
     if (!parsed.success) {
@@ -240,7 +231,7 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      fuelType, gallons, scheduledAt, notes, availableFrom, availableTo,
+      fuelType, prefundedCents, isFillUp, scheduledAt, notes, availableFrom, availableTo,
       guestName, guestEmail, guestPhone,
       vehicleMake, vehicleModel, vehicleYear, vehicleColor,
       street, city, state, zip,
@@ -257,23 +248,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Address is outside our service area" }, { status: 400 });
     }
 
-    const fuelPrice = await prisma.fuelPrice.findUnique({ where: { fuelType } });
-    if (!fuelPrice) {
-      return NextResponse.json({ error: "Fuel pricing not available. Please try again later." }, { status: 400 });
-    }
-
-    const pricePerGallonCents = fuelPrice.effectivePriceCents;
     const deliveryFeeCents = await getDeliveryFeeCents();
-    const totalCents = Math.round(pricePerGallonCents * gallons) + deliveryFeeCents;
+    // For fill-up: pre-auth $1 + delivery fee. For dollar amount: prefunded + delivery fee.
+    const fuelPreAuthCents = isFillUp ? 100 : (prefundedCents ?? 0);
+    const totalCents = fuelPreAuthCents + deliveryFeeCents;
+    const authAmountCents = totalCents;
 
     const order = await prisma.order.create({
       data: {
         status: scheduledAt ? "PENDING" : "ACTIVE",
         fuelType,
-        gallons,
-        pricePerGallonCents,
+        gallons: null, // determined at completion
+        pricePerGallonCents: 0, // determined at completion
         deliveryFeeCents,
         totalCents,
+        isFillUp: isFillUp ?? false,
+        authAmountCents,
         pinLat,
         pinLng,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -289,10 +279,10 @@ export async function POST(req: NextRequest) {
           create: [{
             kind: "PRIMARY_VEHICLE",
             fuelType,
-            gallons,
-            isFillUp: false,
-            pricePerGallonCents,
-            gasCents: Math.round(pricePerGallonCents * gallons),
+            gallons: null,
+            isFillUp: isFillUp ?? false,
+            pricePerGallonCents: 0,
+            gasCents: fuelPreAuthCents,
             serviceFeeCents: 0,
             itemMake: vehicleMake,
             itemModel: vehicleModel,
@@ -351,19 +341,6 @@ export async function POST(req: NextRequest) {
     });
     if (!schedule) {
       return NextResponse.json({ error: "We are not available on that day. Please choose another date." }, { status: 400 });
-    }
-  }
-
-  // Get fuel prices for all unique fuel types in items
-  // DEF items use a fixed price table; exclude them from fuel price lookup
-  const nonDefItems = items.filter((i) => i.kind !== "DEF_ADDON" && i.kind !== "DEF_ONLY");
-  const fuelTypes = [...new Set(nonDefItems.map((i) => i.fuelType))];
-  const fuelPrices = await prisma.fuelPrice.findMany({ where: { fuelType: { in: fuelTypes as never[] } } });
-  const priceMap = new Map(fuelPrices.map((fp) => [fp.fuelType, fp.effectivePriceCents]));
-
-  for (const ft of fuelTypes) {
-    if (!priceMap.has(ft)) {
-      return NextResponse.json({ error: "Fuel pricing not available. Please try again later." }, { status: 400 });
     }
   }
 
@@ -446,21 +423,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Build order items data
+  // Build order items data — now using dollar amounts instead of gallon-based pricing
   const orderItemsData = items.map((item) => {
     // DEF fluid items use a fixed price table (not per-gallon fuel pricing)
     if (item.kind === "DEF_ADDON" || item.kind === "DEF_ONLY") {
-      const defGallons = item.gallons ?? 0;
-      const defPriceCents = DEF_PRICES[defGallons];
-      if (!defPriceCents) {
-        throw new Error(`Invalid DEF size: ${defGallons} gallons. Valid sizes: 2.5, 5`);
-      }
+      const defGallons = item.prefundedCents ? 0 : 0; // DEF uses gallons field from old schema
+      // For DEF, we still use the gallons approach since it's a fixed-price product
+      // The frontend sends prefundedCents = DEF_PRICES[gallons] for DEF items
+      const defPriceCents = item.prefundedCents ?? 0;
       return {
         kind: item.kind,
         vehicleId: undefined,
         boatId: undefined,
         fuelType: "DIESEL" as const,
-        gallons: defGallons,
+        gallons: defPriceCents === 3000 ? 2.5 : defPriceCents === 5500 ? 5 : 0,
         isFillUp: false,
         pricePerGallonCents: 0,
         gasCents: defPriceCents,
@@ -476,15 +452,8 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const pricePerGallonCents = priceMap.get(item.fuelType)!;
-    const maxGallons = item.kind === "PRIMARY_BOAT" || item.kind === "TRAILERED_BOAT"
-      ? FILL_UP_MAX_GALLONS_BOAT
-      : FILL_UP_MAX_GALLONS;
-    const actualGallons = item.isFillUp ? maxGallons : (item.gallons ?? 0);
-    const gasCents = item.isFillUp ? 0 : Math.round(pricePerGallonCents * actualGallons);
-    const authAmountCents = item.isFillUp
-      ? Math.round(pricePerGallonCents * maxGallons)
-      : null;
+    // For fuel items: dollar amount pre-auth or fill-up ($1 pre-auth)
+    const fuelPreAuthCents = item.isFillUp ? 100 : (item.prefundedCents ?? 0);
 
     let serviceFeeCents = 0;
     if (item.kind === "SECOND_VEHICLE") serviceFeeCents = SECOND_VEHICLE_ADDON_CENTS;
@@ -495,12 +464,12 @@ export async function POST(req: NextRequest) {
       vehicleId: item.vehicleId,
       boatId: item.boatId,
       fuelType: item.fuelType,
-      gallons: actualGallons,
+      gallons: null, // determined at completion
       isFillUp: item.isFillUp ?? false,
-      pricePerGallonCents,
-      gasCents,
+      pricePerGallonCents: 0, // determined at completion
+      gasCents: fuelPreAuthCents, // stores the pre-funded amount (or $1 for fill-up)
       serviceFeeCents,
-      authAmountCents,
+      authAmountCents: fuelPreAuthCents + serviceFeeCents,
       notes: item.notes,
       itemMake: item.itemMake,
       itemModel: item.itemModel,
@@ -511,23 +480,14 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const totalGasCents = orderItemsData.reduce((s, i) => s + i.gasCents, 0);
+  // Total = delivery fee + sum of all item pre-auth amounts
+  const totalFuelPreAuth = orderItemsData.reduce((s, i) => s + (i.gasCents || 0), 0);
   const totalServiceFeeAddonCents = orderItemsData.reduce((s, i) => s + i.serviceFeeCents, 0);
-  const totalCents = deliveryFeeCents + totalGasCents + totalServiceFeeAddonCents;
-
-  const hasFillUp = orderItemsData.some((i) => i.isFillUp);
-  const authAmountCents = hasFillUp
-    ? deliveryFeeCents +
-      orderItemsData.reduce((s, i) => s + (i.authAmountCents ?? i.gasCents), 0) +
-      totalServiceFeeAddonCents
-    : null;
+  const totalCents = deliveryFeeCents + totalFuelPreAuth + totalServiceFeeAddonCents;
+  // authAmountCents = total hold on card (everything is a pre-auth now)
+  const authAmountCents = totalCents;
 
   // Legacy top-level fields from primary item (for backward compat with existing admin UI)
-  const primaryPrice = priceMap.get(primaryItem.fuelType)!;
-  const primaryActualGallons = primaryItem.isFillUp
-    ? (primaryItem.kind === "PRIMARY_BOAT" ? FILL_UP_MAX_GALLONS_BOAT : FILL_UP_MAX_GALLONS)
-    : (primaryItem.gallons ?? 0);
-
   const order = await prisma.order.create({
     data: {
       status: scheduledAt ? "PENDING" : "ACTIVE",
@@ -535,8 +495,8 @@ export async function POST(req: NextRequest) {
       vehicleId: primaryItem.vehicleId,
       addressId,
       fuelType: primaryItem.fuelType,
-      gallons: primaryActualGallons,
-      pricePerGallonCents: primaryPrice,
+      gallons: null, // determined at completion
+      pricePerGallonCents: 0, // determined at completion
       deliveryFeeCents,
       totalCents,
       subscriptionDelivery,
@@ -558,7 +518,6 @@ export async function POST(req: NextRequest) {
   });
 
   notifyOrderStatus(order.id, scheduledAt ? "PENDING" : "ACTIVE").catch(() => {});
-
 
   return NextResponse.json(order, { status: 201 });
 }

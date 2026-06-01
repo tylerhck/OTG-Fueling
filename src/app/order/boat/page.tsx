@@ -47,7 +47,6 @@ interface ServiceSchedule {
 }
 
 const DAY_NAMES = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-const FILL_UP_MAX_GALLONS_BOAT = 100;
 const BOAT_BASE_FEE = 20;
 
 
@@ -86,7 +85,7 @@ export default function BoatOrderPage() {
   const [form, setForm] = useState({
     // Shared
     fuelType: "REGULAR_87",
-    gallons: 20,
+    dollarAmount: 40,
     isFillUp: false,
     deliveryType: "asap" as "asap" | "scheduled",
     scheduledDate: "",
@@ -169,12 +168,9 @@ export default function BoatOrderPage() {
 
 
 
-  const selectedPrice = prices.find((p) => p.fuelType === form.fuelType);
-  const pricePerGallon = selectedPrice ? selectedPrice.effectivePriceCents / 100 : 0;
-  const fuelCost = form.isFillUp ? 0 : pricePerGallon * form.gallons;
-  const total = form.isFillUp
-    ? pricePerGallon * FILL_UP_MAX_GALLONS_BOAT + BOAT_BASE_FEE
-    : fuelCost + BOAT_BASE_FEE;
+  // Dollar amount pre-auth model: customer picks $ amount, or fill-up ($1 hold)
+  const fuelCost = form.isFillUp ? 0 : form.dollarAmount;
+  const total = fuelCost + BOAT_BASE_FEE;
 
 
 
@@ -212,7 +208,7 @@ export default function BoatOrderPage() {
       const boatItem: Record<string, unknown> = {
         kind: "PRIMARY_BOAT",
         fuelType: form.fuelType,
-        gallons: form.isFillUp ? undefined : form.gallons,
+        dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
         isFillUp: form.isFillUp,
         notes: form.notes || undefined,
       };
@@ -293,7 +289,7 @@ export default function BoatOrderPage() {
         body: JSON.stringify({
           guestBoat: true,
           fuelType: form.fuelType,
-          gallons: form.isFillUp ? undefined : form.gallons,
+          dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
           isFillUp: form.isFillUp,
           scheduledAt,
           availableFrom,
@@ -595,25 +591,28 @@ export default function BoatOrderPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Gallons</label>
+              <label className="block text-sm font-medium text-slate-700">Dollar Amount</label>
               {form.isFillUp ? (
                 <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <span className="text-sm text-slate-400 italic">We&apos;ll fill your tank — gallons billed after</span>
+                  <span className="text-sm text-slate-400 italic">Fill up — charged after delivery</span>
                 </div>
               ) : (
-                <input
-                  type="number" min={1} max={200} step={1}
-                  value={form.gallons}
-                  onChange={(e) => setForm((p) => ({ ...p, gallons: parseFloat(e.target.value) || 0 }))}
-                  className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                />
+                <div className="mt-1.5 relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                  <input
+                    type="number" min={10} max={500} step={5}
+                    value={form.dollarAmount}
+                    onChange={(e) => setForm((p) => ({ ...p, dollarAmount: parseFloat(e.target.value) || 0 }))}
+                    className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                  />
+                </div>
               )}
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-slate-700">Fill Up Tank</p>
-              <p className="text-xs text-slate-400">We place a $1 hold to verify your card, then charge only for what we pump plus the delivery fee.</p>
+              <p className="text-xs text-slate-400">We place a $1 hold to verify your card, then charge only for what we pump plus the service fee.</p>
             </div>
             <button
               type="button"
@@ -622,6 +621,12 @@ export default function BoatOrderPage() {
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.isFillUp ? "translate-x-6" : "translate-x-1"}`} />
             </button>
+          </div>
+          {/* Fuel price disclaimer */}
+          <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+            <p className="text-xs text-amber-700">
+              <strong>Note:</strong> Fuel prices fluctuate daily. The number of gallons you receive will be based on the market price at the time of delivery. You will only be charged for the actual fuel delivered.
+            </p>
           </div>
         </div>
 
@@ -764,33 +769,34 @@ export default function BoatOrderPage() {
             {form.isFillUp ? (
               <>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — Fill Up (@ ${pricePerGallon.toFixed(2)}/gal)</span>
-                  <span className="font-medium text-slate-400 italic">billed after</span>
+                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — Fill Up</span>
+                  <span className="font-medium text-slate-400 italic">charged after delivery</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Service Fee</span>
-                  <span className="font-medium text-slate-400 italic">billed after</span>
+                  <span className="font-medium text-slate-400 italic">charged after delivery</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-2">
-                  <span className="font-semibold text-slate-900">Card Verification</span>
+                  <span className="font-semibold text-slate-900">Card Hold</span>
                   <span className="font-bold text-slate-900 text-lg">$1.00</span>
                 </div>
-                <p className="text-xs text-slate-400">We charge $1.00 now to verify your card. You are charged the exact amount pumped + $20 service fee after delivery.</p>
+                <p className="text-xs text-slate-400">A $1.00 hold is placed to verify your card. You are charged only for the actual fuel pumped + $20 service fee after delivery.</p>
               </>
             ) : (
               <>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} × {form.gallons} gal @ ${pricePerGallon.toFixed(2)}/gal</span>
-                  <span className="font-medium text-slate-900">${fuelCost.toFixed(2)}</span>
+                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — ${form.dollarAmount.toFixed(2)} pre-charge</span>
+                  <span className="font-medium text-slate-900">${form.dollarAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Service Fee</span>
                   <span className="font-medium text-slate-900">${BOAT_BASE_FEE.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-2">
-                  <span className="font-semibold text-slate-900">Total</span>
+                  <span className="font-semibold text-slate-900">Total Hold</span>
                   <span className="font-bold text-slate-900 text-lg">${total.toFixed(2)}</span>
                 </div>
+                <p className="text-xs text-slate-400">This amount is held on your card. If your tank fills before reaching ${form.dollarAmount.toFixed(2)}, you are only charged for the actual fuel delivered.</p>
               </>
             )}
           </div>
@@ -827,8 +833,8 @@ export default function BoatOrderPage() {
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Verify Card \u2014 $1.00"
-            : `Proceed to Payment \u2014 $${total.toFixed(2)}`}
+            ? "Place Order \u2014 $1.00 Hold"
+            : `Place Order \u2014 $${total.toFixed(2)} Pre-charge`}
         </button>
 
         {!isAuthenticated && (

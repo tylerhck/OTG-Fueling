@@ -60,23 +60,24 @@ export async function POST(req: NextRequest) {
     defPriceMap[s.key] = parseInt(s.value, 10);
   }
 
-  // Calculate order items with pricing
+  // Calculate order items with pricing (dollar-amount pre-auth model)
   const orderItems = items.map((item) => {
     // DEF add-on uses fixed pricing from admin settings
     if (item.kind === "DEF_ADDON" || item.kind === "DEF_ONLY") {
-      const defCents = item.gallons === 5
-        ? (defPriceMap.def_price_cents_5 || 5500)
-        : (defPriceMap.def_price_cents_2_5 || 3000);
+      // DEF items: prefundedCents maps to the DEF price (3000 = 2.5gal, 5500 = 5gal)
+      const defCents = item.prefundedCents ?? 0;
+      const defGallons = defCents === 5500 ? 5 : defCents === 3000 ? 2.5 : 0;
       return {
         kind: item.kind,
         vehicleId: item.vehicleId || null,
         boatId: item.boatId || null,
         fuelType: item.fuelType || "DIESEL",
-        gallons: item.gallons || 2.5,
+        gallons: defGallons,
         isFillUp: false,
         pricePerGallonCents: 0,
         gasCents: defCents,
         serviceFeeCents: 0,
+        authAmountCents: defCents,
         notes: item.notes || null,
         itemMake: item.itemMake || null,
         itemModel: item.itemModel || null,
@@ -87,22 +88,20 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const price = priceMap.get(item.fuelType);
-    const baseCents = price
-      ? Math.round(price.basePriceCents * (1 + price.markupPercent / 100))
-      : 0;
-    const gasCents = item.isFillUp ? 0 : Math.round(baseCents * (item.gallons || 0));
+    // Fuel items: dollar amount pre-auth or fill-up ($1 pre-auth)
+    const fuelPreAuthCents = item.isFillUp ? 100 : (item.prefundedCents ?? 0);
 
     return {
       kind: item.kind,
       vehicleId: item.vehicleId || null,
       boatId: item.boatId || null,
       fuelType: item.fuelType,
-      gallons: item.isFillUp ? null : item.gallons,
+      gallons: null, // determined at completion
       isFillUp: item.isFillUp || false,
-      pricePerGallonCents: baseCents,
-      gasCents,
+      pricePerGallonCents: 0, // determined at completion
+      gasCents: fuelPreAuthCents,
       serviceFeeCents: 0,
+      authAmountCents: fuelPreAuthCents,
       notes: item.notes || null,
       itemMake: item.itemMake || null,
       itemModel: item.itemModel || null,

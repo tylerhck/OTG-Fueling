@@ -348,26 +348,17 @@ export default function AdminOrders() {
                     </>
                   )}
 
-                  {/* IN_PROGRESS: Complete (or Enter Gallons for fill-ups) */}
-                  {order.status === "IN_PROGRESS" && !order.isFillUp && (
-                    <button
-                      onClick={() => updateStatus(order.id, "COMPLETED")}
-                      disabled={updating === order.id}
-                      className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                      Complete
-                    </button>
-                  )}
-                  {order.status === "IN_PROGRESS" && order.isFillUp && showCapture !== order.id && (
+                  {/* IN_PROGRESS: ALL orders require gallons + price entry at completion */}
+                  {order.status === "IN_PROGRESS" && showCapture !== order.id && (
                     <button
                       onClick={() => setShowCapture(order.id)}
                       disabled={updating === order.id}
                       className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
                     >
-                      Enter Gallons &amp; Charge
+                      Enter Gallons &amp; Complete
                     </button>
                   )}
-                  {order.status === "IN_PROGRESS" && order.isFillUp && showCapture === order.id && (
+                  {order.status === "IN_PROGRESS" && showCapture === order.id && (
                     <div className="flex flex-wrap items-start gap-2">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">

@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { fuelPriceSchema } from "@/lib/validators";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
 
 function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
@@ -18,77 +17,76 @@ function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
 
 export async function GET() {
   try {
-  const session = await auth();
+    const session = await auth();
 
-  const [prices, asapSetting, defSettings, deliveryFeeSetting] = await Promise.all([
-    prisma.fuelPrice.findMany({ orderBy: { fuelType: "asc" } }),
-    prisma.siteSetting.findUnique({ where: { key: "asap_enabled" } }),
-    prisma.siteSetting.findMany({ where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } } }),
-    prisma.siteSetting.findUnique({ where: { key: "delivery_fee_cents" } }),
-  ]);
+    const [asapSetting, defSettings, deliveryFeeSetting] = await Promise.all([
+      prisma.siteSetting.findUnique({ where: { key: "asap_enabled" } }),
+      prisma.siteSetting.findMany({ where: { key: { in: ["def_price_cents_2_5", "def_price_cents_5"] } } }),
+      prisma.siteSetting.findUnique({ where: { key: "delivery_fee_cents" } }),
+    ]);
 
-  const deliveryFeeCents = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : 1500;
+    const deliveryFeeCents = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : 1500;
 
-  // Build dynamic DEF pricing from admin settings
-  const defMap: Record<string, string> = {};
-  for (const s of defSettings) {
-    defMap[s.key] = s.value;
-  }
-  const defSizes = [
-    { gallons: 2.5, label: "2.5 gallon", cents: parseInt(defMap.def_price_cents_2_5 || "3000", 10) },
-    { gallons: 5, label: "5 gallon", cents: parseInt(defMap.def_price_cents_5 || "5500", 10) },
-  ];
-
-  const result: Record<string, unknown> = {
-    prices,
-    defSizes,
-    deliveryFeeCents,
-    asapEnabled: asapSetting?.value !== "false", // defaults to true
-  };
-
-  // If authenticated, include subscription info (self-heal from Stripe if needed)
-  if (session?.user?.id) {
-    const userRecord = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true },
-    });
-    if (userRecord?.email) {
-      await ensureSubscriptionFromStripe(session.user.id, userRecord.email);
+    // Build dynamic DEF pricing from admin settings
+    const defMap: Record<string, string> = {};
+    for (const s of defSettings) {
+      defMap[s.key] = s.value;
     }
+    const defSizes = [
+      { gallons: 2.5, label: "2.5 gallon", cents: parseInt(defMap.def_price_cents_2_5 || "3000", 10) },
+      { gallons: 5, label: "5 gallon", cents: parseInt(defMap.def_price_cents_5 || "5500", 10) },
+    ];
 
-    const subscription = await prisma.subscription.findFirst({
-      where: { userId: session.user.id, status: "ACTIVE" },
-    });
+    const result: Record<string, unknown> = {
+      prices: [], // No longer serving live fuel prices — prices entered at completion
+      defSizes,
+      deliveryFeeCents,
+      asapEnabled: asapSetting?.value !== "false", // defaults to true
+    };
 
-    if (subscription) {
-      const { weekStart, weekEnd } = getWeekBounds();
-      const fillUpsUsed = await prisma.order.count({
-        where: {
-          userId: session.user.id,
-          status: { notIn: ["CANCELLED"] },
-          createdAt: { gte: weekStart, lt: weekEnd },
-          items: {
-            some: {
-              isFillUp: true,
-              kind: { in: ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"] },
-            },
-          },
-        },
+    // If authenticated, include subscription info (self-heal from Stripe if needed)
+    if (session?.user?.id) {
+      const userRecord = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { email: true },
+      });
+      if (userRecord?.email) {
+        await ensureSubscriptionFromStripe(session.user.id, userRecord.email);
+      }
+
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId: session.user.id, status: "ACTIVE" },
       });
 
-      result.subscription = {
-        active: true,
-        fillUpsUsed,
-        fillUpLimit: 2,
-        secondFillUpFeeCents: 1000,
-        // Legacy fields
-        freeDeliveriesUsed: fillUpsUsed,
-        freeDeliveriesPerWeek: 1,
-      };
-    }
-  }
+      if (subscription) {
+        const { weekStart, weekEnd } = getWeekBounds();
+        const fillUpsUsed = await prisma.order.count({
+          where: {
+            userId: session.user.id,
+            status: { notIn: ["CANCELLED"] },
+            createdAt: { gte: weekStart, lt: weekEnd },
+            items: {
+              some: {
+                isFillUp: true,
+                kind: { in: ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"] },
+              },
+            },
+          },
+        });
 
-  return NextResponse.json(result);
+        result.subscription = {
+          active: true,
+          fillUpsUsed,
+          fillUpLimit: 2,
+          secondFillUpFeeCents: 1000,
+          // Legacy fields
+          freeDeliveriesUsed: fillUpsUsed,
+          freeDeliveriesPerWeek: 1,
+        };
+      }
+    }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("GET /api/fuel-prices error:", error);
     return NextResponse.json(
@@ -96,34 +94,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
-
-export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id || (session.user as { role: string }).role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const body = await req.json();
-  const parsed = fuelPriceSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const { fuelType, basePriceCents, markupPercent } = parsed.data;
-  const effectivePriceCents = Math.round(
-    basePriceCents * (1 + markupPercent / 100)
-  );
-
-  const price = await prisma.fuelPrice.upsert({
-    where: { fuelType },
-    update: { basePriceCents, markupPercent, effectivePriceCents },
-    create: { fuelType, basePriceCents, markupPercent, effectivePriceCents },
-  });
-
-  return NextResponse.json(price);
 }

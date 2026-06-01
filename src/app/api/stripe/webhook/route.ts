@@ -27,34 +27,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // Standard payment: ASAP → ACTIVE, Scheduled → PENDING
-  if (event.type === "payment_intent.succeeded") {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    const orderId = paymentIntent.metadata.orderId;
-
-    if (orderId) {
-      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { scheduledAt: true } });
-      const isAsap = !order?.scheduledAt;
-      const newStatus = isAsap ? "ACTIVE" : "PENDING";
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: newStatus,
-          stripePaymentIntentId: paymentIntent.id,
-        },
-      });
-      notifyOrderStatus(orderId, newStatus).catch(() => {});
-      if (isAsap) {
-        notifyOrderActive(orderId, "ASAP").catch(() => {});
-      }
-    }
-  }
-
-  // Fill-up: card authorized for $1 → save payment method, ASAP → ACTIVE, Scheduled → PENDING
+  // ALL orders now use manual capture. When the pre-auth hold is confirmed,
+  // this event fires. Move the order to ACTIVE (ASAP) or PENDING (scheduled).
   if (event.type === "payment_intent.amount_capturable_updated") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
     const orderId = paymentIntent.metadata.orderId;
-    if (orderId && paymentIntent.metadata.isFillUp === "true") {
+    if (orderId) {
       const order = await prisma.order.findUnique({ where: { id: orderId }, select: { scheduledAt: true } });
       const isAsap = !order?.scheduledAt;
       const newStatus = isAsap ? "ACTIVE" : "PENDING";
@@ -68,6 +46,34 @@ export async function POST(req: NextRequest) {
       notifyOrderStatus(orderId, newStatus).catch(() => {});
       if (isAsap) {
         notifyOrderActive(orderId, "ASAP").catch(() => {});
+      }
+    }
+  }
+
+  // Fallback: if a payment_intent.succeeded fires (e.g. from an off-session capture
+  // after completion), we don't need to change order status since capture route handles it.
+  // But handle edge cases where succeeded fires on the initial auth (some card networks).
+  if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const orderId = paymentIntent.metadata.orderId;
+
+    if (orderId) {
+      // Only move to ACTIVE/PENDING if the order is still in AWAITING_PAYMENT
+      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true, scheduledAt: true } });
+      if (order && order.status === "AWAITING_PAYMENT") {
+        const isAsap = !order.scheduledAt;
+        const newStatus = isAsap ? "ACTIVE" : "PENDING";
+        await prisma.order.update({
+          where: { id: orderId },
+          data: {
+            status: newStatus,
+            stripePaymentIntentId: paymentIntent.id,
+          },
+        });
+        notifyOrderStatus(orderId, newStatus).catch(() => {});
+        if (isAsap) {
+          notifyOrderActive(orderId, "ASAP").catch(() => {});
+        }
       }
     }
   }
@@ -92,14 +98,16 @@ export async function POST(req: NextRequest) {
         session.subscription as string
       );
       const item = sub.items.data[0];
+      const periodStart = (item as any)?.current_period_start ?? (sub as any).current_period_start;
+      const periodEnd = (item as any)?.current_period_end ?? (sub as any).current_period_end;
       await prisma.subscription.create({
         data: {
           userId: session.metadata.userId,
           stripeSubscriptionId: sub.id,
           stripeCustomerId: sub.customer as string,
           status: "ACTIVE",
-          currentPeriodStart: new Date(item.current_period_start * 1000),
-          currentPeriodEnd: new Date(item.current_period_end * 1000),
+          currentPeriodStart: new Date(periodStart * 1000),
+          currentPeriodEnd: new Date(periodEnd * 1000),
         },
       });
     }
@@ -107,28 +115,17 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "customer.subscription.updated") {
     const sub = event.data.object as Stripe.Subscription;
-    const existing = await prisma.subscription.findUnique({
+    const subItem = sub.items?.data?.[0];
+    const pStart = (subItem as any)?.current_period_start ?? (sub as any).current_period_start;
+    const pEnd = (subItem as any)?.current_period_end ?? (sub as any).current_period_end;
+    await prisma.subscription.updateMany({
       where: { stripeSubscriptionId: sub.id },
+      data: {
+        status: sub.status === "active" ? "ACTIVE" : "CANCELLED",
+        currentPeriodStart: new Date(pStart * 1000),
+        currentPeriodEnd: new Date(pEnd * 1000),
+      },
     });
-    if (existing) {
-      const status = sub.cancel_at_period_end
-        ? "ACTIVE"
-        : sub.status === "active"
-          ? "ACTIVE"
-          : sub.status === "past_due"
-            ? "PAST_DUE"
-            : "CANCELLED";
-
-      const item = sub.items.data[0];
-      await prisma.subscription.update({
-        where: { stripeSubscriptionId: sub.id },
-        data: {
-          status,
-          currentPeriodStart: new Date(item.current_period_start * 1000),
-          currentPeriodEnd: new Date(item.current_period_end * 1000),
-        },
-      });
-    }
   }
 
   if (event.type === "customer.subscription.deleted") {
@@ -137,18 +134,6 @@ export async function POST(req: NextRequest) {
       where: { stripeSubscriptionId: sub.id },
       data: { status: "CANCELLED" },
     });
-  }
-
-  if (event.type === "invoice.payment_failed") {
-    const invoice = event.data.object as Stripe.Invoice;
-    const subId =
-      (invoice.parent?.subscription_details?.subscription as string) ?? null;
-    if (subId) {
-      await prisma.subscription.updateMany({
-        where: { stripeSubscriptionId: subId },
-        data: { status: "PAST_DUE" },
-      });
-    }
   }
 
   return NextResponse.json({ received: true });

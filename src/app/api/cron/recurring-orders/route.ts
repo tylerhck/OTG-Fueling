@@ -133,14 +133,6 @@ export async function POST(req: NextRequest) {
       // Determine delivery fee
       const deliveryFeeCents = weeklyOrderCount === 0 ? 0 : 1000; // 1st free, 2nd $10
 
-      // Get fuel price
-      const fuelPrice = await prisma.fuelPrice.findUnique({
-        where: { fuelType: recurring.fuelType },
-      });
-      if (!fuelPrice) {
-        results.push({ id: recurring.id, status: "error", error: "No fuel price configured" });
-        continue;
-      }
 
       // Calculate scheduled time — use start of window (windowFrom) for scheduledAt
       // windowFrom/windowTo are stored as "HH:MM" in Central Time
@@ -171,8 +163,8 @@ export async function POST(req: NextRequest) {
           vehicleId: recurring.vehicleId,
           addressId: recurring.addressId,
           fuelType: recurring.fuelType,
-          gallons: recurring.isFillUp ? 30 : recurring.gallons, // max estimate for fill-up
-          pricePerGallonCents: fuelPrice.effectivePriceCents,
+          gallons: 0, // Fill-up — actual gallons entered at completion
+          pricePerGallonCents: 0, // Price entered at completion
           deliveryFeeCents,
           totalCents: authAmountCents, // Will be updated after actual fill
           subscriptionDelivery: true,
@@ -189,10 +181,10 @@ export async function POST(req: NextRequest) {
               kind: "PRIMARY_VEHICLE",
               vehicleId: recurring.vehicleId,
               fuelType: recurring.fuelType,
-              gallons: recurring.isFillUp ? null : recurring.gallons,
-              isFillUp: recurring.isFillUp,
-              pricePerGallonCents: fuelPrice.effectivePriceCents,
-              gasCents: recurring.isFillUp ? 0 : Math.round((recurring.gallons || 0) * fuelPrice.effectivePriceCents),
+              gallons: null, // Fill-up — actual gallons entered at completion
+              isFillUp: true,
+              pricePerGallonCents: 0, // Price entered at completion
+              gasCents: 0, // Calculated at completion
               serviceFeeCents: deliveryFeeCents,
               authAmountCents,
             },

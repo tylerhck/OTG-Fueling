@@ -84,12 +84,15 @@ export const fuelPriceSchema = z.object({
   markupPercent: z.number().min(0),
 });
 
+// Order items now use dollar amounts (prefundedCents) instead of gallons.
+// All fuel orders are pre-authorized and charged at completion based on actual gallons pumped.
 const orderItemSchema = z.object({
   kind: z.enum(["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT", "PRIMARY_BOAT", "DEF_ADDON", "DEF_ONLY"]),
   vehicleId: z.string().optional(),
   boatId: z.string().optional(),
   fuelType: z.enum(["REGULAR_87", "PREMIUM_93", "DIESEL"]),
-  gallons: z.number().positive().max(50).optional(),
+  // Dollar amount in cents the customer wants to pre-fund (e.g. 4000 = $40)
+  prefundedCents: z.number().int().positive().max(50000).optional(),
   isFillUp: z.boolean().optional(),
   notes: z.string().max(500).optional(),
   // Inline/snapshot fields for new boat added during checkout
@@ -99,9 +102,9 @@ const orderItemSchema = z.object({
   itemColor: z.string().optional(),
   itemPlate: z.string().optional(),
   itemRegNumber: z.string().optional(),
-}).refine((d) => d.isFillUp || (d.gallons != null && d.gallons > 0), {
-  message: "Gallons required unless this is a fill-up order",
-  path: ["gallons"],
+}).refine((d) => d.isFillUp || (d.prefundedCents != null && d.prefundedCents > 0), {
+  message: "Dollar amount required unless this is a fill-up order",
+  path: ["prefundedCents"],
 });
 
 export const orderSchema = z.object({
@@ -113,9 +116,12 @@ export const orderSchema = z.object({
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
 });
 
+// Guest vehicle orders now use dollar amount instead of gallons
 export const guestOrderSchema = z.object({
   fuelType: z.enum(["REGULAR_87", "PREMIUM_93", "DIESEL"]),
-  gallons: z.number().positive().max(50),
+  // Dollar amount in cents the customer wants to pre-fund
+  prefundedCents: z.number().int().positive().max(50000).optional(),
+  isFillUp: z.boolean().optional(),
   scheduledAt: z.string().datetime().optional(),
   availableFrom: z.string().optional(),
   availableTo: z.string().optional(),
@@ -134,11 +140,16 @@ export const guestOrderSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   zip: z.string().min(5, "ZIP code is required"),
+}).refine((d) => d.isFillUp || (d.prefundedCents != null && d.prefundedCents > 0), {
+  message: "Dollar amount required unless this is a fill-up order",
+  path: ["prefundedCents"],
 });
 
+// Guest boat orders now use dollar amount instead of gallons
 export const guestBoatOrderSchema = z.object({
   fuelType: z.enum(["REGULAR_87", "PREMIUM_93", "DIESEL"]),
-  gallons: z.number().positive().max(200),
+  // Dollar amount in cents the customer wants to pre-fund
+  prefundedCents: z.number().int().positive().max(50000).optional(),
   isFillUp: z.boolean().optional(),
   scheduledAt: z.string().datetime().optional(),
   availableFrom: z.string().optional(),
@@ -160,9 +171,9 @@ export const guestBoatOrderSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   zip: z.string().min(5, "ZIP code is required"),
-}).refine((d) => d.isFillUp || (d.gallons != null && d.gallons > 0), {
-  message: "Gallons required unless this is a fill-up",
-  path: ["gallons"],
+}).refine((d) => d.isFillUp || (d.prefundedCents != null && d.prefundedCents > 0), {
+  message: "Dollar amount required unless this is a fill-up order",
+  path: ["prefundedCents"],
 });
 
 export const profileSchema = z.object({

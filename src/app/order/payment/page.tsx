@@ -148,9 +148,13 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
           </div>
         )}
 
-        {isFillUp && (
+        {isFillUp ? (
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
-            <strong>Fill-up order:</strong> We charge $1.00 now to verify your card. After we finish fueling, we charge the exact amount pumped and release the $1.00.
+            <strong>Fill-up order:</strong> A $1.00 hold is placed to verify your card. After delivery, you are charged only for the actual fuel pumped plus any applicable fees.
+          </div>
+        ) : (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
+            <strong>Pre-authorization:</strong> The amount shown is held on your card (not charged). After delivery, you are charged only for the actual fuel delivered. If your tank fills before reaching the full amount, the difference is released.
           </div>
         )}
         <button
@@ -158,7 +162,7 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
           disabled={!stripe || processing}
           className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/35 hover:from-red-400 hover:to-red-500 transition-all disabled:opacity-50 disabled:shadow-none"
         >
-          {processing ? "Processing..." : isFillUp ? "Verify Card — $1.00" : `Pay $${(total / 100).toFixed(2)}`}
+          {processing ? "Processing..." : isFillUp ? "Authorize $1.00 Hold" : `Authorize $${(total / 100).toFixed(2)} Hold`}
         </button>
       </form>
     </div>
@@ -183,12 +187,12 @@ function PaymentPageContent() {
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-900">
-        {isFillUp ? "Verify Your Card" : "Complete Payment"}
+        {isFillUp ? "Verify Your Card" : "Authorize Payment"}
       </h1>
       <p className="mt-1 text-sm text-gray-500">
         {isFillUp
-          ? "Enter your card details to save for the final charge after fueling."
-          : "Pay securely with card, Apple Pay, or Google Pay."}
+          ? "Enter your card details. A $1.00 hold verifies your card — you are only charged after delivery."
+          : "A hold will be placed on your card. You are only charged for the actual fuel delivered."}
       </p>
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">

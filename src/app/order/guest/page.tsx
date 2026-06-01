@@ -4,14 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FUEL_TYPE_LABELS } from "@/types";
 
-interface FuelPrice {
-  fuelType: string;
-  effectivePriceCents: number;
-}
-
 export default function GuestOrderPage() {
   const router = useRouter();
-  const [prices, setPrices] = useState<FuelPrice[]>([]);
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(1500);
   const [asapEnabled, setAsapEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -38,7 +32,8 @@ export default function GuestOrderPage() {
     zip: "",
     // Order
     fuelType: "REGULAR_87",
-    gallons: 10,
+    dollarAmount: 40,
+    isFillUp: false,
     deliveryType: "asap" as "asap" | "scheduled",
     scheduledDate: "",
     availableFrom: "",
@@ -50,7 +45,6 @@ export default function GuestOrderPage() {
     fetch("/api/fuel-prices")
       .then((r) => r.json())
       .then((data) => {
-        setPrices(data.prices || []);
         if (data.deliveryFeeCents !== undefined) {
           setDeliveryFeeCents(data.deliveryFeeCents);
         }
@@ -65,9 +59,8 @@ export default function GuestOrderPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const selectedPrice = prices.find((p) => p.fuelType === form.fuelType);
-  const pricePerGallon = selectedPrice ? selectedPrice.effectivePriceCents / 100 : 0;
-  const fuelCost = pricePerGallon * form.gallons;
+  // Dollar amount pre-auth model
+  const fuelCost = form.isFillUp ? 0 : form.dollarAmount;
   const deliveryFee = deliveryFeeCents / 100;
   const total = fuelCost + deliveryFee;
 
@@ -97,7 +90,8 @@ export default function GuestOrderPage() {
         state: form.state,
         zip: form.zip,
         fuelType: form.fuelType,
-        gallons: form.gallons,
+        dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
+        isFillUp: form.isFillUp,
         scheduledAt:
           form.deliveryType === "scheduled" && form.scheduledDate && form.availableFrom
             ? (() => { const [h, m] = form.availableFrom.split(":").map(Number); const dt = new Date(form.scheduledDate + "T00:00:00"); dt.setHours(h, m, 0, 0); return dt.toISOString(); })()
@@ -123,13 +117,16 @@ export default function GuestOrderPage() {
 
     const order = await orderRes.json();
 
-    // Create Stripe payment intent
+    // Create Stripe payment intent — all orders are pre-auth (manual capture)
+    const intentAmount = form.isFillUp ? 100 : order.totalCents;
+
     const intentRes = await fetch("/api/stripe/create-intent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        amountCents: order.totalCents,
+        amountCents: intentAmount,
         orderId: order.id,
+        isFillUp: form.isFillUp,
       }),
     });
 
@@ -142,7 +139,7 @@ export default function GuestOrderPage() {
     const { clientSecret } = await intentRes.json();
 
     router.push(
-      `/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${order.totalCents}`
+      `/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}`
     );
   }
 
@@ -348,7 +345,7 @@ export default function GuestOrderPage() {
           </div>
         </div>
 
-        {/* Fuel Type & Gallons */}
+        {/* Fuel Type & Dollar Amount */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Fuel Details</h2>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -365,17 +362,45 @@ export default function GuestOrderPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Gallons</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                step={0.5}
-                value={form.gallons}
-                onChange={(e) => updateForm({ gallons: parseFloat(e.target.value) || 0 })}
-                className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-              />
+              <label className="block text-sm font-medium text-slate-700">Dollar Amount</label>
+              {form.isFillUp ? (
+                <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <span className="text-sm text-slate-400 italic">Fill up — charged after delivery</span>
+                </div>
+              ) : (
+                <div className="mt-1.5 relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                  <input
+                    type="number"
+                    min={10}
+                    max={500}
+                    step={5}
+                    value={form.dollarAmount}
+                    onChange={(e) => updateForm({ dollarAmount: parseFloat(e.target.value) || 0 })}
+                    className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                  />
+                </div>
+              )}
             </div>
+          </div>
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-700">Fill Up Tank</p>
+              <p className="text-xs text-slate-400">We place a $1 hold to verify your card, then charge only for what we pump plus the delivery fee.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => updateForm({ isFillUp: !form.isFillUp })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isFillUp ? "bg-red-600" : "bg-slate-300"}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.isFillUp ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
+          {/* Fuel price disclaimer */}
+          <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+            <p className="text-xs text-amber-700">
+              <strong>Note:</strong> Fuel prices fluctuate daily. The number of gallons you receive will be based on the market price at the time of delivery. You will only be charged for the actual fuel delivered.
+            </p>
           </div>
         </div>
 
@@ -504,20 +529,39 @@ export default function GuestOrderPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Order Summary</h2>
           <div className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-600">
-                {FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} x {form.gallons} gal @ ${pricePerGallon.toFixed(2)}/gal
-              </span>
-              <span className="font-medium text-slate-900">${fuelCost.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">Delivery Fee</span>
-              <span className="font-medium text-slate-900">${deliveryFee.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-100 pt-2">
-              <span className="font-semibold text-slate-900">Total</span>
-              <span className="text-lg font-bold text-slate-900">${total.toFixed(2)}</span>
-            </div>
+            {form.isFillUp ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — Fill Up</span>
+                  <span className="font-medium text-slate-400 italic">charged after delivery</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Delivery Fee</span>
+                  <span className="font-medium text-slate-400 italic">charged after delivery</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-100 pt-2">
+                  <span className="font-semibold text-slate-900">Card Hold</span>
+                  <span className="text-lg font-bold text-slate-900">$1.00</span>
+                </div>
+                <p className="text-xs text-slate-400">A $1.00 hold is placed to verify your card. You are charged only for the actual fuel pumped + delivery fee after delivery.</p>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — ${form.dollarAmount.toFixed(2)} pre-charge</span>
+                  <span className="font-medium text-slate-900">${form.dollarAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Delivery Fee</span>
+                  <span className="font-medium text-slate-900">${deliveryFee.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-100 pt-2">
+                  <span className="font-semibold text-slate-900">Total Hold</span>
+                  <span className="text-lg font-bold text-slate-900">${total.toFixed(2)}</span>
+                </div>
+                <p className="text-xs text-slate-400">This amount is held on your card. If your tank fills before reaching ${form.dollarAmount.toFixed(2)}, you are only charged for the actual fuel delivered.</p>
+              </>
+            )}
           </div>
         </div>
 
@@ -548,7 +592,11 @@ export default function GuestOrderPage() {
           disabled={submitting || !agreedToTerms}
           className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-400 hover:to-red-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? "Processing..." : `Proceed to Payment — $${total.toFixed(2)}`}
+          {submitting
+            ? "Processing..."
+            : form.isFillUp
+            ? "Place Order — $1.00 Hold"
+            : `Place Order — $${total.toFixed(2)} Pre-charge`}
         </button>
 
         <p className="text-center text-xs text-slate-400">

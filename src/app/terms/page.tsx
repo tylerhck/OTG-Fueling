@@ -33,11 +33,19 @@ export default function TermsOfServicePage() {
             Important: Fuel Price Disclaimer
           </p>
           <p className="text-slate-600 leading-relaxed">
-            All fuel prices displayed on the Service are based on current local rates at the time of listing. <strong>Prices are subject to change and the final charge will be determined at the time of fill-up, not at the time of order placement.</strong> Fuel prices fluctuate based on market conditions, and the actual amount charged to your payment method may differ from the price displayed when you placed your order. By placing an order, you acknowledge and agree to this pricing structure.
+            OTG Fueling does not display gasoline or diesel prices on the Service. <strong>Fuel prices fluctuate daily based on market conditions. The number of gallons you receive will be determined by the market price at the time of delivery, not at the time of order placement.</strong> By placing an order, you acknowledge and agree that the actual gallons delivered may vary based on current fuel prices.
           </p>
         </div>
+        <p className="text-slate-600 leading-relaxed mb-2">
+          <strong>Pre-Authorization Model:</strong> All orders use a pre-authorization (hold) on your payment method. No immediate charge is made at the time of order placement.
+        </p>
+        <ul className="list-disc list-inside text-slate-600 leading-relaxed mb-4 space-y-1">
+          <li><strong>Dollar Amount Orders:</strong> When you select a dollar amount (e.g., $40), that amount is held on your card. At delivery, you are charged only for the actual fuel dispensed at the market price. If your tank fills before reaching the full dollar amount, only the actual cost is charged and the remaining hold is released.</li>
+          <li><strong>Fill-Up Orders:</strong> A $1.00 pre-authorization hold is placed to verify your payment method. After delivery, you are charged the actual cost of fuel dispensed plus any applicable service fees.</li>
+          <li><strong>Recurring Orders:</strong> All recurring orders are fill-up orders. A $1.00 hold is placed each delivery day, and the actual fuel cost is charged upon completion.</li>
+        </ul>
         <p className="text-slate-600 leading-relaxed mb-4">
-          A pre-authorization hold of $1.00 will be placed on your payment method when an order is confirmed. The final charge, reflecting the actual fuel dispensed and applicable delivery fees, will be captured upon completion of the delivery. Pre-authorization holds that are not captured will be released according to your financial institution&rsquo;s policies.
+          Pre-authorization holds that are not captured will be released according to your financial institution&rsquo;s policies (typically 3&ndash;7 business days). Service fees (delivery fees) are included in the final charge at the time of delivery completion.
         </p>
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">5. Subscription Plans</h2>

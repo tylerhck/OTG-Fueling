@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { sendCompletionReceipt } from "@/lib/completionReceipt";
 
 export async function POST(
   req: NextRequest,
@@ -24,19 +25,20 @@ export async function POST(
     return NextResponse.json({ error: "Invalid price per gallon" }, { status: 400 });
   }
 
-  const order = await prisma.order.findUnique({ where: { id } });
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { user: true },
+  });
 
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (!order.isFillUp) return NextResponse.json({ error: "Not a fill-up order" }, { status: 400 });
   if (!order.stripeCustomerId) {
     return NextResponse.json(
-      { error: "Card details not yet available. Wait for the customer's $1 authorization to complete." },
+      { error: "Card details not yet available. Wait for the customer's authorization to complete." },
       { status: 400 }
     );
   }
 
-  // If payment method wasn't saved by webhook (e.g. webhook DB write failed),
-  // retrieve it directly from the Stripe payment intent.
+  // If payment method wasn't saved by webhook, retrieve it from the Stripe payment intent.
   let paymentMethodId = order.stripePaymentMethodId;
   if (!paymentMethodId && order.stripePaymentIntentId) {
     const intent = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
@@ -48,44 +50,67 @@ export async function POST(
 
   if (!paymentMethodId) {
     return NextResponse.json(
-      { error: "Card details not yet available. Wait for the customer's $1 authorization to complete." },
+      { error: "Card details not yet available. Wait for the customer's authorization to complete." },
       { status: 400 }
     );
   }
 
-  // Use the admin-provided price per gallon (in dollars, convert to cents)
+  // Calculate the actual charge amount
   const pricePerGallonCents = Math.round(pricePerGallon * 100);
   const actualFuelCents = Math.round(pricePerGallonCents * gallons);
   const actualTotalCents = actualFuelCents + order.deliveryFeeCents;
 
-  // Charge the saved payment method for the actual amount (off-session)
-  let newIntent;
-  try {
-    newIntent = await stripe.paymentIntents.create({
-      amount: actualTotalCents,
-      currency: "usd",
-      customer: order.stripeCustomerId,
-      payment_method: paymentMethodId,
-      confirm: true,
-      off_session: true,
-      metadata: { orderId: order.id, isFillUpCapture: "true", gallons: String(gallons), pricePerGallon: String(pricePerGallon) },
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Card charge failed";
-    return NextResponse.json({ error: msg }, { status: 402 });
-  }
-
-  // Release the original $1 authorization
+  // Try to capture the original pre-auth for the actual amount (partial capture if less than held)
+  let capturedViaOriginal = false;
   if (order.stripePaymentIntentId) {
     try {
-      await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
+      const originalIntent = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
+      // If the original intent is still capturable and the actual amount is <= the held amount
+      if (originalIntent.status === "requires_capture" && actualTotalCents <= originalIntent.amount) {
+        await stripe.paymentIntents.capture(order.stripePaymentIntentId, {
+          amount_to_capture: actualTotalCents,
+        });
+        capturedViaOriginal = true;
+      } else if (originalIntent.status === "requires_capture" && actualTotalCents > originalIntent.amount) {
+        // Actual exceeds hold — cancel original and charge full amount off-session
+        await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
+      }
     } catch {
-      // Non-fatal — log but don't block the response
-      console.error("Could not cancel $1 hold for order", order.id);
+      // If capture fails, fall through to off-session charge
+      console.error("Could not capture original intent for order", order.id);
     }
   }
 
-  // Update order with actual gallons, price per gallon, final total, and new intent ID
+  // If we couldn't capture via original intent, charge off-session
+  let finalIntentId = order.stripePaymentIntentId;
+  if (!capturedViaOriginal) {
+    try {
+      const newIntent = await stripe.paymentIntents.create({
+        amount: actualTotalCents,
+        currency: "usd",
+        customer: order.stripeCustomerId,
+        payment_method: paymentMethodId,
+        confirm: true,
+        off_session: true,
+        metadata: { orderId: order.id, capture: "true", gallons: String(gallons), pricePerGallon: String(pricePerGallon) },
+      });
+      finalIntentId = newIntent.id;
+
+      // Cancel the original hold if it's still capturable
+      if (order.stripePaymentIntentId) {
+        try {
+          await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
+        } catch {
+          // Non-fatal
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Card charge failed";
+      return NextResponse.json({ error: msg }, { status: 402 });
+    }
+  }
+
+  // Update order with actual gallons, price per gallon, final total, and mark completed
   const updated = await prisma.order.update({
     where: { id },
     data: {
@@ -93,10 +118,24 @@ export async function POST(
       pricePerGallonCents,
       totalCents: actualTotalCents,
       authAmountCents: actualTotalCents,
-      stripePaymentIntentId: newIntent.id,
+      stripePaymentIntentId: finalIntentId,
       status: "COMPLETED",
     },
+    include: { user: true },
   });
+
+  // Send completion receipt email with breakdown
+  sendCompletionReceipt({
+    orderId: order.id,
+    recipientEmail: order.user?.email || order.guestEmail || null,
+    recipientName: order.user?.name || order.guestName || "Customer",
+    fuelType: order.fuelType || "REGULAR_87",
+    gallons,
+    pricePerGallon,
+    fuelTotalCents: actualFuelCents,
+    deliveryFeeCents: order.deliveryFeeCents,
+    totalCents: actualTotalCents,
+  }).catch((err) => console.error("Failed to send completion receipt:", err));
 
   return NextResponse.json(updated);
 }

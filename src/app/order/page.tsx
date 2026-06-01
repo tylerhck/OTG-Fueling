@@ -110,7 +110,7 @@ export default function OrderPage() {
     vehicleId: "",
     addressId: "",
     fuelType: "REGULAR_87",
-    gallons: 10,
+    dollarAmount: 40,
     isFillUp: false,
     deliveryType: "asap" as "asap" | "scheduled",
     scheduledDate: "",
@@ -131,7 +131,7 @@ export default function OrderPage() {
   const [secondVehicle, setSecondVehicle] = useState({
     vehicleId: "",
     fuelType: "REGULAR_87",
-    gallons: 10,
+    dollarAmount: 40,
     isFillUp: false,
     notes: "",
   });
@@ -141,7 +141,7 @@ export default function OrderPage() {
   const [boatAddon, setBoatAddon] = useState({
     boatId: "",
     fuelType: "REGULAR_87",
-    gallons: 20,
+    dollarAmount: 40,
     isFillUp: false,
     notes: "",
     // New boat inline fields
@@ -203,9 +203,6 @@ export default function OrderPage() {
 
 
 
-  const selectedPrice = prices.find((p) => p.fuelType === form.fuelType);
-  const pricePerGallon = selectedPrice ? selectedPrice.effectivePriceCents / 100 : 0;
-
   // Determine delivery fee based on subscription fill-up usage
   let effectiveDeliveryFeeCents = deliveryFeeCents;
   let isFreeDelivery = false;
@@ -228,30 +225,26 @@ export default function OrderPage() {
 
   const deliveryFee = effectiveDeliveryFeeCents / 100;
 
-  // Primary item cost
-  const primaryFuelCost = form.isFillUp ? 0 : pricePerGallon * form.gallons;
-  const primaryFillUpAuth = form.isFillUp ? pricePerGallon * FILL_UP_MAX_GALLONS : 0;
+  // Primary item cost — dollar amount pre-funded or fill-up ($1 hold)
+  const primaryFuelCost = form.isFillUp ? 0 : form.dollarAmount;
 
   // Second vehicle cost
-  const secondVehiclePrice = prices.find((p) => p.fuelType === secondVehicle.fuelType);
-  const secondVehiclePPG = secondVehiclePrice ? secondVehiclePrice.effectivePriceCents / 100 : 0;
   const secondVehicleGasCost = addSecondVehicle
-    ? secondVehicle.isFillUp ? 0 : secondVehiclePPG * secondVehicle.gallons
+    ? secondVehicle.isFillUp ? 0 : secondVehicle.dollarAmount
     : 0;
   const secondVehicleAddonFee = addSecondVehicle ? SECOND_VEHICLE_ADDON_CENTS / 100 : 0;
 
   // Trailered boat cost
-  const boatPrice = prices.find((p) => p.fuelType === boatAddon.fuelType);
-  const boatPPG = boatPrice ? boatPrice.effectivePriceCents / 100 : 0;
   const boatGasCost = addTraileredBoat
-    ? boatAddon.isFillUp ? 0 : boatPPG * boatAddon.gallons
+    ? boatAddon.isFillUp ? 0 : boatAddon.dollarAmount
     : 0;
   const boatAddonFee = addTraileredBoat ? TRAILERED_BOAT_ADDON_CENTS / 100 : 0;
 
   const defCost = addDef ? (defSizes.find((s) => s.gallons === defGallons)?.cents ?? 0) / 100 : 0;
 
+  // Total pre-auth: for fill-up = $1, for dollar amount = fuel $ + fees
   const total = form.isFillUp
-    ? primaryFillUpAuth + deliveryFee + secondVehicleAddonFee + secondVehicleGasCost + boatAddonFee + boatGasCost + defCost
+    ? deliveryFee + secondVehicleAddonFee + secondVehicleGasCost + boatAddonFee + boatGasCost + defCost
     : primaryFuelCost + deliveryFee + secondVehicleAddonFee + secondVehicleGasCost + boatAddonFee + boatGasCost + defCost;
 
 
@@ -313,7 +306,7 @@ export default function OrderPage() {
         kind: "PRIMARY_VEHICLE",
         vehicleId: form.vehicleId,
         fuelType: form.fuelType,
-        gallons: form.isFillUp ? undefined : form.gallons,
+        dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
         isFillUp: form.isFillUp,
       },
     ];
@@ -332,7 +325,7 @@ export default function OrderPage() {
         kind: "SECOND_VEHICLE",
         vehicleId: secondVehicle.vehicleId,
         fuelType: secondVehicle.fuelType,
-        gallons: secondVehicle.isFillUp ? undefined : secondVehicle.gallons,
+        dollarAmount: secondVehicle.isFillUp ? undefined : Math.round(secondVehicle.dollarAmount * 100),
         isFillUp: secondVehicle.isFillUp,
         notes: secondVehicle.notes || undefined,
       });
@@ -342,7 +335,7 @@ export default function OrderPage() {
       const boatItem: Record<string, unknown> = {
         kind: "TRAILERED_BOAT",
         fuelType: boatAddon.fuelType,
-        gallons: boatAddon.isFillUp ? undefined : boatAddon.gallons,
+        dollarAmount: boatAddon.isFillUp ? undefined : Math.round(boatAddon.dollarAmount * 100),
         isFillUp: boatAddon.isFillUp,
         notes: boatAddon.notes || undefined,
       };
@@ -379,6 +372,7 @@ export default function OrderPage() {
 
     const order = await orderRes.json();
 
+    // ALL orders are pre-auth (manual capture). Fill-up = $1 hold, dollar amount = full amount hold
     const hasFillUp = form.isFillUp || (addSecondVehicle && secondVehicle.isFillUp) || (addTraileredBoat && boatAddon.isFillUp);
     const intentAmount = hasFillUp ? 100 : order.totalCents;
 
@@ -596,21 +590,24 @@ export default function OrderPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Gallons</label>
+              <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
               {form.isFillUp ? (
                 <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <span className="text-sm text-slate-400 italic">We&apos;ll fill your tank — gallons billed after delivery</span>
+                  <span className="text-sm text-slate-400 italic">Fill up — $1 hold, charged after delivery</span>
                 </div>
               ) : (
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  step={0.5}
-                  value={form.gallons}
-                  onChange={(e) => setForm((prev) => ({ ...prev, gallons: parseFloat(e.target.value) || 0 }))}
-                  className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                />
+                <div className="relative mt-1.5">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                  <input
+                    type="number"
+                    min={20}
+                    max={500}
+                    step={5}
+                    value={form.dollarAmount}
+                    onChange={(e) => setForm((prev) => ({ ...prev, dollarAmount: parseFloat(e.target.value) || 0 }))}
+                    className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -689,18 +686,21 @@ export default function OrderPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Gallons</label>
+                      <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
                       {secondVehicle.isFillUp ? (
                         <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <span className="text-sm text-slate-400 italic">Fill up — billed after</span>
+                          <span className="text-sm text-slate-400 italic">Fill up — $1 hold, charged after</span>
                         </div>
                       ) : (
-                        <input
-                          type="number" min={1} max={50} step={0.5}
-                          value={secondVehicle.gallons}
-                          onChange={(e) => setSecondVehicle((p) => ({ ...p, gallons: parseFloat(e.target.value) || 0 }))}
-                          className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                        />
+                        <div className="relative mt-1.5">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                          <input
+                            type="number" min={20} max={500} step={5}
+                            value={secondVehicle.dollarAmount}
+                            onChange={(e) => setSecondVehicle((p) => ({ ...p, dollarAmount: parseFloat(e.target.value) || 0 }))}
+                            className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -840,18 +840,21 @@ export default function OrderPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Gallons</label>
+                      <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
                       {boatAddon.isFillUp ? (
                         <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <span className="text-sm text-slate-400 italic">Fill up — billed after</span>
+                          <span className="text-sm text-slate-400 italic">Fill up — $1 hold, charged after</span>
                         </div>
                       ) : (
-                        <input
-                          type="number" min={1} max={200} step={1}
-                          value={boatAddon.gallons}
-                          onChange={(e) => setBoatAddon((p) => ({ ...p, gallons: parseFloat(e.target.value) || 0 }))}
-                          className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                        />
+                        <div className="relative mt-1.5">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                          <input
+                            type="number" min={20} max={1000} step={5}
+                            value={boatAddon.dollarAmount}
+                            onChange={(e) => setBoatAddon((p) => ({ ...p, dollarAmount: parseFloat(e.target.value) || 0 }))}
+                            className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1101,17 +1104,17 @@ export default function OrderPage() {
               <>
                 <div className="flex justify-between">
                   <span className="text-slate-600">
-                    {FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — Fill Up (@ ${pricePerGallon.toFixed(2)}/gal)
+                    {FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — Fill Up
                   </span>
-                  <span className="font-medium text-slate-400 italic">billed after</span>
+                  <span className="font-medium text-slate-400 italic">charged after delivery</span>
                 </div>
               </>
             ) : (
               <div className="flex justify-between">
                 <span className="text-slate-600">
-                  {FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} × {form.gallons} gal @ ${pricePerGallon.toFixed(2)}/gal
+                  {FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — Pre-funded
                 </span>
-                <span className="font-medium text-slate-900">${primaryFuelCost.toFixed(2)}</span>
+                <span className="font-medium text-slate-900">${form.dollarAmount.toFixed(2)}</span>
               </div>
             )}
 
@@ -1124,13 +1127,13 @@ export default function OrderPage() {
                 </div>
                 {secondVehicle.isFillUp ? (
                   <div className="flex justify-between text-slate-500">
-                    <span>2nd Vehicle gas — Fill Up</span>
-                    <span className="italic text-slate-400">billed after</span>
+                    <span>2nd Vehicle — Fill Up</span>
+                    <span className="italic text-slate-400">charged after</span>
                   </div>
                 ) : (
                   <div className="flex justify-between text-slate-500">
-                    <span>{FUEL_TYPE_LABELS[secondVehicle.fuelType as keyof typeof FUEL_TYPE_LABELS]} × {secondVehicle.gallons} gal (2nd vehicle)</span>
-                    <span>${secondVehicleGasCost.toFixed(2)}</span>
+                    <span>{FUEL_TYPE_LABELS[secondVehicle.fuelType as keyof typeof FUEL_TYPE_LABELS]} (2nd vehicle)</span>
+                    <span>${secondVehicle.dollarAmount.toFixed(2)}</span>
                   </div>
                 )}
               </>
@@ -1145,13 +1148,13 @@ export default function OrderPage() {
                 </div>
                 {boatAddon.isFillUp ? (
                   <div className="flex justify-between text-slate-500">
-                    <span>Boat gas — Fill Up</span>
-                    <span className="italic text-slate-400">billed after</span>
+                    <span>Boat — Fill Up</span>
+                    <span className="italic text-slate-400">charged after</span>
                   </div>
                 ) : (
                   <div className="flex justify-between text-slate-500">
-                    <span>{FUEL_TYPE_LABELS[boatAddon.fuelType as keyof typeof FUEL_TYPE_LABELS]} × {boatAddon.gallons} gal (boat)</span>
-                    <span>${boatGasCost.toFixed(2)}</span>
+                    <span>{FUEL_TYPE_LABELS[boatAddon.fuelType as keyof typeof FUEL_TYPE_LABELS]} (boat)</span>
+                    <span>${boatAddon.dollarAmount.toFixed(2)}</span>
                   </div>
                 )}
               </>
@@ -1183,18 +1186,29 @@ export default function OrderPage() {
 
             <div className="flex justify-between border-t border-slate-200 pt-2">
               <span className="font-semibold text-slate-900">
-                {form.isFillUp ? "Card Verification" : "Total"}
+                {form.isFillUp ? "Card Hold" : "Pre-charge Total"}
               </span>
               <span className="font-bold text-slate-900 text-lg">
                 {form.isFillUp ? "$1.00" : `$${total.toFixed(2)}`}
               </span>
             </div>
 
-            {form.isFillUp && (
+            {form.isFillUp ? (
               <p className="text-xs text-slate-400">
-                We charge $1.00 now to verify your card. Once we finish fueling, we charge your card for the exact amount pumped and release the $1.00.
+                A $1.00 hold is placed to verify your card. After delivery, you are charged only for the fuel pumped plus any applicable fees.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Your card will be pre-charged for the amount above. After delivery, you will be charged only for the actual fuel pumped. If your tank fills before reaching your pre-funded amount, the difference is released back to your card.
               </p>
             )}
+
+            {/* Fuel price disclaimer */}
+            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              <p className="text-xs text-amber-800">
+                <strong>Note:</strong> Fuel prices fluctuate daily. The number of gallons you receive is based on the current market price at the time of delivery. You will be pre-charged your selected dollar amount unless your tank fills first. A detailed receipt with gallons delivered and price per gallon will be emailed upon completion.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1207,8 +1221,8 @@ export default function OrderPage() {
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Verify Card — $1.00"
-            : `Proceed to Payment — $${total.toFixed(2)}`}
+            ? "Place Order — $1.00 Hold"
+            : `Place Order — $${total.toFixed(2)} Pre-charge`}
         </button>
       </form>
     </div>
