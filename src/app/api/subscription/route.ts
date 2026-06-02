@@ -125,12 +125,10 @@ export async function POST(req: NextRequest) {
     cancel_url: `${process.env.NEXTAUTH_URL}/profile`,
   };
 
-  // If coupons provided, use discounts param (supports multiple)
-  // Otherwise allow manual promo code entry on Stripe page
+  // Only apply discounts if coupons were validated on our site first
+  // Never show promo code field on Stripe checkout — all codes go through our site
   if (couponIds.length > 0) {
     checkoutParams.discounts = couponIds.map((id) => ({ coupon: id }));
-  } else {
-    checkoutParams.allow_promotion_codes = true;
   }
 
   // Create Stripe Checkout Session for subscription
