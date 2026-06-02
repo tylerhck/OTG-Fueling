@@ -24,7 +24,7 @@ export const signUpSchema = z.object({
   name: cleanName,
   email: z.email("Invalid email address").max(254),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
-  phone: z.string().max(20).optional(),
+  phone: z.string().max(30, "Phone number is too long").optional(),
 });
 
 export const signInSchema = z.object({
