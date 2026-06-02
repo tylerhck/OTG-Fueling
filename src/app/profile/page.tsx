@@ -429,9 +429,9 @@ function ProfileContent() {
             <button
               onClick={handleSubscribe}
               disabled={subLoading}
-              className="rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200 transition-all disabled:opacity-50"
+              className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200 transition-all disabled:opacity-50"
             >
-              {subLoading ? "Processing..." : "Subscribe — $35/month"}
+              {subLoading ? "Processing..." : appliedCoupons.length > 0 ? "Subscribe with Discount" : "Subscribe — $35/month"}
             </button>
           </div>
         )}
