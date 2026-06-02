@@ -586,6 +586,13 @@ export default function GuestOrderPage() {
           </label>
         </div>
 
+        {/* Vehicle accessibility notice */}
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+          <p className="text-xs text-amber-800">
+            <strong>Vehicle accessibility:</strong> Please make sure your vehicle is readily available and gas cap unlocked so that we may access it. Any non-accessible vehicles or no-shows can result in a service charge.
+          </p>
+        </div>
+
         {/* Submit */}
         <button
           type="submit"

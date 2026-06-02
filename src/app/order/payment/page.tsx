@@ -153,6 +153,10 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
           <strong>Pre-authorization hold.</strong> Your card will be held for the estimated amount. The actual charge will only be for the fuel delivered. The hold is released when your order is completed.
         </div>
 
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+          <strong>Vehicle accessibility.</strong> Please make sure your vehicle is readily available and gas cap unlocked so that we may access it. Any non-accessible vehicles or no-shows can result in a service charge.
+        </div>
+
         <button
           type="submit"
           disabled={!stripe || processing}

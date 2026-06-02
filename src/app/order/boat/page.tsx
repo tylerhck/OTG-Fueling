@@ -820,6 +820,13 @@ export default function BoatOrderPage() {
           </div>
         )}
 
+        {/* Accessibility notice */}
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+          <p className="text-xs text-amber-800">
+            <strong>Boat accessibility:</strong> Please make sure your boat is readily available and fuel access is clear so that we may service it. Any non-accessible boats or no-shows can result in a service charge.
+          </p>
+        </div>
+
         <button
           type="submit"
           disabled={submitting || (!isAuthenticated && !agreedToTerms)}
@@ -828,8 +835,8 @@ export default function BoatOrderPage() {
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Place Order \u2014 $1.00 Hold"
-            : `Place Order \u2014 $${total.toFixed(2)} Pre-charge`}
+            ? "Place Order — $1.00 Hold"
+            : `Place Order — $${total.toFixed(2)} Pre-charge`}
         </button>
 
         {!isAuthenticated && (
