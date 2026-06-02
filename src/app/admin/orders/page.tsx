@@ -163,9 +163,14 @@ export default function AdminOrders() {
       );
     }
 
-    // Active tab: ACTIVE first, then IN_PROGRESS
+    // Active tab: ASAP orders first (priority), then ACTIVE before IN_PROGRESS
     if (tab === "active") {
       list = [...list].sort((a, b) => {
+        const aIsAsap = a.deliveryType === "ASAP" ? 1 : 0;
+        const bIsAsap = b.deliveryType === "ASAP" ? 1 : 0;
+        // ASAP orders always on top
+        if (aIsAsap !== bIsAsap) return bIsAsap - aIsAsap;
+        // Then ACTIVE before IN_PROGRESS
         if (a.status === "ACTIVE" && b.status !== "ACTIVE") return -1;
         if (a.status !== "ACTIVE" && b.status === "ACTIVE") return 1;
         return 0;
@@ -251,11 +256,15 @@ export default function AdminOrders() {
             </p>
           </div>
         ) : (
-          filtered.map((order) => (
+          filtered.map((order) => {
+            const isAsap = order.deliveryType === "ASAP" && (order.status === "ACTIVE" || order.status === "IN_PROGRESS");
+            return (
             <div
               key={order.id}
-              className={`rounded-lg border p-4 ${
-                order.status === "ACTIVE"
+              className={`rounded-lg border p-4 transition-shadow ${
+                isAsap
+                  ? "border-red-400 bg-red-50 ring-2 ring-red-400 asap-pulse"
+                  : order.status === "ACTIVE"
                   ? "border-green-200 bg-green-50/50"
                   : order.status === "IN_PROGRESS"
                   ? "border-indigo-200 bg-indigo-50/50"
@@ -280,6 +289,11 @@ export default function AdminOrders() {
                     >
                       {order.status.replace("_", " ")}
                     </span>
+                    {isAsap && (
+                      <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white animate-pulse">
+                        ⚡ ASAP
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 text-sm text-gray-600">
                     {order.user?.name || order.user?.email} &middot;{" "}
@@ -480,9 +494,25 @@ export default function AdminOrders() {
                 </div>
               </div>
             </div>
-          ))
+          );
+          })
         )}
       </div>
+
+      {/* ASAP pulse animation */}
+      <style jsx>{`
+        @keyframes asapPulse {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+          }
+          50% {
+            box-shadow: 0 0 20px 6px rgba(239, 68, 68, 0.4);
+          }
+        }
+        .asap-pulse {
+          animation: asapPulse 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
