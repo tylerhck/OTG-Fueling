@@ -76,6 +76,7 @@ export async function GET() {
           where: {
             userId: session.user.id,
             status: { notIn: ["CANCELLED"] },
+            subscriptionDelivery: true,
             createdAt: { gte: weekStart, lt: weekEnd },
             items: {
               some: {

@@ -22,6 +22,7 @@ async function getFillUpsThisWeek(userId: string): Promise<number> {
     where: {
       userId,
       status: { notIn: ["CANCELLED"] },
+      subscriptionDelivery: true,
       createdAt: { gte: weekStart, lt: weekEnd },
       items: {
         some: {
