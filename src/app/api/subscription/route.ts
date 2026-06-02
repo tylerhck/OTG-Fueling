@@ -18,20 +18,18 @@ function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
 
 async function getFillUpsThisWeek(userId: string): Promise<number> {
   const { weekStart, weekEnd } = getWeekBounds();
-  return prisma.order.count({
+  const subOrders = await prisma.order.findMany({
     where: {
       userId,
       status: { notIn: ["CANCELLED"] },
       subscriptionDelivery: true,
       createdAt: { gte: weekStart, lt: weekEnd },
-      items: {
-        some: {
-          isFillUp: true,
-          kind: { in: ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"] },
-        },
-      },
     },
+    include: { items: { select: { isFillUp: true, kind: true } } },
   });
+  return subOrders.filter(o =>
+    o.items.some(i => i.isFillUp && ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"].includes(i.kind))
+  ).length;
 }
 
 export async function GET() {

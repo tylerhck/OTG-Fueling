@@ -387,20 +387,18 @@ export async function POST(req: NextRequest) {
     deliveryFeeCents = isBoatOnlyOrder ? BOAT_BASE_FEE_CENTS : standardDeliveryFee;
   } else if (activeSubscription) {
     const { weekStart, weekEnd } = getWeekBounds();
-    const fillUpsThisWeek = await prisma.order.count({
+    const subOrdersThisWeek = await prisma.order.findMany({
       where: {
         userId: session.user.id,
         status: { notIn: ["CANCELLED"] },
         subscriptionDelivery: true,
         createdAt: { gte: weekStart, lt: weekEnd },
-        items: {
-          some: {
-            isFillUp: true,
-            kind: { in: ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"] },
-          },
-        },
       },
+      include: { items: { select: { isFillUp: true, kind: true } } },
     });
+    const fillUpsThisWeek = subOrdersThisWeek.filter(o =>
+      o.items.some(i => i.isFillUp && ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"].includes(i.kind))
+    ).length;
 
     // Count fill-ups in the current order too
     const orderHasFillUp = items.some(
