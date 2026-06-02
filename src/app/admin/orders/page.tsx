@@ -48,7 +48,7 @@ interface Order {
   guestName: string | null;
   guestEmail: string | null;
   guestPhone: string | null;
-  items: { fuelType: string; vehicle: { make: string; model: string; year: number; nickname: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
+  items: { kind: string; fuelType: string; gallons: number | null; vehicle: { make: string; model: string; year: number; nickname: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
 }
 
 type Tab = "active" | "pending" | "history";
@@ -357,6 +357,11 @@ export default function AdminOrders() {
                   {order.items?.some(i => i.boat) && (
                     <p className="mt-0.5 text-xs text-gray-700 font-medium">
                       ⛵ {order.items.filter(i => i.boat).map(i => `${i.boat?.make || ""} ${i.boat?.model || ""} ${i.boat?.registrationNumber ? `(${i.boat.registrationNumber})` : ""}`).join(", ")}
+                    </p>
+                  )}
+                  {order.items?.some(i => i.kind === "DEF_ADDON" || i.kind === "DEF_ONLY") && (
+                    <p className="mt-0.5 text-xs font-semibold text-purple-700">
+                      🧴 DEF Fluid — {order.items.filter(i => i.kind === "DEF_ADDON" || i.kind === "DEF_ONLY").map(i => `${i.gallons || "?"} gal`).join(", ")}
                     </p>
                   )}
                   <p className="text-sm text-gray-500">
