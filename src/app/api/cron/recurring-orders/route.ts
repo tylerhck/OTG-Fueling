@@ -278,10 +278,28 @@ async function handleRecurringOrders(req: NextRequest) {
     }
   }
 
+  // Also count total recurring orders in DB for debugging
+  const totalRecurring = await prisma.recurringOrder.count();
+  const activeRecurring = await prisma.recurringOrder.count({ where: { isActive: true } });
+
   return NextResponse.json({
     processed: results.length,
     day: todayDayOfWeek,
     date: todayDate,
+    serverTimeUTC: now.toISOString(),
+    centralOffset,
+    foundForToday: recurringOrders.length,
+    totalRecurringInDB: totalRecurring,
+    activeRecurringInDB: activeRecurring,
+    recurringOrdersFound: recurringOrders.map(r => ({
+      id: r.id,
+      dayOfWeek: r.dayOfWeek,
+      isActive: r.isActive,
+      userEmail: r.user.email,
+      hasSubscription: r.user.subscriptions.length > 0,
+      lastOrderDate: r.lastOrderDate,
+      lastOrderId: r.lastOrderId,
+    })),
     results,
   });
 }
