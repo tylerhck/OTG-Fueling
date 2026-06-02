@@ -50,41 +50,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // SCHEDULED ORDERS: When the customer confirms their card via SetupIntent,
-  // save the payment method so admin can charge it later at completion.
-  if (event.type === "setup_intent.succeeded") {
-    const setupIntent = event.data.object as Stripe.SetupIntent;
-    const orderId = setupIntent.metadata.orderId;
-    if (orderId && setupIntent.payment_method) {
-      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { scheduledAt: true, status: true } });
-      // Determine correct status based on scheduled date
-      let newStatus = order?.status;
-      if (order?.status === "AWAITING_PAYMENT") {
-        if (order.scheduledAt) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const scheduledDate = new Date(order.scheduledAt);
-          scheduledDate.setHours(0, 0, 0, 0);
-          newStatus = scheduledDate <= today ? "ACTIVE" : "PENDING";
-        } else {
-          newStatus = "ACTIVE";
-        }
-      }
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          stripePaymentMethodId: setupIntent.payment_method as string,
-          status: newStatus || "ACTIVE",
-        },
-      });
-      if (newStatus === "ACTIVE" && order?.status === "AWAITING_PAYMENT") {
-        notifyOrderStatus(orderId, "ACTIVE").catch(() => {});
-        notifyOrderActive(orderId, "Scheduled").catch(() => {});
-      } else if (newStatus === "PENDING" && order?.status === "AWAITING_PAYMENT") {
-        notifyOrderStatus(orderId, "PENDING").catch(() => {});
-      }
-    }
-  }
 
   // Fallback: if a payment_intent.succeeded fires (e.g. from an off-session capture
   // after completion), we don't need to change order status since capture route handles it.

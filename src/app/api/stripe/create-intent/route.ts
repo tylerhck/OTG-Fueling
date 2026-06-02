@@ -7,9 +7,9 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     const body = await req.json();
-    const { amountCents, orderId, isFillUp, isScheduled } = body;
+    const { amountCents, orderId, isFillUp } = body;
 
-    console.log("[create-intent] START", { amountCents, orderId, isFillUp, isScheduled, userId: session?.user?.id });
+    console.log("[create-intent] START", { amountCents, orderId, isFillUp, userId: session?.user?.id });
 
     if (!amountCents || amountCents < 100) {
       console.log("[create-intent] REJECTED: invalid amount", amountCents);
@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Create a Stripe Customer so we can reuse the payment method later
-    console.log("[create-intent] Creating Stripe customer...");
     const customer = await stripe.customers.create({
       email: session?.user?.email ?? undefined,
       metadata: {
@@ -25,41 +24,9 @@ export async function POST(req: NextRequest) {
         userId: session?.user?.id || "guest",
       },
     });
-    console.log("[create-intent] Customer created:", customer.id);
 
-    // SCHEDULED ORDERS: Use a SetupIntent to save the card without placing a hold.
-    // The hold will be placed on delivery day when the cron activates the order.
-    if (isScheduled) {
-      console.log("[create-intent] Creating SetupIntent for scheduled order...");
-      const setupIntent = await stripe.setupIntents.create({
-        customer: customer.id,
-        payment_method_types: ["card"],
-        metadata: {
-          orderId,
-          userId: session?.user?.id || "guest",
-          isFillUp: isFillUp ? "true" : "false",
-          holdAmountCents: String(amountCents),
-        },
-      });
-      console.log("[create-intent] SetupIntent created:", setupIntent.id);
-
-      // Persist the Stripe customer ID on the order (no PaymentIntent yet)
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          stripeCustomerId: customer.id,
-        },
-      });
-      console.log("[create-intent] Order updated with customer ID. Done.");
-
-      return NextResponse.json({
-        clientSecret: setupIntent.client_secret,
-        isSetup: true,
-      });
-    }
-
-    // ASAP ORDERS: Use a PaymentIntent with manual capture (pre-authorization hold).
-    console.log("[create-intent] Creating PaymentIntent for ASAP order...");
+    // ALL ORDERS: PaymentIntent with manual capture (hold, don't charge)
+    // Admin will cancel the hold and charge the exact amount at completion.
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "usd",
@@ -73,7 +40,6 @@ export async function POST(req: NextRequest) {
       },
       payment_method_types: ["card"],
     });
-    console.log("[create-intent] PaymentIntent created:", paymentIntent.id);
 
     // Persist the Stripe customer ID and intent on the order
     await prisma.order.update({
@@ -83,7 +49,6 @@ export async function POST(req: NextRequest) {
         stripeCustomerId: customer.id,
       },
     });
-    console.log("[create-intent] Order updated. Done.");
 
     return NextResponse.json({ clientSecret: paymentIntent.client_secret });
   } catch (err: unknown) {

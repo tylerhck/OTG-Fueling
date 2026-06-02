@@ -120,8 +120,6 @@ export default function GuestOrderPage() {
     // Create Stripe payment intent — all orders are pre-auth (manual capture)
     const intentAmount = form.isFillUp ? 100 : order.totalCents;
 
-    const isScheduled = form.deliveryType === "scheduled";
-
     const intentRes = await fetch("/api/stripe/create-intent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -129,7 +127,6 @@ export default function GuestOrderPage() {
         amountCents: intentAmount,
         orderId: order.id,
         isFillUp: form.isFillUp,
-        isScheduled,
       }),
     });
 
@@ -139,10 +136,10 @@ export default function GuestOrderPage() {
       return;
     }
 
-    const { clientSecret, isSetup } = await intentRes.json();
+    const { clientSecret } = await intentRes.json();
 
     router.push(
-      `/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}${isSetup ? "&setup=1" : ""}`
+      `/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}`
     );
   }
 

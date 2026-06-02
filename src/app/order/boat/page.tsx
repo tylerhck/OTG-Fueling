@@ -256,11 +256,10 @@ export default function BoatOrderPage() {
       const order = await orderRes.json();
       const intentAmount = form.isFillUp ? 100 : order.totalCents;
 
-      const isScheduled = form.deliveryType === "scheduled";
       const intentRes = await fetch("/api/stripe/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountCents: intentAmount, orderId: order.id, isFillUp: form.isFillUp, isScheduled }),
+        body: JSON.stringify({ amountCents: intentAmount, orderId: order.id, isFillUp: form.isFillUp }),
       });
 
       if (!intentRes.ok) {
@@ -269,8 +268,8 @@ export default function BoatOrderPage() {
         return;
       }
 
-      const { clientSecret, isSetup } = await intentRes.json();
-      router.push(`/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}${isSetup ? "&setup=1" : ""}`);
+      const { clientSecret } = await intentRes.json();
+      router.push(`/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}`);
     } else {
       // Guest boat order
       if (!form.boatRegistrationNumber) {
@@ -317,11 +316,10 @@ export default function BoatOrderPage() {
       const order = await orderRes.json();
       const intentAmount = form.isFillUp ? 100 : order.totalCents;
 
-      const isScheduledGuest = form.deliveryType === "scheduled";
       const intentRes = await fetch("/api/stripe/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountCents: intentAmount, orderId: order.id, isFillUp: form.isFillUp, isScheduled: isScheduledGuest }),
+        body: JSON.stringify({ amountCents: intentAmount, orderId: order.id, isFillUp: form.isFillUp }),
       });
 
       if (!intentRes.ok) {
@@ -330,8 +328,8 @@ export default function BoatOrderPage() {
         return;
       }
 
-      const { clientSecret, isSetup } = await intentRes.json();
-      router.push(`/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}${isSetup ? "&setup=1" : ""}`);
+      const { clientSecret } = await intentRes.json();
+      router.push(`/order/payment?secret=${encodeURIComponent(clientSecret)}&orderId=${order.id}&total=${intentAmount}${form.isFillUp ? "&fillup=1" : ""}`);
     }
   }
 

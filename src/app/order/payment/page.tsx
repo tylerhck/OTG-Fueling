@@ -15,7 +15,7 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orderId: string; total: number; clientSecret: string; isFillUp?: boolean; isSetup?: boolean }) {
+function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: string; total: number; clientSecret: string; isFillUp?: boolean }) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -24,9 +24,9 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orde
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
   const [walletAvailable, setWalletAvailable] = useState(false);
 
-  // Set up Apple Pay / Google Pay via Payment Request API (only for ASAP/PaymentIntent)
+  // Set up Apple Pay / Google Pay via Payment Request API
   useEffect(() => {
-    if (!stripe || isSetup) return;
+    if (!stripe) return;
 
     const pr = stripe.paymentRequest({
       country: "US",
@@ -71,7 +71,7 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orde
         }
       }
     });
-  }, [stripe, total, clientSecret, orderId, router, isSetup]);
+  }, [stripe, total, clientSecret, orderId, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,51 +83,23 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orde
     setProcessing(true);
     setError("");
 
-    if (isSetup) {
-      // Scheduled order: confirm SetupIntent (saves card, no hold placed yet)
-      const { error: setupError } = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: { card: cardElement },
-      });
+    // All orders: confirm PaymentIntent (places hold, does NOT charge)
+    const { error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card: cardElement },
+    });
 
-      if (setupError) {
-        setError(setupError.message || "Card verification failed");
-        setProcessing(false);
-      } else {
-        // Save the payment method to the order so admin can charge it later
-        try {
-          const setupIntentResult = await stripe.retrieveSetupIntent(clientSecret);
-          const paymentMethodId = setupIntentResult.setupIntent?.payment_method;
-          if (paymentMethodId && orderId) {
-            await fetch("/api/orders/save-payment-method", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderId, paymentMethodId }),
-            });
-          }
-        } catch {
-          // Non-fatal: webhook will handle it as backup
-        }
-        router.push(`/order/confirmation?orderId=${orderId}`);
-      }
+    if (stripeError) {
+      setError(stripeError.message || "Payment failed");
+      setProcessing(false);
     } else {
-      // ASAP order: confirm PaymentIntent (places hold immediately)
-      const { error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElement },
-      });
-
-      if (stripeError) {
-        setError(stripeError.message || "Payment failed");
-        setProcessing(false);
-      } else {
-        router.push(`/order/confirmation?orderId=${orderId}`);
-      }
+      router.push(`/order/confirmation?orderId=${orderId}`);
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Apple Pay / Google Pay button (ASAP orders only) */}
-      {walletAvailable && paymentRequest && !isSetup && (
+      {/* Apple Pay / Google Pay button */}
+      {walletAvailable && paymentRequest && (
         <div>
           <PaymentRequestButtonElement
             options={{
@@ -178,7 +150,7 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orde
         )}
 
         <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
-          <strong>Pre-authorized on delivery day.</strong> Card will be charged on delivery for the actual fuel delivered. You can cancel anytime before delivery by contacting us.
+          <strong>Pre-authorization hold.</strong> Your card will be held for the estimated amount. The actual charge will only be for the fuel delivered. The hold is released when your order is completed.
         </div>
 
         <button
@@ -199,7 +171,6 @@ function PaymentPageContent() {
   const orderId = searchParams.get("orderId");
   const total = parseInt(searchParams.get("total") || "0");
   const isFillUp = searchParams.get("fillup") === "1";
-  const isSetup = searchParams.get("setup") === "1";
 
   if (!clientSecret || !orderId) {
     return (
@@ -215,7 +186,7 @@ function PaymentPageContent() {
         Confirm Your Order
       </h1>
       <p className="mt-1 text-sm text-gray-500">
-        Pre-authorized on delivery day. Card will be charged on delivery.
+        Pre-authorization hold. Card will be charged on delivery for actual amount.
       </p>
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
@@ -231,7 +202,7 @@ function PaymentPageContent() {
             },
           }}
         >
-          <PaymentForm orderId={orderId} total={total} clientSecret={clientSecret} isFillUp={isFillUp} isSetup={isSetup} />
+          <PaymentForm orderId={orderId} total={total} clientSecret={clientSecret} isFillUp={isFillUp} />
         </Elements>
       </div>
     </div>
