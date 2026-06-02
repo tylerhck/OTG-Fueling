@@ -10,7 +10,6 @@ const config = {
   user: decodeURIComponent(dbUrl.username),
   password: decodeURIComponent(dbUrl.password),
   database: dbUrl.pathname.slice(1),
-  ssl: { rejectUnauthorized: true },
   allowPublicKeyRetrieval: true,
   connectTimeout: 10000,
 };
