@@ -10,6 +10,7 @@ interface Stats {
   cancelledOrders: number;
   cancellationRate: number;
   totalRevenueCents: number;
+  netRevenueCents?: number;
   totalCustomers: number;
   totalSubscribers: number;
   totalGallons: number;
@@ -137,12 +138,20 @@ export default function AdminDashboard() {
                 color: stats.cancellationRate > 20 ? "bg-red-50 text-red-700" : "bg-yellow-50 text-yellow-700",
               },
               {
-                label: "Total Revenue",
+                label: "Total Revenue (All Time)",
                 value: `$${(stats.totalRevenueCents / 100).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                 })}`,
-                sub: "Confirmed + in progress + completed",
+                sub: "All charges before Stripe fees",
                 color: "bg-purple-50 text-purple-700",
+              },
+              {
+                label: "Net Revenue (All Time)",
+                value: stats.netRevenueCents !== undefined
+                  ? `$${(stats.netRevenueCents / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                  : "Loading...",
+                sub: "After Stripe fees, refunds & coupons",
+                color: "bg-green-50 text-green-700",
               },
               {
                 label: "Total Customers",
