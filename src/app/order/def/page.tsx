@@ -379,8 +379,15 @@ export default function DefOrderPage() {
                 if (!daySchedule) return <p className="text-sm text-slate-500">No service scheduled for this day.</p>;
                 const startMins = parseInt(daySchedule.startTime.split(":")[0]) * 60 + parseInt(daySchedule.startTime.split(":")[1]);
                 const endMins = parseInt(daySchedule.endTime.split(":")[0]) * 60 + parseInt(daySchedule.endTime.split(":")[1]);
+
+                // If scheduled date is today, filter out times less than 1 hour from now
+                const now = new Date();
+                const isToday = scheduledDate === now.toISOString().split("T")[0];
+                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0;
+
                 const timeOptions: { value: string; label: string }[] = [];
                 for (let t = startMins; t <= endMins; t += 30) {
+                  if (isToday && t < minMins) continue; // skip times less than 1 hour from now
                   const h = Math.floor(t / 60);
                   const m = t % 60;
                   const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;

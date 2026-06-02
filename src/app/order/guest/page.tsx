@@ -451,8 +451,14 @@ export default function GuestOrderPage() {
                 />
               </div>
               {form.scheduledDate && (() => {
+                // If scheduled date is today, filter out times less than 1 hour from now
+                const now = new Date();
+                const isToday = form.scheduledDate === now.toISOString().split("T")[0];
+                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0;
+
                 const timeOptions: { value: string; label: string }[] = [];
                 for (let t = 480; t <= 1200; t += 30) {
+                  if (isToday && t < minMins) continue; // skip times less than 1 hour from now
                   const h = Math.floor(t / 60);
                   const m = t % 60;
                   const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
