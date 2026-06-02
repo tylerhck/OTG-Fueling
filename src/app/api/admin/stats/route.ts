@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
 
 export async function GET() {
   const session = await auth();
@@ -50,31 +49,6 @@ export async function GET() {
     }),
   ]);
 
-  // Calculate net revenue from Stripe (all-time net after fees, refunds, coupons)
-  let netRevenueCents = 0;
-  try {
-    // Sum all balance transactions (net = amount after Stripe fees and refunds)
-    let hasMore = true;
-    let startingAfter: string | undefined;
-    while (hasMore) {
-      const transactions = await stripe.balanceTransactions.list({
-        limit: 100,
-        ...(startingAfter ? { starting_after: startingAfter } : {}),
-      });
-      for (const txn of transactions.data) {
-        // net is already in cents, includes fees subtracted and refunds as negative
-        netRevenueCents += txn.net;
-      }
-      hasMore = transactions.has_more;
-      if (transactions.data.length > 0) {
-        startingAfter = transactions.data[transactions.data.length - 1].id;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to fetch Stripe balance transactions:", err);
-    // Fall back to 0 if Stripe API fails
-  }
-
   const totalNonAwaitingOrders = totalOrders;
   const cancellationRate = totalNonAwaitingOrders > 0
     ? Math.round((cancelledOrders / totalNonAwaitingOrders) * 100)
@@ -88,7 +62,6 @@ export async function GET() {
     cancelledOrders,
     cancellationRate,
     totalRevenueCents: revenueResult._sum.totalCents || 0,
-    netRevenueCents,
     totalCustomers,
     totalSubscribers,
     totalGallons: gallonsResult._sum.gallons || 0,
