@@ -22,7 +22,7 @@ interface Order {
   authAmountCents: number | null;
   deliveryFeeCents: number;
   isFillUp: boolean;
-  deliveryType: string;
+  deliveryType?: string;
   scheduledAt: string | null;
   availableFrom: string | null;
   availableTo: string | null;
@@ -166,8 +166,8 @@ export default function AdminOrders() {
     // Active tab: ASAP orders first (priority), then ACTIVE before IN_PROGRESS
     if (tab === "active") {
       list = [...list].sort((a, b) => {
-        const aIsAsap = a.deliveryType === "ASAP" ? 1 : 0;
-        const bIsAsap = b.deliveryType === "ASAP" ? 1 : 0;
+        const aIsAsap = !a.scheduledAt ? 1 : 0;
+        const bIsAsap = !b.scheduledAt ? 1 : 0;
         // ASAP orders always on top
         if (aIsAsap !== bIsAsap) return bIsAsap - aIsAsap;
         // Then ACTIVE before IN_PROGRESS
@@ -257,7 +257,7 @@ export default function AdminOrders() {
           </div>
         ) : (
           filtered.map((order) => {
-            const isAsap = order.deliveryType === "ASAP" && (order.status === "ACTIVE" || order.status === "IN_PROGRESS");
+            const isAsap = !order.scheduledAt && (order.status === "ACTIVE" || order.status === "IN_PROGRESS");
             return (
             <div
               key={order.id}
@@ -320,7 +320,7 @@ export default function AdminOrders() {
                       ? `$1.00 hold + $${(order.deliveryFeeCents / 100).toFixed(2)} service fee on completion`
                       : `$${((order.totalCents - order.deliveryFeeCents) / 100).toFixed(2)} fuel + $${(order.deliveryFeeCents / 100).toFixed(2)} fee = $${(order.totalCents / 100).toFixed(2)}`
                     } &middot;{" "}
-                    {order.deliveryType === "ASAP" ? "ASAP" : "Scheduled"} &middot;{" "}
+                    {!order.scheduledAt ? "ASAP" : "Scheduled"} &middot;{" "}
                     {new Date(order.createdAt).toLocaleString()}
                   </p>
                   {(() => {
@@ -384,13 +384,29 @@ export default function AdminOrders() {
 
                   {/* IN_PROGRESS: ALL orders require gallons + price entry at completion */}
                   {order.status === "IN_PROGRESS" && showCapture !== order.id && (
-                    <button
-                      onClick={() => openCapture(order.id, order.deliveryFeeCents)}
-                      disabled={updating === order.id}
-                      className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
-                    >
-                      Enter Gallons &amp; Complete
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => openCapture(order.id, order.deliveryFeeCents)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                      >
+                        Enter Gallons &amp; Complete
+                      </button>
+                      <button
+                        onClick={() => updateStatus(order.id, "CANCELLED")}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => deleteOrder(order.id)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                   {order.status === "IN_PROGRESS" && showCapture === order.id && (
                     <div className="flex flex-wrap items-start gap-2">
