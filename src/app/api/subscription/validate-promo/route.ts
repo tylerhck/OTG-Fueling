@@ -1,36 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 
-// Map customer-facing codes to Stripe coupon IDs
-const COUPON_MAP: Record<string, { stripeCouponId: string; description: string }> = {
-  OTGFREE: { stripeCouponId: "ZTgG31Zw", description: "First month free" },
-  OTG20: { stripeCouponId: "1Xqmx53P", description: "$15 off every month ($20/mo)" },
-};
-
-// OTGVIP is a virtual bundle code that applies both OTGFREE + OTG20
-const BUNDLE_CODES: Record<string, string[]> = {
-  OTGVIP: ["OTGFREE", "OTG20"],
-};
-
-async function lookupCoupon(code: string) {
-  const mapping = COUPON_MAP[code];
-  if (!mapping) return null;
-
-  try {
-    // Verify the coupon still exists and is valid in Stripe
-    const coupon = await stripe.coupons.retrieve(mapping.stripeCouponId);
-    if (!coupon || !coupon.valid) return null;
-
-    return {
-      couponId: coupon.id,
-      description: mapping.description,
-      code,
-    };
-  } catch {
-    // Coupon doesn't exist in Stripe
-    return null;
-  }
+// Promo code definitions:
+// - OTGFREE: First month free via trial_period_days (no Stripe coupon needed)
+// - OTG20: $15 off every month via Stripe coupon 1Xqmx53P
+// - OTGVIP: Both — first month free trial + $15 off recurring
+interface PromoConfig {
+  usesTrial: boolean;
+  stripeCouponId: string | null;
+  description: string;
 }
+
+const PROMO_CODES: Record<string, PromoConfig> = {
+  OTGFREE: {
+    usesTrial: true,
+    stripeCouponId: null,
+    description: "First month free",
+  },
+  OTG20: {
+    usesTrial: false,
+    stripeCouponId: "1Xqmx53P",
+    description: "$15 off every month ($20/mo)",
+  },
+  OTGVIP: {
+    usesTrial: true,
+    stripeCouponId: "1Xqmx53P",
+    description: "First month free + $20/month after",
+  },
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,48 +37,37 @@ export async function POST(req: NextRequest) {
     }
 
     const upperCode = code.toUpperCase().trim();
+    const config = PROMO_CODES[upperCode];
 
-    // Check if it's a bundle code
-    if (BUNDLE_CODES[upperCode]) {
-      const bundleCodes = BUNDLE_CODES[upperCode];
-      const results = await Promise.all(bundleCodes.map(lookupCoupon));
+    if (!config) {
+      return NextResponse.json({ valid: false, error: "Invalid promo code" });
+    }
 
-      // Verify all bundle codes are valid in Stripe
-      const validResults = results.filter((r) => r !== null);
-      if (validResults.length !== bundleCodes.length) {
+    // If there's a Stripe coupon, verify it's still valid
+    if (config.stripeCouponId) {
+      try {
+        const coupon = await stripe.coupons.retrieve(config.stripeCouponId);
+        if (!coupon || !coupon.valid) {
+          return NextResponse.json({
+            valid: false,
+            error: "This promo code has expired. Please contact support.",
+          });
+        }
+      } catch {
         return NextResponse.json({
           valid: false,
-          error: "Bundle code configuration error. Please contact support.",
+          error: "Error validating promo code. Please try again.",
         });
       }
-
-      return NextResponse.json({
-        valid: true,
-        isBundle: true,
-        code: upperCode,
-        description: "First month free + $20/month after",
-        coupons: validResults,
-      });
     }
 
-    // Regular single code lookup
-    if (COUPON_MAP[upperCode]) {
-      const result = await lookupCoupon(upperCode);
-      if (!result) {
-        return NextResponse.json({ valid: false, error: "Invalid or expired promo code" });
-      }
-
-      return NextResponse.json({
-        valid: true,
-        isBundle: false,
-        code: upperCode,
-        description: result.description,
-        coupons: [result],
-      });
-    }
-
-    // Code not recognized
-    return NextResponse.json({ valid: false, error: "Invalid promo code" });
+    return NextResponse.json({
+      valid: true,
+      code: upperCode,
+      description: config.description,
+      usesTrial: config.usesTrial,
+      couponId: config.stripeCouponId,
+    });
   } catch (error) {
     console.error("Promo validation error:", error);
     return NextResponse.json({ valid: false, error: "Error validating code" });

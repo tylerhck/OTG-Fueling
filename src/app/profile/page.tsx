@@ -53,7 +53,7 @@ function ProfileContent() {
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState("");
-  const [appliedCoupons, setAppliedCoupons] = useState<Array<{ couponId: string; code: string; description: string }>>([]); 
+  const [appliedPromo, setAppliedPromo] = useState<{ couponId: string | null; usesTrial: boolean; code: string; description: string } | null>(null);
 
   // Cancel subscription modal state
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -144,16 +144,11 @@ function ProfileContent() {
       if (!data.valid) {
         setPromoError(data.error || "Invalid code");
       } else {
-        // Add coupons (handle bundle codes that return multiple)
-        const newCoupons = data.coupons as Array<{ couponId: string; code: string; description: string }>;
-        setAppliedCoupons((prev) => {
-          const existing = new Set(prev.map((c) => c.couponId));
-          const toAdd = newCoupons.filter((c) => !existing.has(c.couponId));
-          if (toAdd.length === 0) {
-            setPromoError("Code already applied");
-            return prev;
-          }
-          return [...prev, ...toAdd];
+        setAppliedPromo({
+          couponId: data.couponId || null,
+          usesTrial: data.usesTrial || false,
+          code: data.code,
+          description: data.description,
         });
         setPromoCode("");
       }
@@ -163,15 +158,18 @@ function ProfileContent() {
     setPromoLoading(false);
   }
 
-  function handleRemoveCoupon(couponId: string) {
-    setAppliedCoupons((prev) => prev.filter((c) => c.couponId !== couponId));
+  function handleRemovePromo() {
+    setAppliedPromo(null);
   }
 
   async function handleSubscribe() {
     setSubLoading(true);
-    const body = appliedCoupons.length > 0
-      ? JSON.stringify({ couponIds: appliedCoupons.map((c) => c.couponId) })
-      : undefined;
+    const payload: { couponId?: string; usesTrial?: boolean } = {};
+    if (appliedPromo) {
+      if (appliedPromo.couponId) payload.couponId = appliedPromo.couponId;
+      if (appliedPromo.usesTrial) payload.usesTrial = true;
+    }
+    const body = Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined;
     const res = await fetch("/api/subscription", {
       method: "POST",
       headers: body ? { "Content-Type": "application/json" } : {},
@@ -406,22 +404,18 @@ function ProfileContent() {
               {promoError && (
                 <p className="text-xs text-red-600">{promoError}</p>
               )}
-              {appliedCoupons.length > 0 && (
-                <div className="space-y-2">
-                  {appliedCoupons.map((coupon) => (
-                    <div key={coupon.couponId} className="flex items-center justify-between rounded-lg bg-green-50 border border-green-200 px-3 py-2">
-                      <div>
-                        <span className="text-sm font-medium text-green-800">{coupon.code}</span>
-                        <span className="ml-2 text-xs text-green-600">{coupon.description}</span>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveCoupon(coupon.couponId)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+              {appliedPromo && (
+                <div className="flex items-center justify-between rounded-lg bg-green-50 border border-green-200 px-3 py-2">
+                  <div>
+                    <span className="text-sm font-medium text-green-800">{appliedPromo.code}</span>
+                    <span className="ml-2 text-xs text-green-600">{appliedPromo.description}</span>
+                  </div>
+                  <button
+                    onClick={handleRemovePromo}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Remove
+                  </button>
                 </div>
               )}
             </div>

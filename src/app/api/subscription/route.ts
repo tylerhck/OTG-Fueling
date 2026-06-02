@@ -88,15 +88,19 @@ export async function POST(req: NextRequest) {
     select: { email: true, name: true },
   });
 
-  // Parse optional coupon IDs from request body
-  let couponIds: string[] = [];
+  // Parse optional promo data from request body
+  let couponId: string | null = null;
+  let usesTrial = false;
   try {
     const body = await req.json();
-    if (body.couponIds && Array.isArray(body.couponIds)) {
-      couponIds = body.couponIds.filter((id: unknown) => typeof id === "string");
+    if (body.couponId && typeof body.couponId === "string") {
+      couponId = body.couponId;
+    }
+    if (body.usesTrial === true) {
+      usesTrial = true;
     }
   } catch {
-    // No body or invalid JSON — proceed without coupons
+    // No body or invalid JSON — proceed without promo
   }
 
   // Build checkout session params
@@ -125,10 +129,14 @@ export async function POST(req: NextRequest) {
     cancel_url: `${process.env.NEXTAUTH_URL}/profile`,
   };
 
-  // Only apply discounts if coupons were validated on our site first
-  // Never show promo code field on Stripe checkout — all codes go through our site
-  if (couponIds.length > 0) {
-    checkoutParams.discounts = couponIds.map((id) => ({ coupon: id }));
+  // Apply trial period (OTGFREE or OTGVIP) — first month free
+  if (usesTrial) {
+    checkoutParams.subscription_data = { trial_period_days: 30 };
+  }
+
+  // Apply coupon discount (OTG20 or OTGVIP) — $15 off recurring
+  if (couponId) {
+    checkoutParams.discounts = [{ coupon: couponId }];
   }
 
   // Create Stripe Checkout Session for subscription
