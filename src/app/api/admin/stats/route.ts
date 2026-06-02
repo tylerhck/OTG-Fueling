@@ -36,12 +36,10 @@ export async function GET() {
     }),
     prisma.user.count({ where: { role: "CUSTOMER" } }),
     prisma.subscription.count({ where: { status: "ACTIVE" } }),
-    // Total gallons delivered across all completed order items
-    prisma.orderItem.aggregate({
+    // Total gallons delivered across all completed orders
+    prisma.order.aggregate({
       _sum: { gallons: true },
-      where: {
-        order: { status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] } },
-      },
+      where: { status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] } },
     }),
     prisma.siteSetting.findUnique({ where: { key: "page_views_total" } }),
     prisma.siteSetting.findUnique({ where: { key: "unique_visitors_total" } }),
