@@ -75,61 +75,48 @@ export async function POST(
     );
   }
 
-  // Try to capture the original pre-auth for the actual amount (partial capture if less than held)
-  let capturedViaOriginal = false;
+  // Strategy: Cancel the original hold, then charge the exact amount off-session.
+  // This avoids partial capture issues across different Stripe API versions.
+  let finalIntentId = order.stripePaymentIntentId;
+
+  // Step 1: Cancel the original hold (release the pre-auth)
   if (order.stripePaymentIntentId) {
     try {
       const originalIntent = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
-      // If the original intent is still capturable and the actual amount is <= the held amount
-      if (originalIntent.status === "requires_capture" && actualTotalCents <= originalIntent.amount) {
-        console.log("[capture] Capturing original intent:", { intentId: order.stripePaymentIntentId, amount_to_capture: actualTotalCents, originalAmount: originalIntent.amount });
-        await stripe.paymentIntents.capture(order.stripePaymentIntentId, {
-          amount_to_capture: actualTotalCents,
-        });
-        capturedViaOriginal = true;
-      } else if (originalIntent.status === "requires_capture" && actualTotalCents > originalIntent.amount) {
-        // Actual exceeds hold — cancel original and charge full amount off-session
+      if (originalIntent.status === "requires_capture") {
+        console.log("[capture] Cancelling original hold:", { intentId: order.stripePaymentIntentId, originalAmount: originalIntent.amount });
         await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
       }
-    } catch {
-      // If capture fails, fall through to off-session charge
-      console.error("Could not capture original intent for order", order.id);
+    } catch (err) {
+      console.error("[capture] Could not cancel original intent:", err);
+      // Non-fatal — proceed with new charge anyway
     }
   }
 
-  // If we couldn't capture via original intent, charge off-session
-  let finalIntentId = order.stripePaymentIntentId;
-  if (!capturedViaOriginal) {
-    try {
-      const newIntent = await stripe.paymentIntents.create({
-        amount: actualTotalCents,
-        currency: "usd",
-        customer: order.stripeCustomerId,
-        payment_method: paymentMethodId,
-        confirm: true,
-        off_session: true,
-        metadata: {
-          orderId: order.id,
-          capture: "true",
-          gallons: String(gallons),
-          pricePerGallon: String(pricePerGallon || 0),
-          serviceFeeDollars: String(serviceFeeDollars),
-        },
-      });
-      finalIntentId = newIntent.id;
-
-      // Cancel the original hold if it's still capturable
-      if (order.stripePaymentIntentId) {
-        try {
-          await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
-        } catch {
-          // Non-fatal
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Card charge failed";
-      return NextResponse.json({ error: msg }, { status: 402 });
-    }
+  // Step 2: Create a new off-session charge for the exact completion amount
+  try {
+    console.log("[capture] Creating off-session charge:", { amount: actualTotalCents, customer: order.stripeCustomerId, paymentMethod: paymentMethodId });
+    const newIntent = await stripe.paymentIntents.create({
+      amount: actualTotalCents,
+      currency: "usd",
+      customer: order.stripeCustomerId,
+      payment_method: paymentMethodId,
+      confirm: true,
+      off_session: true,
+      metadata: {
+        orderId: order.id,
+        capture: "true",
+        gallons: String(gallons),
+        pricePerGallon: String(pricePerGallon || 0),
+        serviceFeeDollars: String(serviceFeeDollars),
+      },
+    });
+    finalIntentId = newIntent.id;
+    console.log("[capture] Off-session charge succeeded:", { intentId: newIntent.id, amount: actualTotalCents });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Card charge failed";
+    console.error("[capture] Off-session charge failed:", msg);
+    return NextResponse.json({ error: msg }, { status: 402 });
   }
 
   // Update order with actual gallons, price per gallon, final total, and mark completed
