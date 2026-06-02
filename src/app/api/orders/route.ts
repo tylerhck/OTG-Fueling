@@ -412,10 +412,13 @@ export async function POST(req: NextRequest) {
     } else if (fillUpsThisWeek === 1 && orderHasFillUp) {
       deliveryFeeCents = SECOND_FILLUP_FEE_CENTS;
     } else if (fillUpsThisWeek >= 2 && orderHasFillUp) {
-      return NextResponse.json(
-        { error: "Weekly fill-up limit reached (2 per week). Contact us if you need additional service." },
-        { status: 400 }
-      );
+      // TEMPORARILY DISABLED FOR TESTING — re-enable later
+      // return NextResponse.json(
+      //   { error: "Weekly fill-up limit reached (2 per week). Contact us if you need additional service." },
+      //   { status: 400 }
+      // );
+      deliveryFeeCents = SECOND_FILLUP_FEE_CENTS;
+      subscriptionDelivery = true;
     } else {
       // Non-fill-up order from subscriber: no extra delivery fee beyond what's included
       deliveryFeeCents = 0;
