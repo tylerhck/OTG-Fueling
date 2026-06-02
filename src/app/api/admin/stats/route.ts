@@ -24,6 +24,7 @@ export async function GET() {
     pageViews,
     uniqueVisitors,
     heatMapData,
+    referralUsers,
   ] = await Promise.all([
     prisma.order.count({ where: { status: { not: "AWAITING_PAYMENT" } } }),
     prisma.order.count({ where: { status: "PENDING" } }),
@@ -46,6 +47,10 @@ export async function GET() {
     prisma.order.findMany({
       where: { pinLat: { not: null }, pinLng: { not: null }, status: { not: "AWAITING_PAYMENT" } },
       select: { pinLat: true, pinLng: true, status: true },
+    }),
+    prisma.user.findMany({
+      where: { referralSource: { not: null } },
+      select: { referralSource: true },
     }),
   ]);
 
@@ -71,5 +76,10 @@ export async function GET() {
       lat: o.pinLat,
       lng: o.pinLng,
     })),
+    referralStats: referralUsers.reduce((acc: Record<string, number>, u: { referralSource: string | null }) => {
+      const src = u.referralSource || "Unknown";
+      acc[src] = (acc[src] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>),
   });
 }

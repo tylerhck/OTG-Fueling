@@ -16,6 +16,7 @@ interface Stats {
   pageViewsTotal: number;
   uniqueVisitorsTotal: number;
   heatMapPoints: { lat: number; lng: number }[];
+  referralStats: Record<string, number>;
 }
 
 export default function AdminDashboard() {
@@ -175,6 +176,39 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+
+          {/* Referral Sources */}
+          {stats.referralStats && Object.keys(stats.referralStats).length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg font-semibold text-gray-900">How Customers Found Us</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Breakdown of referral sources from new signups.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(stats.referralStats)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([source, count]) => {
+                    const total = Object.values(stats.referralStats).reduce((s, v) => s + v, 0);
+                    const pct = Math.round((count / total) * 100);
+                    return (
+                      <div key={source} className="rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700">{source}</span>
+                          <span className="text-sm font-bold text-slate-900">{count}</span>
+                        </div>
+                        <div className="mt-2 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-red-500 transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">{pct}% of responses</p>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {/* Delivery Heat Map */}
           <div className="mt-8">

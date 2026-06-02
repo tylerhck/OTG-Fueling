@@ -67,6 +67,7 @@ model User {
   passwordHash  String    @map("password_hash")
   name          String
   phone         String?
+  referralSource String?  @map("referral_source")
   role          Role      @default(CUSTOMER)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")

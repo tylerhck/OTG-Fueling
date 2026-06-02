@@ -68,7 +68,7 @@ export default function SignUpPage() {
     if (result?.error) {
       setError("Account created but sign-in failed. Please sign in manually.");
     } else {
-      router.push("/");
+      router.push("/welcome");
       router.refresh();
     }
   }
