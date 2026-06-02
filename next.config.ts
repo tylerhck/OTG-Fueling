@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  serverExternalPackages: ["mariadb", "@prisma/adapter-mariadb", "bcryptjs"],
 };
 
 export default nextConfig;
