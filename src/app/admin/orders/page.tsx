@@ -4,6 +4,15 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getDeliveryWindow, formatCentralTime } from "@/lib/deliveryWindow";
 
+// Format "HH:MM" (24h) to "h:MM AM/PM" for display
+function fmtTime12(t: string): string {
+  const [hr, mn] = t.split(":").map(Number);
+  if (isNaN(hr) || isNaN(mn)) return t; // fallback if already formatted
+  const ampm = hr >= 12 ? "PM" : "AM";
+  const hour = hr % 12 || 12;
+  return `${hour}:${mn.toString().padStart(2, "0")} ${ampm}`;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   AWAITING_PAYMENT: "bg-slate-100 text-slate-500",
   PENDING: "bg-yellow-100 text-yellow-800",
@@ -327,7 +336,7 @@ export default function AdminOrders() {
                     if (order.availableFrom && order.availableTo) {
                       return (
                         <p className="mt-0.5 text-xs font-medium text-blue-700">
-                          {order.subscriptionDelivery ? "🔁 Recurring — " : ""}Available: {order.availableFrom} – {order.availableTo}
+                          {order.subscriptionDelivery ? "🔁 Recurring — " : ""}Available: {fmtTime12(order.availableFrom)} – {fmtTime12(order.availableTo)}
                           {order.scheduledAt && ` · ${new Date(order.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" })}`}
                         </p>
                       );

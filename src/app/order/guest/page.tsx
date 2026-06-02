@@ -98,11 +98,11 @@ export default function GuestOrderPage() {
             : undefined,
         availableFrom:
           form.deliveryType === "scheduled" && form.availableFrom
-            ? (() => { const [h, m] = form.availableFrom.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; })()
+            ? form.availableFrom
             : undefined,
         availableTo:
           form.deliveryType === "scheduled" && form.availableTo
-            ? (() => { const [h, m] = form.availableTo.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; })()
+            ? form.availableTo
             : undefined,
         notes: form.notes || undefined,
       }),

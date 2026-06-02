@@ -110,9 +110,9 @@ export default function DefOrderPage() {
         const dt = new Date(scheduledDate + "T00:00:00");
         dt.setHours(h, m, 0, 0);
         scheduledAt = dt.toISOString();
-        const fmtT = (t: string) => { const [hr, mn] = t.split(":").map(Number); const ampm = hr >= 12 ? "PM" : "AM"; return `${hr % 12 || 12}:${mn.toString().padStart(2, "0")} ${ampm}`; };
-        availableFromFmt = fmtT(availableFrom);
-        availableToFmt = fmtT(availableTo);
+        // Store as HH:MM (24h format, max 5 chars) to fit DB column
+        availableFromFmt = availableFrom;
+        availableToFmt = availableTo;
       }
 
       const body = isAuthenticated
