@@ -119,6 +119,19 @@ export async function PATCH(
     return NextResponse.json({ error: "Cannot cancel an order that is already in progress" }, { status: 400 });
   }
 
+  // Release Stripe hold if there's an uncaptured payment intent
+  if (order.stripePaymentIntentId) {
+    try {
+      const { stripe } = await import("@/lib/stripe");
+      const pi = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
+      if (pi.status === "requires_capture") {
+        await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
+      }
+    } catch (e) {
+      console.error("Failed to cancel Stripe PaymentIntent:", e);
+    }
+  }
+
   const updated = await prisma.order.update({
     where: { id },
     data: { status: "CANCELLED" },

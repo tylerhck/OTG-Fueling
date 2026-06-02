@@ -64,10 +64,14 @@ export default function AdminOrders() {
     setOrders(Array.isArray(data) ? data : []);
   }
 
-  async function deleteOrder(orderId: string) {
-    if (!confirm("Permanently delete this order? This cannot be undone.")) return;
+  async function cancelOrder(orderId: string) {
+    if (!confirm("Cancel this order and release any Stripe hold?")) return;
     setUpdating(orderId);
-    const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "CANCELLED" }),
+    });
     if (res.ok) {
       await loadOrders();
     }
@@ -375,18 +379,11 @@ export default function AdminOrders() {
                         Start Delivery
                       </button>
                       <button
-                        onClick={() => updateStatus(order.id, "CANCELLED")}
+                        onClick={() => cancelOrder(order.id)}
                         disabled={updating === order.id}
                         className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                       >
                         Cancel
-                      </button>
-                      <button
-                        onClick={() => deleteOrder(order.id)}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-                      >
-                        Delete
                       </button>
                     </>
                   )}
@@ -402,18 +399,11 @@ export default function AdminOrders() {
                         Enter Gallons &amp; Complete
                       </button>
                       <button
-                        onClick={() => updateStatus(order.id, "CANCELLED")}
+                        onClick={() => cancelOrder(order.id)}
                         disabled={updating === order.id}
                         className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                       >
                         Cancel
-                      </button>
-                      <button
-                        onClick={() => deleteOrder(order.id)}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-                      >
-                        Delete
                       </button>
                     </div>
                   )}
@@ -486,34 +476,25 @@ export default function AdminOrders() {
                     </div>
                   )}
 
-                  {/* PENDING orders: Cancel, Delete */}
+                  {/* PENDING orders: Cancel */}
                   {order.status === "PENDING" && (
-                    <>
-                      <button
-                        onClick={() => updateStatus(order.id, "CANCELLED")}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => deleteOrder(order.id)}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </>
+                    <button
+                      onClick={() => cancelOrder(order.id)}
+                      disabled={updating === order.id}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
                   )}
 
-                  {/* History / Awaiting Payment: Delete only */}
-                  {(order.status === "AWAITING_PAYMENT" || order.status === "CANCELLED" || order.status === "COMPLETED") && (
+                  {/* Awaiting Payment: Cancel */}
+                  {order.status === "AWAITING_PAYMENT" && (
                     <button
-                      onClick={() => deleteOrder(order.id)}
+                      onClick={() => cancelOrder(order.id)}
                       disabled={updating === order.id}
-                      className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >
-                      Delete
+                      Cancel
                     </button>
                   )}
                 </div>
