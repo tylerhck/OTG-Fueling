@@ -306,7 +306,7 @@ export default function OrderPage() {
         kind: "PRIMARY_VEHICLE",
         vehicleId: form.vehicleId,
         fuelType: form.fuelType,
-        dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
+        prefundedCents: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
         isFillUp: form.isFillUp,
       },
     ];
@@ -325,7 +325,7 @@ export default function OrderPage() {
         kind: "SECOND_VEHICLE",
         vehicleId: secondVehicle.vehicleId,
         fuelType: secondVehicle.fuelType,
-        dollarAmount: secondVehicle.isFillUp ? undefined : Math.round(secondVehicle.dollarAmount * 100),
+        prefundedCents: secondVehicle.isFillUp ? undefined : Math.round(secondVehicle.dollarAmount * 100),
         isFillUp: secondVehicle.isFillUp,
         notes: secondVehicle.notes || undefined,
       });
@@ -335,7 +335,7 @@ export default function OrderPage() {
       const boatItem: Record<string, unknown> = {
         kind: "TRAILERED_BOAT",
         fuelType: boatAddon.fuelType,
-        dollarAmount: boatAddon.isFillUp ? undefined : Math.round(boatAddon.dollarAmount * 100),
+        prefundedCents: boatAddon.isFillUp ? undefined : Math.round(boatAddon.dollarAmount * 100),
         isFillUp: boatAddon.isFillUp,
         notes: boatAddon.notes || undefined,
       };

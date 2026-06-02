@@ -90,7 +90,7 @@ export default function GuestOrderPage() {
         state: form.state,
         zip: form.zip,
         fuelType: form.fuelType,
-        dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
+        prefundedCents: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
         isFillUp: form.isFillUp,
         scheduledAt:
           form.deliveryType === "scheduled" && form.scheduledDate && form.availableFrom

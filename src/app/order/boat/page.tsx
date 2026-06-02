@@ -208,7 +208,7 @@ export default function BoatOrderPage() {
       const boatItem: Record<string, unknown> = {
         kind: "PRIMARY_BOAT",
         fuelType: form.fuelType,
-        dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
+        prefundedCents: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
         isFillUp: form.isFillUp,
         notes: form.notes || undefined,
       };
@@ -290,7 +290,7 @@ export default function BoatOrderPage() {
         body: JSON.stringify({
           guestBoat: true,
           fuelType: form.fuelType,
-          dollarAmount: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
+          prefundedCents: form.isFillUp ? undefined : Math.round(form.dollarAmount * 100),
           isFillUp: form.isFillUp,
           scheduledAt,
           availableFrom,
