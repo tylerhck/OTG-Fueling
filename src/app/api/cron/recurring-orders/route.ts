@@ -153,15 +153,9 @@ async function handleRecurringOrders(req: NextRequest) {
       const centralOffset = getCentralUtcOffset(now);
       scheduledAt.setUTCHours(hours + centralOffset, minutes, 0, 0);
 
-      // Format window times for display (e.g., "8:00 AM")
-      const fmtWindowTime = (t: string) => {
-        const [h, m] = t.split(":").map(Number);
-        const ampm = h >= 12 ? "PM" : "AM";
-        const hour = h % 12 || 12;
-        return `${hour}:${m.toString().padStart(2, "0")} ${ampm}`;
-      };
-      const availableFromStr = fmtWindowTime(windowFrom);
-      const availableToStr = fmtWindowTime(windowTo);
+      // Store raw HH:MM format (column has limited length)
+      const availableFromStr = windowFrom;
+      const availableToStr = windowTo;
 
       // For fill-ups, we authorize $1 (100 cents) to verify card
       const authAmountCents = 100; // $1 pre-authorization
