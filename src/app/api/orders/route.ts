@@ -77,7 +77,7 @@ export async function GET() {
     const orders = await prisma.order.findMany({
       where: isAdmin ? {} : { userId: session.user.id },
       include: {
-        vehicle: { select: { make: true, model: true, year: true, color: true, nickname: true } },
+        vehicle: { select: { make: true, model: true, year: true, color: true, nickname: true, licensePlate: true, fuelCapSide: true } },
         address: { select: { street: true, city: true, state: true, zip: true, label: true } },
         user: isAdmin ? { select: { name: true, email: true } } : false,
         items: {

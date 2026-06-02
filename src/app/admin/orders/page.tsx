@@ -43,6 +43,11 @@ interface Order {
   pinLng: number | null;
   user: { name: string; email: string };
   address: { street: string; city: string; state: string; zip: string };
+  vehicle: { make: string; model: string; year: number; color: string; nickname: string | null; licensePlate?: string | null; fuelCapSide?: string } | null;
+  guestVehicle: string | null;
+  guestName: string | null;
+  guestEmail: string | null;
+  items: { fuelType: string; vehicle: { make: string; model: string; year: number; nickname: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
 }
 
 type Tab = "active" | "pending" | "history";
@@ -171,8 +176,12 @@ export default function AdminOrders() {
           o.id.toLowerCase().includes(q) ||
           o.user?.name?.toLowerCase().includes(q) ||
           o.user?.email?.toLowerCase().includes(q) ||
+          o.guestName?.toLowerCase().includes(q) ||
+          o.guestEmail?.toLowerCase().includes(q) ||
+          o.guestVehicle?.toLowerCase().includes(q) ||
           o.address?.street?.toLowerCase().includes(q) ||
-          o.address?.city?.toLowerCase().includes(q)
+          o.address?.city?.toLowerCase().includes(q) ||
+          (o.vehicle && `${o.vehicle.year} ${o.vehicle.make} ${o.vehicle.model}`.toLowerCase().includes(q))
       );
     }
 
@@ -309,7 +318,7 @@ export default function AdminOrders() {
                     )}
                   </div>
                   <p className="mt-1 text-sm text-gray-600">
-                    {order.user?.name || order.user?.email} &middot;{" "}
+                    {order.user?.name || order.user?.email || order.guestName || order.guestEmail || "Guest"} &middot;{" "}
                     {order.address?.street}, {order.address?.city}
                     {" "}
                     <a
@@ -324,6 +333,22 @@ export default function AdminOrders() {
                       📍 Navigate
                     </a>
                   </p>
+                  {/* Vehicle / Boat info */}
+                  {order.vehicle && (
+                    <p className="mt-0.5 text-xs text-gray-700 font-medium">
+                      🚗 {order.vehicle.year} {order.vehicle.make} {order.vehicle.model}{order.vehicle.color ? ` (${order.vehicle.color})` : ""}{order.vehicle.licensePlate ? ` · ${order.vehicle.licensePlate}` : ""}{order.vehicle.fuelCapSide && order.vehicle.fuelCapSide !== "UNKNOWN" ? ` · Cap: ${order.vehicle.fuelCapSide.replace("_", " ").toLowerCase()}` : ""}
+                    </p>
+                  )}
+                  {!order.vehicle && order.guestVehicle && (
+                    <p className="mt-0.5 text-xs text-gray-700 font-medium">
+                      🚗 {order.guestVehicle}
+                    </p>
+                  )}
+                  {order.items?.some(i => i.boat) && (
+                    <p className="mt-0.5 text-xs text-gray-700 font-medium">
+                      ⛵ {order.items.filter(i => i.boat).map(i => `${i.boat?.make || ""} ${i.boat?.model || ""} ${i.boat?.registrationNumber ? `(${i.boat.registrationNumber})` : ""}`).join(", ")}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500">
                     {order.isFillUp ? (
                       <span className="mr-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">Fill Up</span>
