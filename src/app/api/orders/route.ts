@@ -63,6 +63,17 @@ export async function GET() {
       data: { status: "CANCELLED" },
     });
 
+    // Auto-promote PENDING orders whose scheduled date is today or earlier → ACTIVE
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    await prisma.order.updateMany({
+      where: {
+        status: "PENDING",
+        scheduledAt: { lte: endOfToday },
+      },
+      data: { status: "ACTIVE" },
+    });
+
     const orders = await prisma.order.findMany({
       where: isAdmin ? {} : { userId: session.user.id },
       include: {
