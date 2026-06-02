@@ -300,7 +300,8 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
+  console.log("[orders] AUTH order start", { userId: session.user.id, scheduledAt: body.scheduledAt, deliveryType: body.scheduledAt ? "scheduled" : "asap" });
+  try {
   const parsed = orderSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
@@ -517,6 +518,11 @@ export async function POST(req: NextRequest) {
   });
 
   notifyOrderStatus(order.id, scheduledAt ? "PENDING" : "ACTIVE").catch(() => {});
-
+  console.log("[orders] AUTH order SUCCESS", { orderId: order.id, status: scheduledAt ? "PENDING" : "ACTIVE", totalCents });
   return NextResponse.json(order, { status: 201 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[orders] AUTH order ERROR:", message, err);
+    return NextResponse.json({ error: "Order creation failed: " + message }, { status: 500 });
+  }
 }
