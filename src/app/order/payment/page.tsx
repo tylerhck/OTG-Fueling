@@ -93,6 +93,20 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp, isSetup }: { orde
         setError(setupError.message || "Card verification failed");
         setProcessing(false);
       } else {
+        // Save the payment method to the order so admin can charge it later
+        try {
+          const setupIntentResult = await stripe.retrieveSetupIntent(clientSecret);
+          const paymentMethodId = setupIntentResult.setupIntent?.payment_method;
+          if (paymentMethodId && orderId) {
+            await fetch("/api/orders/save-payment-method", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId, paymentMethodId }),
+            });
+          }
+        } catch {
+          // Non-fatal: webhook will handle it as backup
+        }
         router.push(`/order/confirmation?orderId=${orderId}`);
       }
     } else {
