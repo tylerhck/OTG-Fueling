@@ -43,7 +43,17 @@ function getCentralUtcOffset(date: Date): number {
 // Cron secret to prevent unauthorized access
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
+// GET handler — Railway cron and most cron services send GET requests
+export async function GET(req: NextRequest) {
+  return handleRecurringOrders(req);
+}
+
+// POST handler — for manual triggers or services that use POST
 export async function POST(req: NextRequest) {
+  return handleRecurringOrders(req);
+}
+
+async function handleRecurringOrders(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");
   if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
