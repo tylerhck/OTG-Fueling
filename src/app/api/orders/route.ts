@@ -35,6 +35,15 @@ function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
   return { weekStart, weekEnd };
 }
 
+// If scheduled for today → ACTIVE, if future → PENDING, if no schedule → ACTIVE
+function getOrderStatus(scheduledAt: string | undefined | null): "ACTIVE" | "PENDING" {
+  if (!scheduledAt) return "ACTIVE";
+  const scheduled = new Date(scheduledAt);
+  const today = new Date();
+  if (scheduled.toDateString() === today.toDateString()) return "ACTIVE";
+  return "PENDING";
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -113,7 +122,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.create({
       data: {
-        status: scheduledAt ? "PENDING" : "ACTIVE",
+        status: getOrderStatus(scheduledAt),
         fuelType: "DIESEL",
         gallons: defGallons,
         pricePerGallonCents: 0,
@@ -181,7 +190,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.create({
       data: {
-        status: scheduledAt ? "PENDING" : "ACTIVE",
+        status: getOrderStatus(scheduledAt),
         fuelType,
         gallons: null, // determined at completion
         pricePerGallonCents: 0, // determined at completion
@@ -256,7 +265,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.create({
       data: {
-        status: scheduledAt ? "PENDING" : "ACTIVE",
+        status: getOrderStatus(scheduledAt),
         fuelType,
         gallons: null, // determined at completion
         pricePerGallonCents: 0, // determined at completion
@@ -493,7 +502,7 @@ export async function POST(req: NextRequest) {
   // Legacy top-level fields from primary item (for backward compat with existing admin UI)
   const order = await prisma.order.create({
     data: {
-      status: scheduledAt ? "PENDING" : "ACTIVE",
+      status: getOrderStatus(scheduledAt),
       userId: session.user.id,
       vehicleId: primaryItem.vehicleId,
       addressId,
@@ -520,8 +529,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  notifyOrderStatus(order.id, scheduledAt ? "PENDING" : "ACTIVE").catch(() => {});
-  console.log("[orders] AUTH order SUCCESS", { orderId: order.id, status: scheduledAt ? "PENDING" : "ACTIVE", totalCents });
+  notifyOrderStatus(order.id, getOrderStatus(scheduledAt)).catch(() => {});
+  console.log("[orders] AUTH order SUCCESS", { orderId: order.id, status: getOrderStatus(scheduledAt), totalCents });
   return NextResponse.json(order, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
