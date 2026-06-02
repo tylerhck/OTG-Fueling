@@ -398,9 +398,9 @@ function ProfileContent() {
                 <button
                   onClick={handleApplyPromo}
                   disabled={promoLoading || !promoCode.trim()}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-5 py-2 text-sm font-bold text-white hover:from-red-600 hover:to-red-700 disabled:opacity-50 transition-all shadow-sm"
                 >
-                  {promoLoading ? "..." : "Apply"}
+                  {promoLoading ? "..." : "Apply Code"}
                 </button>
               </div>
               {promoError && (
@@ -429,9 +429,9 @@ function ProfileContent() {
             <button
               onClick={handleSubscribe}
               disabled={subLoading}
-              className="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200 transition-all disabled:opacity-50"
+              className={`w-full rounded-xl px-5 py-3 text-sm font-semibold transition-all disabled:opacity-50 ${appliedCoupons.length > 0 ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
             >
-              {subLoading ? "Processing..." : appliedCoupons.length > 0 ? "Subscribe with Discount" : "Subscribe — $35/month"}
+              {subLoading ? "Processing..." : appliedCoupons.length > 0 ? "Subscribe with Discount →" : "Subscribe — $35/month"}
             </button>
           </div>
         )}
