@@ -41,12 +41,13 @@ interface Order {
   subscriptionDelivery: boolean;
   pinLat: number | null;
   pinLng: number | null;
-  user: { name: string; email: string };
+  user: { name: string; email: string; phone: string | null };
   address: { street: string; city: string; state: string; zip: string };
   vehicle: { make: string; model: string; year: number; color: string; nickname: string | null; licensePlate?: string | null; fuelCapSide?: string } | null;
   guestVehicle: string | null;
   guestName: string | null;
   guestEmail: string | null;
+  guestPhone: string | null;
   items: { fuelType: string; vehicle: { make: string; model: string; year: number; nickname: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
 }
 
@@ -318,7 +319,16 @@ export default function AdminOrders() {
                     )}
                   </div>
                   <p className="mt-1 text-sm text-gray-600">
-                    {order.user?.name || order.user?.email || order.guestName || order.guestEmail || "Guest"} &middot;{" "}
+                    {order.user?.name || order.user?.email || order.guestName || order.guestEmail || "Guest"}
+                    {(order.user?.phone || order.guestPhone) && (
+                      <>
+                        {" "}&middot;{" "}
+                        <a href={`tel:${order.user?.phone || order.guestPhone}`} className="text-blue-600 hover:underline">
+                          📞 {order.user?.phone || order.guestPhone}
+                        </a>
+                      </>
+                    )}
+                    {" "}&middot;{" "}
                     {order.address?.street}, {order.address?.city}
                     {" "}
                     <a
