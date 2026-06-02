@@ -44,8 +44,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(user, { status: 201 });
   } catch (err: unknown) {
-    console.error("[signup] Error:", err instanceof Error ? err.message : err);
-    console.error("[signup] Stack:", err instanceof Error ? err.stack : "N/A");
+    console.error("[signup]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
