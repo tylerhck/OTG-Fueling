@@ -391,6 +391,7 @@ export async function POST(req: NextRequest) {
       where: {
         userId: session.user.id,
         status: { notIn: ["CANCELLED"] },
+        subscriptionDelivery: true,
         createdAt: { gte: weekStart, lt: weekEnd },
         items: {
           some: {
