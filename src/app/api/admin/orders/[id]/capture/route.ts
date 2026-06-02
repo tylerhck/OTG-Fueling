@@ -38,6 +38,9 @@ export async function POST(
   const actualFuelCents = gallons > 0 ? Math.round(pricePerGallonCents * gallons) : 0;
   const actualTotalCents = actualFuelCents + serviceFeeCents;
 
+  console.log("[capture] Input:", { gallons, pricePerGallon, serviceFeeDollars });
+  console.log("[capture] Calculated:", { serviceFeeCents, pricePerGallonCents, actualFuelCents, actualTotalCents });
+
   if (actualTotalCents <= 0) {
     return NextResponse.json({ error: "Total charge must be greater than $0" }, { status: 400 });
   }
@@ -79,6 +82,7 @@ export async function POST(
       const originalIntent = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
       // If the original intent is still capturable and the actual amount is <= the held amount
       if (originalIntent.status === "requires_capture" && actualTotalCents <= originalIntent.amount) {
+        console.log("[capture] Capturing original intent:", { intentId: order.stripePaymentIntentId, amount_to_capture: actualTotalCents, originalAmount: originalIntent.amount });
         await stripe.paymentIntents.capture(order.stripePaymentIntentId, {
           amount_to_capture: actualTotalCents,
         });
