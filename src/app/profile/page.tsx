@@ -423,9 +423,9 @@ function ProfileContent() {
             <button
               onClick={handleSubscribe}
               disabled={subLoading}
-              className={`w-full rounded-xl px-5 py-3 text-sm font-semibold transition-all disabled:opacity-50 ${appliedCoupons.length > 0 ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+              className={`w-full rounded-xl px-5 py-3 text-sm font-semibold transition-all disabled:opacity-50 ${appliedPromo ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
             >
-              {subLoading ? "Processing..." : appliedCoupons.length > 0 ? "Subscribe with Discount →" : "Subscribe — $35/month"}
+              {subLoading ? "Processing..." : appliedPromo ? "Subscribe with Discount →" : "Subscribe — $35/month"}
             </button>
           </div>
         )}
