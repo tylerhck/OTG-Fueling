@@ -4,7 +4,14 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 // Parse DATABASE_URL into an object config to avoid the mariadb driver's
 // inability to parse JSON in the ?ssl= query parameter.
 const dbUrl = new URL(process.env.DATABASE_URL!);
-const config = {
+
+// Enable SSL for DigitalOcean Managed MySQL (requires SSL)
+const needsSsl =
+  dbUrl.hostname.includes("ondigitalocean.com") ||
+  dbUrl.searchParams.get("ssl") === "true" ||
+  dbUrl.searchParams.get("sslmode") === "REQUIRED";
+
+const config: Record<string, unknown> = {
   host: dbUrl.hostname,
   port: parseInt(dbUrl.port || "3306"),
   user: decodeURIComponent(dbUrl.username),
@@ -13,6 +20,10 @@ const config = {
   allowPublicKeyRetrieval: true,
   connectTimeout: 10000,
 };
+
+if (needsSsl) {
+  config.ssl = { rejectUnauthorized: false };
+}
 
 const adapter = new PrismaMariaDb(config);
 
