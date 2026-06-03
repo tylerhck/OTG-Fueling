@@ -681,7 +681,8 @@ export default function BoatOrderPage() {
 
                 // If scheduled date is today, filter out times less than 1 hour from now
                 const now = new Date();
-                const isToday = form.scheduledDate === now.toISOString().split("T")[0];
+                const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                const isToday = form.scheduledDate === todayLocal;
                 const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0;
 
                 const timeOptions: { value: string; label: string }[] = [];
