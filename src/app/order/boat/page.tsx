@@ -647,6 +647,10 @@ export default function BoatOrderPage() {
             </button>
           </div>
 
+          {!asapEnabled && form.deliveryType !== "scheduled" && (
+            <p className="mt-2 text-xs text-amber-600">ASAP delivery is currently unavailable. Please schedule a time.</p>
+          )}
+
           {form.deliveryType === "scheduled" && (
             <div className="mt-4 space-y-4">
               <div>

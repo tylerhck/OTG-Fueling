@@ -3,6 +3,47 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
 
+const DAY_NAMES = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+
+/**
+ * Check if ASAP orders should be available right now based on service schedules.
+ * Returns false if:
+ * - Today has no active schedule (closed day)
+ * - Current time is within 30 minutes of closing
+ * - Current time is before opening
+ */
+async function isAsapAvailableBySchedule(): Promise<boolean> {
+  // Get current time in Central Time
+  const now = new Date();
+  const centralTimeStr = now.toLocaleString("en-US", { timeZone: "America/Chicago" });
+  const centralNow = new Date(centralTimeStr);
+  const dayOfWeek = DAY_NAMES[centralNow.getDay()];
+  const currentMinutes = centralNow.getHours() * 60 + centralNow.getMinutes();
+
+  // Find today's schedules
+  const schedules = await prisma.serviceSchedule.findMany({
+    where: { dayOfWeek, isActive: true },
+  });
+
+  if (schedules.length === 0) return false; // No service today
+
+  // Check if we're within operating hours (with 30-min buffer before close)
+  const ASAP_CUTOFF_MINUTES = 30;
+  for (const schedule of schedules) {
+    const [sh, sm] = schedule.startTime.split(":").map(Number);
+    const [eh, em] = schedule.endTime.split(":").map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+
+    // ASAP is available if current time is between start and (end - 30 min)
+    if (currentMinutes >= startMins && currentMinutes < endMins - ASAP_CUTOFF_MINUTES) {
+      return true;
+    }
+  }
+
+  return false; // Outside operating hours or within 30 min of close
+}
+
 function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
   const now = new Date();
   const day = now.getDay();
@@ -53,7 +94,7 @@ export async function GET() {
       },
       defSizes,
       deliveryFeeCents,
-      asapEnabled: asapSetting?.value !== "false", // defaults to true
+      asapEnabled: asapSetting?.value === "false" ? false : await isAsapAvailableBySchedule(),
     };
 
     // If authenticated, include subscription info (self-heal from Stripe if needed)

@@ -42,6 +42,7 @@ export default function DefOrderPage() {
   const [addressId, setAddressId] = useState("");
   const [defGallons, setDefGallons] = useState(2.5);
   const [deliveryType, setDeliveryType] = useState<"asap" | "scheduled">("asap");
+  const [asapEnabled, setAsapEnabled] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
   const [availableFrom, setAvailableFrom] = useState("");
   const [availableTo, setAvailableTo] = useState("");
@@ -81,6 +82,10 @@ export default function DefOrderPage() {
       .then((data) => {
         if (data.defSizes) setDefSizes(data.defSizes);
         if (data.deliveryFeeCents !== undefined) setDeliveryFeeCents(data.deliveryFeeCents);
+        if (data.asapEnabled !== undefined) {
+          setAsapEnabled(data.asapEnabled);
+          if (data.asapEnabled === false) setDeliveryType("scheduled");
+        }
       })
       .catch(() => {});
 
@@ -335,25 +340,34 @@ export default function DefOrderPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Delivery Time</h2>
           <div className="mt-3 flex gap-3">
-            {(["asap", "scheduled"] as const).map((t) => (
+            {asapEnabled && (
               <button
-                key={t}
                 type="button"
                 onClick={() => {
-                  setDeliveryType(t);
-                  if (t === "asap") {
-                    setScheduledDate("");
-                    setAvailableFrom("");
-                    setAvailableTo("");
-                  }
+                  setDeliveryType("asap");
+                  setScheduledDate("");
+                  setAvailableFrom("");
+                  setAvailableTo("");
                 }}
                 className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-medium transition-colors ${
-                  deliveryType === t ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-700 hover:border-slate-300"
+                  deliveryType === "asap" ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-700 hover:border-slate-300"
                 }`}
               >
-                {t === "asap" ? "ASAP" : "Schedule"}
+                ASAP
               </button>
-            ))}
+            )}
+            <button
+              type="button"
+              onClick={() => setDeliveryType("scheduled")}
+              className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-medium transition-colors ${
+                deliveryType === "scheduled" ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-700 hover:border-slate-300"
+              }`}
+            >
+              Schedule
+            </button>
+            {!asapEnabled && deliveryType !== "scheduled" && (
+              <p className="mt-2 text-xs text-amber-600">ASAP delivery is currently unavailable. Please schedule a time.</p>
+            )}
           </div>
 
           {deliveryType === "scheduled" && (
