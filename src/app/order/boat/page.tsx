@@ -49,12 +49,25 @@ interface ServiceSchedule {
 const DAY_NAMES = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const BOAT_BASE_FEE = 20;
 
-
+// Get current time in Central timezone (America/Chicago)
+function getCentralNow(): { hours: number; minutes: number; dateStr: string; dayOfWeek: number } {
+  const now = new Date();
+  const central = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+  const year = central.getFullYear();
+  const month = String(central.getMonth() + 1).padStart(2, "0");
+  const day = String(central.getDate()).padStart(2, "0");
+  return {
+    hours: central.getHours(),
+    minutes: central.getMinutes(),
+    dateStr: `${year}-${month}-${day}`,
+    dayOfWeek: central.getDay(),
+  };
+}
 
 function getNextDays(n: number): Date[] {
   const days: Date[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const centralNow = getCentralNow();
+  const today = new Date(centralNow.dateStr + "T00:00:00");
   for (let i = 0; i < n; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
@@ -657,7 +670,7 @@ export default function BoatOrderPage() {
                 <p className="text-sm font-medium text-slate-700 mb-2">Select a Date</p>
                 <div className="flex flex-wrap gap-2">
                   {nextDays.map((d) => {
-                    const iso = d.toISOString().slice(0, 10);
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                     const dayName = DAY_NAMES[d.getDay()];
                     const isOpen = schedules.some((s) => s.dayOfWeek === dayName);
                     const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
@@ -683,11 +696,10 @@ export default function BoatOrderPage() {
                 const startMins = daySchedule ? parseInt(daySchedule.startTime.split(":")[0]) * 60 + parseInt(daySchedule.startTime.split(":")[1]) : 480;
                 const endMins = daySchedule ? parseInt(daySchedule.endTime.split(":")[0]) * 60 + parseInt(daySchedule.endTime.split(":")[1]) : 1200;
 
-                // If scheduled date is today, filter out times less than 30 min from now
-                const now = new Date();
-                const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-                const isToday = form.scheduledDate === todayLocal;
-                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 30 : 0;
+                // If scheduled date is today (Central time), filter out times less than 30 min from now
+                const centralNow = getCentralNow();
+                const isToday = form.scheduledDate === centralNow.dateStr;
+                const minMins = isToday ? centralNow.hours * 60 + centralNow.minutes + 30 : 0;
 
                 const timeOptions: { value: string; label: string }[] = [];
                 for (let t = startMins; t <= endMins; t += 30) {

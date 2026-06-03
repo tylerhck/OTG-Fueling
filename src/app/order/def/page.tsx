@@ -31,6 +31,32 @@ interface ServiceSchedule {
 
 const DAY_NAMES = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
 
+// Get current time in Central timezone (America/Chicago)
+function getCentralNow(): { hours: number; minutes: number; dateStr: string; dayOfWeek: number } {
+  const now = new Date();
+  const central = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+  const year = central.getFullYear();
+  const month = String(central.getMonth() + 1).padStart(2, "0");
+  const day = String(central.getDate()).padStart(2, "0");
+  return {
+    hours: central.getHours(),
+    minutes: central.getMinutes(),
+    dateStr: `${year}-${month}-${day}`,
+    dayOfWeek: central.getDay(),
+  };
+}
+
+function getNextDays(n: number): Date[] {
+  const days: Date[] = [];
+  const centralNow = getCentralNow();
+  const today = new Date(centralNow.dateStr + "T00:00:00");
+  for (let i = 0; i < n; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
 
 export default function DefOrderPage() {
   const { data: session, status } = useSession();
@@ -377,7 +403,7 @@ export default function DefOrderPage() {
                 <input
                   type="date"
                   value={scheduledDate}
-                  min={(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; })()}
+                  min={getCentralNow().dateStr}
                   onChange={(e) => {
                     setScheduledDate(e.target.value);
                     setAvailableFrom("");
@@ -394,11 +420,10 @@ export default function DefOrderPage() {
                 const startMins = parseInt(daySchedule.startTime.split(":")[0]) * 60 + parseInt(daySchedule.startTime.split(":")[1]);
                 const endMins = parseInt(daySchedule.endTime.split(":")[0]) * 60 + parseInt(daySchedule.endTime.split(":")[1]);
 
-                // If scheduled date is today, filter out times less than 30 min from now
-                const now = new Date();
-                const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-                const isToday = scheduledDate === todayLocal;
-                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 30 : 0;
+                // If scheduled date is today (Central time), filter out times less than 30 min from now
+                const centralNow = getCentralNow();
+                const isToday = scheduledDate === centralNow.dateStr;
+                const minMins = isToday ? centralNow.hours * 60 + centralNow.minutes + 30 : 0;
 
                 const timeOptions: { value: string; label: string }[] = [];
                 for (let t = startMins; t <= endMins; t += 30) {

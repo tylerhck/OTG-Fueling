@@ -4,6 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FUEL_TYPE_LABELS } from "@/types";
 
+// Get current time in Central timezone (America/Chicago)
+function getCentralNow(): { hours: number; minutes: number; dateStr: string; dayOfWeek: number } {
+  const now = new Date();
+  const central = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+  const year = central.getFullYear();
+  const month = String(central.getMonth() + 1).padStart(2, "0");
+  const day = String(central.getDate()).padStart(2, "0");
+  return {
+    hours: central.getHours(),
+    minutes: central.getMinutes(),
+    dateStr: `${year}-${month}-${day}`,
+    dayOfWeek: central.getDay(),
+  };
+}
+
 export default function GuestOrderPage() {
   const router = useRouter();
   const [deliveryFeeCents, setDeliveryFeeCents] = useState(1500);
@@ -446,16 +461,15 @@ export default function GuestOrderPage() {
                   type="date"
                   value={form.scheduledDate}
                   onChange={(e) => updateForm({ scheduledDate: e.target.value, availableFrom: "", availableTo: "" })}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={getCentralNow().dateStr}
                   className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
                 />
               </div>
               {form.scheduledDate && (() => {
-                // If scheduled date is today, filter out times less than 30 min from now
-                const now = new Date();
-                const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-                const isToday = form.scheduledDate === todayLocal;
-                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 30 : 0;
+                // If scheduled date is today (Central time), filter out times less than 30 min from now
+                const centralNow = getCentralNow();
+                const isToday = form.scheduledDate === centralNow.dateStr;
+                const minMins = isToday ? centralNow.hours * 60 + centralNow.minutes + 30 : 0;
 
                 const timeOptions: { value: string; label: string }[] = [];
                 for (let t = 480; t <= 1200; t += 30) {
