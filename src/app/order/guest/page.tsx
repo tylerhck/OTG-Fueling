@@ -544,13 +544,13 @@ export default function GuestOrderPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Delivery Fee</span>
-                  <span className="font-medium text-slate-400 italic">charged after delivery</span>
+                  <span className="font-medium text-slate-900">${deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-100 pt-2">
                   <span className="font-semibold text-slate-900">Card Hold</span>
                   <span className="text-lg font-bold text-slate-900">$1.00</span>
                 </div>
-                <p className="text-xs text-slate-400">A $1.00 hold is placed to verify your card. You are charged only for the actual fuel pumped + delivery fee after delivery.</p>
+                <p className="text-xs text-slate-400">A $1.00 hold is placed to verify your card. After delivery, you will be charged for the actual fuel pumped + ${deliveryFee.toFixed(2)} delivery fee.</p>
               </>
             ) : (
               <>
