@@ -35,12 +35,17 @@ function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
   return { weekStart, weekEnd };
 }
 
+// Helper: get today's date string in Central Time (America/Chicago)
+function getTodayCT(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" }); // returns YYYY-MM-DD
+}
+
 // If scheduled for today → ACTIVE, if future → PENDING, if no schedule → ACTIVE
 function getOrderStatus(scheduledAt: string | undefined | null): "ACTIVE" | "PENDING" {
   if (!scheduledAt) return "ACTIVE";
-  const scheduled = new Date(scheduledAt);
-  const today = new Date();
-  if (scheduled.toDateString() === today.toDateString()) return "ACTIVE";
+  const scheduledDate = new Date(scheduledAt).toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  const todayCT = getTodayCT();
+  if (scheduledDate === todayCT) return "ACTIVE";
   return "PENDING";
 }
 
@@ -63,13 +68,14 @@ export async function GET() {
       data: { status: "CANCELLED" },
     });
 
-    // Auto-promote PENDING orders whose scheduled date is today or earlier → ACTIVE
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
+    // Auto-promote PENDING orders whose scheduled date is today (Central Time) or earlier → ACTIVE
+    // Get end of today in Central Time, then convert to UTC for DB comparison
+    const todayCT = getTodayCT(); // YYYY-MM-DD in Central Time
+    const endOfTodayCT = new Date(todayCT + "T23:59:59.999-05:00"); // CDT (UTC-5)
     await prisma.order.updateMany({
       where: {
         status: "PENDING",
-        scheduledAt: { lte: endOfToday },
+        scheduledAt: { lte: endOfTodayCT },
       },
       data: { status: "ACTIVE" },
     });
