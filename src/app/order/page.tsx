@@ -211,15 +211,13 @@ export default function OrderPage() {
 
   if (subscriptionInfo?.active) {
     const used = subscriptionInfo.fillUpsUsed ?? subscriptionInfo.freeDeliveriesUsed ?? 0;
-    const limit = subscriptionInfo.fillUpLimit ?? 2;
     if (used === 0) {
       effectiveDeliveryFeeCents = 0;
       isFreeDelivery = true;
-    } else if (used === 1) {
+    } else {
+      // 2nd+ fill-up: $10 service fee
       effectiveDeliveryFeeCents = subscriptionInfo.secondFillUpFeeCents ?? 1000;
       isSecondPaidFillUp = true;
-    } else if (used >= limit) {
-      isWeeklyLimitReached = true;
     }
   }
 

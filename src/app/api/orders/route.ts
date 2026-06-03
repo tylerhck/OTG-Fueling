@@ -414,40 +414,21 @@ export async function POST(req: NextRequest) {
     deliveryFeeCents = isBoatOnlyOrder ? BOAT_BASE_FEE_CENTS : standardDeliveryFee;
   } else if (activeSubscription) {
     const { weekStart, weekEnd } = getWeekBounds();
-    const subOrdersThisWeek = await prisma.order.findMany({
+    const subOrdersThisWeek = await prisma.order.count({
       where: {
         userId: session.user.id,
         status: { notIn: ["CANCELLED"] },
         subscriptionDelivery: true,
         createdAt: { gte: weekStart, lt: weekEnd },
       },
-      include: { items: { select: { isFillUp: true, kind: true } } },
     });
-    const fillUpsThisWeek = subOrdersThisWeek.filter(o =>
-      o.items.some(i => i.isFillUp && ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"].includes(i.kind))
-    ).length;
 
-    // Count fill-ups in the current order too
-    const orderHasFillUp = items.some(
-      (i) => i.isFillUp && ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"].includes(i.kind)
-    );
-
-    if (fillUpsThisWeek === 0) {
+    // 1st order of the week = free, 2nd+ = $10 service fee
+    if (subOrdersThisWeek === 0) {
       deliveryFeeCents = 0;
-      subscriptionDelivery = true;
-    } else if (fillUpsThisWeek === 1 && orderHasFillUp) {
-      deliveryFeeCents = SECOND_FILLUP_FEE_CENTS;
-    } else if (fillUpsThisWeek >= 2 && orderHasFillUp) {
-      // TEMPORARILY DISABLED FOR TESTING — re-enable later
-      // return NextResponse.json(
-      //   { error: "Weekly fill-up limit reached (2 per week). Contact us if you need additional service." },
-      //   { status: 400 }
-      // );
-      deliveryFeeCents = SECOND_FILLUP_FEE_CENTS;
       subscriptionDelivery = true;
     } else {
-      // Non-fill-up order from subscriber: no extra delivery fee beyond what's included
-      deliveryFeeCents = 0;
+      deliveryFeeCents = SECOND_FILLUP_FEE_CENTS;
       subscriptionDelivery = true;
     }
   }

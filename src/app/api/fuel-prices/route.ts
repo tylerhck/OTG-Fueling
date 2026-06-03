@@ -113,18 +113,15 @@ export async function GET() {
 
       if (subscription) {
         const { weekStart, weekEnd } = getWeekBounds();
-        const subOrders = await prisma.order.findMany({
+        const subOrderCount = await prisma.order.count({
           where: {
             userId: session.user.id,
             status: { notIn: ["CANCELLED"] },
             subscriptionDelivery: true,
             createdAt: { gte: weekStart, lt: weekEnd },
           },
-          include: { items: { select: { isFillUp: true, kind: true } } },
         });
-        const fillUpsUsed = subOrders.filter(o =>
-          o.items.some(i => i.isFillUp && ["PRIMARY_VEHICLE", "SECOND_VEHICLE", "TRAILERED_BOAT"].includes(i.kind))
-        ).length;
+        const fillUpsUsed = subOrderCount;
 
         result.subscription = {
           active: true,

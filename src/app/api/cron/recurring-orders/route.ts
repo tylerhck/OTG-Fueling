@@ -134,14 +134,8 @@ async function handleRecurringOrders(req: NextRequest) {
         },
       });
 
-      // Max 2 fill-ups per week for subscribers
-      if (weeklyOrderCount >= 2) {
-        results.push({ id: recurring.id, status: "skipped", error: "Weekly limit reached (2/2)" });
-        continue;
-      }
-
-      // Determine delivery fee
-      const deliveryFeeCents = weeklyOrderCount === 0 ? 0 : 1000; // 1st free, 2nd $10
+      // Determine delivery fee: 1st order of the week = free, 2nd+ = $10
+      const deliveryFeeCents = weeklyOrderCount === 0 ? 0 : 1000;
 
 
       // Calculate scheduled time — use start of window (windowFrom) for scheduledAt
