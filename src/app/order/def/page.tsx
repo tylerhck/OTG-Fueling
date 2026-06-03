@@ -394,15 +394,15 @@ export default function DefOrderPage() {
                 const startMins = parseInt(daySchedule.startTime.split(":")[0]) * 60 + parseInt(daySchedule.startTime.split(":")[1]);
                 const endMins = parseInt(daySchedule.endTime.split(":")[0]) * 60 + parseInt(daySchedule.endTime.split(":")[1]);
 
-                // If scheduled date is today, filter out times less than 1 hour from now
+                // If scheduled date is today, filter out times less than 30 min from now
                 const now = new Date();
                 const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
                 const isToday = scheduledDate === todayLocal;
-                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0;
+                const minMins = isToday ? now.getHours() * 60 + now.getMinutes() + 30 : 0;
 
                 const timeOptions: { value: string; label: string }[] = [];
                 for (let t = startMins; t <= endMins; t += 30) {
-                  if (isToday && t < minMins) continue; // skip times less than 1 hour from now
+                  if (isToday && t < minMins) continue; // skip times less than 30 min from now
                   const h = Math.floor(t / 60);
                   const m = t % 60;
                   const val = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
@@ -410,8 +410,15 @@ export default function DefOrderPage() {
                   const hour = h % 12 || 12;
                   timeOptions.push({ value: val, label: `${hour}:${m.toString().padStart(2, "0")} ${ampm}` });
                 }
+                // "From" options: all except the last (need at least one "To" after it)
+                const fromOptions = timeOptions.length > 1 ? timeOptions.slice(0, -1) : [];
                 const fromIdx = timeOptions.findIndex((o) => o.value === availableFrom);
                 const toOptions = availableFrom ? timeOptions.filter((_, i) => i > fromIdx) : [];
+
+                if (fromOptions.length === 0) {
+                  return <p className="text-sm text-amber-600 font-medium">No more delivery times available today. Please select another date.</p>;
+                }
+
                 return (
                   <div>
                     <p className="text-sm font-medium text-slate-700 mb-2">What hours will your vehicle be at this location?</p>
@@ -424,7 +431,7 @@ export default function DefOrderPage() {
                           className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
                         >
                           <option value="">Select start</option>
-                          {timeOptions.slice(0, -1).map((o) => (
+                          {fromOptions.map((o) => (
                             <option key={o.value} value={o.value}>{o.label}</option>
                           ))}
                         </select>
