@@ -181,7 +181,7 @@ export default function BoatOrderPage() {
 
 
 
-  // Dollar amount pre-auth model: customer picks $ amount, or fill-up ($1 hold)
+  // Dollar amount pre-auth model: customer picks $ amount, or fill-up ($40 hold)
   const fuelCost = form.isFillUp ? 0 : form.dollarAmount;
   const total = fuelCost + BOAT_BASE_FEE;
 
@@ -267,7 +267,7 @@ export default function BoatOrderPage() {
       }
 
       const order = await orderRes.json();
-      const intentAmount = form.isFillUp ? 100 : order.totalCents;
+      const intentAmount = form.isFillUp ? 4000 : order.totalCents;
 
       const intentRes = await fetch("/api/stripe/create-intent", {
         method: "POST",
@@ -327,7 +327,7 @@ export default function BoatOrderPage() {
       }
 
       const order = await orderRes.json();
-      const intentAmount = form.isFillUp ? 100 : order.totalCents;
+      const intentAmount = form.isFillUp ? 4000 : order.totalCents;
 
       const intentRes = await fetch("/api/stripe/create-intent", {
         method: "POST",
@@ -620,7 +620,7 @@ export default function BoatOrderPage() {
           <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-slate-700">Fill Up Tank</p>
-              <p className="text-xs text-slate-400">We place a $1 hold to verify your card, then charge only for what we pump plus the service fee.</p>
+              <p className="text-xs text-slate-400">A $40 pre-charge will be placed on your card. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.</p>
             </div>
             <button
               type="button"
@@ -803,9 +803,9 @@ export default function BoatOrderPage() {
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-2">
                   <span className="font-semibold text-slate-900">Card Hold</span>
-                  <span className="font-bold text-slate-900 text-lg">$1.00</span>
+                  <span className="font-bold text-slate-900 text-lg">$40.00</span>
                 </div>
-                <p className="text-xs text-slate-400">A $1.00 hold is placed to verify your card. After delivery, you will be charged for the actual fuel pumped + ${BOAT_BASE_FEE.toFixed(2)} service fee.</p>
+                <p className="text-xs text-slate-400">A $40.00 pre-charge will be placed on your card. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.</p>
               </>
             ) : (
               <>
@@ -865,7 +865,7 @@ export default function BoatOrderPage() {
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Place Order — $1.00 Hold"
+            ? "Place Order — $40.00 Pre-charge"
             : `Place Order — $${total.toFixed(2)} Pre-charge`}
         </button>
 
