@@ -150,7 +150,7 @@ function PaymentForm({ orderId, total, clientSecret, isFillUp }: { orderId: stri
         )}
 
         <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
-          <strong>Pre-authorization hold.</strong> Your card will be held for the estimated amount. The actual charge will only be for the fuel delivered. The hold is released when your order is completed.
+          <strong>Temporary hold only.</strong> Your card will be held for the estimated amount. The actual charge will only be for the fuel delivered. The hold is released when your order is completed.
         </div>
 
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
@@ -190,7 +190,7 @@ function PaymentPageContent() {
         Confirm Your Order
       </h1>
       <p className="mt-1 text-sm text-gray-500">
-        Pre-authorization hold. Card will be charged on delivery for actual amount.
+        Temporary hold only. Card will be charged on delivery for actual amount.
       </p>
 
       <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">

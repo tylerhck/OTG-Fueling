@@ -136,7 +136,7 @@ async function handleRecurringOrders(req: NextRequest) {
 
       const paymentMethod = paymentMethods.data[0];
 
-      // Attempt $40 pre-authorization (manual capture) BEFORE creating the order
+      // Attempt $40 hold (manual capture) BEFORE creating the order
       let paymentIntent;
       try {
         paymentIntent = await stripe.paymentIntents.create({
@@ -195,10 +195,10 @@ async function handleRecurringOrders(req: NextRequest) {
       const availableFromStr = windowFrom;
       const availableToStr = windowTo;
 
-      // For fill-ups, we authorize $40 (4000 cents) pre-authorization
-      const authAmountCents = 4000; // $40 pre-authorization
+      // For fill-ups, we authorize $40 (4000 cents) hold
+      const authAmountCents = 4000; // $40 hold
 
-      // Create the order — pre-authorization already succeeded so we go straight to ACTIVE
+      // Create the order — hold already succeeded so we go straight to ACTIVE
       const order = await prisma.order.create({
         data: {
           userId: recurring.user.id,

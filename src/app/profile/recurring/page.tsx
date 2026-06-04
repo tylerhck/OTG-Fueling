@@ -374,7 +374,7 @@ export default function RecurringOrdersPage() {
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-              <strong>Important:</strong> A $40 pre-authorization will be placed on your card on the day of your fill-up. If the pre-authorization fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-authorization is released upon completion. Please ensure your payment method on file is up to date.
+              <strong>Important:</strong> A $40 hold will be placed on your card on the day of your fill-up. If the hold fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The hold is released upon completion. Please ensure your payment method on file is up to date.
             </div>
 
             <button

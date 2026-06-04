@@ -37,15 +37,15 @@ export default function TermsOfServicePage() {
           </p>
         </div>
         <p className="text-slate-600 leading-relaxed mb-2">
-          <strong>Pre-Authorization Model:</strong> All orders use a pre-authorization (hold) on your payment method. No immediate charge is made at the time of order placement.
+          <strong>Hold Model:</strong> All orders use a temporary hold on your payment method. No immediate charge is made at the time of order placement.
         </p>
         <ul className="list-disc list-inside text-slate-600 leading-relaxed mb-4 space-y-1">
           <li><strong>Dollar Amount Orders:</strong> When you select a dollar amount (e.g., $40), that amount is held on your card. At delivery, you are charged only for the actual fuel dispensed at the market price. If your tank fills before reaching the full dollar amount, only the actual cost is charged and the remaining hold is released.</li>
-          <li><strong>Fill-Up Orders:</strong> A $40 pre-authorization is placed on your card when you select the fill-up option. You will only be charged for what you receive at time of completion. The pre-authorization is released immediately after delivery.</li>
-          <li><strong>Recurring Orders:</strong> All recurring orders are fill-up orders. A $40 pre-authorization is placed each delivery day. You will only be charged for what you receive at time of completion. The pre-authorization is released immediately after delivery.</li>
+          <li><strong>Fill-Up Orders:</strong> A $40 hold is placed on your card when you select the fill-up option. You will only be charged for what you receive at time of completion. The hold is released immediately after delivery.</li>
+          <li><strong>Recurring Orders:</strong> All recurring orders are fill-up orders. A $40 hold is placed each delivery day. You will only be charged for what you receive at time of completion. The hold is released immediately after delivery.</li>
         </ul>
         <p className="text-slate-600 leading-relaxed mb-4">
-          Pre-authorization holds that are not captured will be released according to your financial institution&rsquo;s policies (typically 3&ndash;7 business days). Service fees (delivery fees) are included in the final charge at the time of delivery completion.
+          Holds that are not captured will be released according to your financial institution&rsquo;s policies (typically 3&ndash;7 business days). Service fees (delivery fees) are included in the final charge at the time of delivery completion.
         </p>
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">5. Subscription Plans</h2>
@@ -60,7 +60,7 @@ export default function TermsOfServicePage() {
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">7. Recurring Orders</h2>
         <p className="text-slate-600 leading-relaxed mb-4">
-          Customers may opt into recurring weekly orders. By enabling a recurring order, you authorize OTG Fueling to automatically create an order and pre-authorize payment on your saved payment method each week on your selected day. You may pause or cancel recurring orders at any time through your account.
+          Customers may opt into recurring weekly orders. By enabling a recurring order, you authorize OTG Fueling to automatically create an order and place a hold on your saved payment method each week on your selected day. You may pause or cancel recurring orders at any time through your account.
         </p>
 
         <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">8. Cancellations &amp; Refunds</h2>
