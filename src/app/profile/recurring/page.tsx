@@ -370,11 +370,11 @@ export default function RecurringOrdersPage() {
               during your availability window ({(() => {
                 const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; };
                 return `${fmt(formData.windowFrom)} \u2013 ${fmt(formData.windowTo || "20:00")}`;
-              })()}). A $40 pre-charge will be placed on your card each delivery day. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.
+              })()}).
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-              <strong>Important:</strong> If the $40 pre-charge fails on your scheduled delivery day (e.g., expired card, insufficient funds), no delivery will be made and no order ticket will be created. Please ensure your payment method on file is up to date.
+              <strong>Important:</strong> A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. Please ensure your payment method on file is up to date.
             </div>
 
             <button

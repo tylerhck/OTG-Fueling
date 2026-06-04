@@ -621,11 +621,11 @@ export default function OrderPage() {
           </div>
 
           {/* Fill-up toggle */}
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-slate-700">Fill Up My Tank</p>
-              <p className="text-xs text-slate-400">
-                A $40 pre-charge will be placed on your card. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.
+              <p className="text-sm font-medium text-amber-900">Fill Up My Tank</p>
+              <p className="text-xs text-amber-700">
+                A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion.
               </p>
             </div>
             <button
@@ -1215,8 +1215,8 @@ export default function OrderPage() {
             </div>
 
             {form.isFillUp ? (
-              <p className="text-xs text-slate-400">
-                A $40.00 pre-charge will be placed on your card. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <strong>Important:</strong> A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion.
               </p>
             ) : (
               <p className="text-xs text-slate-400">
