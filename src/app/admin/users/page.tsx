@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface User {
   id: string;
@@ -20,6 +20,7 @@ export default function AdminUsers() {
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -27,6 +28,13 @@ export default function AdminUsers() {
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
 
   const filteredUsers = users.filter((u) => {
     if (!search.trim()) return true;
@@ -40,12 +48,14 @@ export default function AdminUsers() {
     );
   });
 
-  const handleEditPromo = (user: User) => {
+  const handleDoubleClick = (user: User) => {
+    if (!user.isSubscriber) return;
     setEditingId(user.id);
     setEditValue(user.promoCode || "");
   };
 
   const handleSavePromo = async (userId: string) => {
+    if (saving) return;
     setSaving(true);
     try {
       const res = await fetch("/api/admin/users", {
@@ -66,6 +76,45 @@ export default function AdminUsers() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, userId: string) => {
+    if (e.key === "Enter") {
+      handleSavePromo(userId);
+    } else if (e.key === "Escape") {
+      setEditingId(null);
+    }
+  };
+
+  const PromoCell = ({ user }: { user: User }) => {
+    if (editingId === user.id) {
+      return (
+        <input
+          ref={inputRef}
+          type="text"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={() => handleSavePromo(user.id)}
+          onKeyDown={(e) => handleKeyDown(e, user.id)}
+          className="w-24 rounded border border-blue-400 px-2 py-0.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+          placeholder="CODE"
+        />
+      );
+    }
+
+    return (
+      <span
+        onDoubleClick={() => handleDoubleClick(user)}
+        className={`cursor-pointer select-none ${
+          user.promoCode
+            ? "rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
+            : "text-gray-400 text-xs"
+        }`}
+        title={user.isSubscriber ? "Double-click to edit" : ""}
+      >
+        {user.promoCode || "—"}
+      </span>
+    );
   };
 
   return (
@@ -111,38 +160,7 @@ export default function AdminUsers() {
             </div>
             <p className="mt-1 text-sm text-gray-600">{u.email}</p>
             <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-              {u.isSubscriber && (
-                <div className="flex items-center gap-1">
-                  {editingId === u.id ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="w-20 rounded border border-gray-300 px-1.5 py-0.5 text-xs"
-                        placeholder="Code"
-                      />
-                      <button onClick={() => handleSavePromo(u.id)} disabled={saving} className="text-green-600 font-medium">
-                        {saving ? "..." : "Save"}
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="text-gray-400">Cancel</button>
-                    </div>
-                  ) : (
-                    <>
-                      {u.promoCode ? (
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                          {u.promoCode}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">No code</span>
-                      )}
-                      <button onClick={() => handleEditPromo(u)} className="text-blue-600 text-xs font-medium ml-1">
-                        Edit
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+              {u.isSubscriber && <PromoCell user={u} />}
               <span>{u._count.orders} order{u._count.orders !== 1 ? "s" : ""}</span>
               <span>&middot;</span>
               <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
@@ -191,48 +209,7 @@ export default function AdminUsers() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-sm">
-                  {editingId === u.id ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="w-24 rounded border border-gray-300 px-2 py-1 text-xs"
-                        placeholder="PROMO"
-                      />
-                      <button
-                        onClick={() => handleSavePromo(u.id)}
-                        disabled={saving}
-                        className="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-500 disabled:opacity-50"
-                      >
-                        {saving ? "..." : "Save"}
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="text-xs text-gray-400 hover:text-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      {u.promoCode ? (
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                          {u.promoCode}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                      {u.isSubscriber && (
-                        <button
-                          onClick={() => handleEditPromo(u)}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <PromoCell user={u} />
                 </td>
                 <td className="px-4 py-3 text-sm">{u._count.orders}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">
