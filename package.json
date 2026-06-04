@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "prisma generate && prisma db push && node scripts/ensure-enum.mjs && next build",
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "postinstall": "prisma generate"
