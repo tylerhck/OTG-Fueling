@@ -56,6 +56,7 @@ export async function PUT(
   const { status, etaMinutes } = body;
 
   const validStatuses = [
+    "ACTIVE",
     "PENDING",
     "CONFIRMED",
     "IN_PROGRESS",
@@ -72,21 +73,27 @@ export async function PUT(
     data.etaMinutes = etaMinutes === null ? null : Math.max(0, Math.round(Number(etaMinutes)));
   }
 
-  const order = await prisma.order.update({
-    where: { id },
-    data,
-    include: {
-      vehicle: true,
-      address: true,
-      user: { select: { name: true, email: true } },
-    },
-  });
+  try {
+    const order = await prisma.order.update({
+      where: { id },
+      data,
+      include: {
+        vehicle: true,
+        address: true,
+        user: { select: { name: true, email: true } },
+      },
+    });
 
-  // Fire-and-forget notifications (email + push)
-  notifyOrderStatus(order.id, status).catch(() => {});
-  pushOrderStatus(order.id, status).catch(() => {});
+    // Fire-and-forget notifications (email + push)
+    notifyOrderStatus(order.id, status).catch(() => {});
+    pushOrderStatus(order.id, status).catch(() => {});
 
-  return NextResponse.json(order);
+    return NextResponse.json(order);
+  } catch (e: unknown) {
+    console.error("Order update failed:", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `Database error: ${message}` }, { status: 500 });
+  }
 }
 
 export async function PATCH(
