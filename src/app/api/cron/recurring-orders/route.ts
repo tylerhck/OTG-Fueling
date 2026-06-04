@@ -62,8 +62,6 @@ async function handleRecurringOrders(req: NextRequest) {
 
   const now = new Date();
   // Get today's date and day-of-week in Central Time
-  // The cron fires at 6 AM CDT, so the server (UTC) sees 11 AM UTC — same calendar day.
-  // But to be safe, we derive the Central date explicitly.
   const centralOffset = getCentralUtcOffset(now);
   const centralNow = new Date(now.getTime() - centralOffset * 60 * 60 * 1000);
   const todayDayOfWeek = DAY_MAP[centralNow.getUTCDay()];
@@ -120,6 +118,53 @@ async function handleRecurringOrders(req: NextRequest) {
 
       const subscription = recurring.user.subscriptions[0];
 
+      // ===== PRE-CHARGE FIRST — No ticket if this fails =====
+      const stripeCustomerId = subscription.stripeCustomerId;
+
+      // Get the customer's default payment method
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: stripeCustomerId,
+        type: "card",
+        limit: 1,
+      });
+
+      if (paymentMethods.data.length === 0) {
+        // No card on file — skip, no ticket created
+        results.push({ id: recurring.id, status: "skipped", error: "No payment method on file — no ticket created" });
+        continue;
+      }
+
+      const paymentMethod = paymentMethods.data[0];
+
+      // Attempt $40 pre-authorization (manual capture) BEFORE creating the order
+      let paymentIntent;
+      try {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: 4000, // $40.00
+          currency: "usd",
+          capture_method: "manual",
+          customer: stripeCustomerId,
+          payment_method: paymentMethod.id,
+          off_session: true,
+          confirm: true,
+          metadata: {
+            userId: recurring.user.id,
+            recurringOrderId: recurring.id,
+            isFillUp: "true",
+          },
+        });
+      } catch (stripeError: any) {
+        // Pre-charge FAILED — do NOT create ticket
+        results.push({
+          id: recurring.id,
+          status: "skipped",
+          error: `Pre-charge failed: ${stripeError.message} — no ticket created`,
+        });
+        continue;
+      }
+
+      // ===== PRE-CHARGE SUCCEEDED — Now create the order ticket =====
+
       // Check weekly fill-up count (Sunday midnight to Sunday midnight)
       const weekStart = getWeekStart(now);
       const weekEnd = new Date(weekStart);
@@ -137,24 +182,23 @@ async function handleRecurringOrders(req: NextRequest) {
       // Determine delivery fee: 1st order of the week = free, 2nd+ = $10
       const deliveryFeeCents = weeklyOrderCount === 0 ? 0 : 1000;
 
-
       // Calculate scheduled time — use start of window (windowFrom) for scheduledAt
       // windowFrom/windowTo are stored as "HH:MM" in Central Time
       const windowFrom = (recurring as any).windowFrom || recurring.preferredTime || "08:00";
       const windowTo = (recurring as any).windowTo || "17:00";
       const [hours, minutes] = windowFrom.split(":").map(Number);
       const scheduledAt = new Date(now);
-      const centralOffset = getCentralUtcOffset(now);
-      scheduledAt.setUTCHours(hours + centralOffset, minutes, 0, 0);
+      const offset = getCentralUtcOffset(now);
+      scheduledAt.setUTCHours(hours + offset, minutes, 0, 0);
 
-      // Store raw HH:MM format (column has limited length)
+      // Store raw HH:MM format
       const availableFromStr = windowFrom;
       const availableToStr = windowTo;
 
       // For fill-ups, we authorize $40 (4000 cents) pre-charge
       const authAmountCents = 4000; // $40 pre-authorization
 
-      // Create the order
+      // Create the order — pre-charge already succeeded so we go straight to ACTIVE
       const order = await prisma.order.create({
         data: {
           userId: recurring.user.id,
@@ -174,6 +218,10 @@ async function handleRecurringOrders(req: NextRequest) {
           notes: recurring.notes ? `[Recurring] ${recurring.notes}` : "[Recurring order]",
           pinLat: recurring.address.lat,
           pinLng: recurring.address.lng,
+          stripePaymentIntentId: paymentIntent.id,
+          stripeCustomerId,
+          stripePaymentMethodId: paymentMethod.id,
+          status: "ACTIVE",
           items: {
             create: {
               kind: "PRIMARY_VEHICLE",
@@ -190,65 +238,15 @@ async function handleRecurringOrders(req: NextRequest) {
         },
       });
 
-      // Create Stripe $40 pre-authorization using saved payment method
-      try {
-        const stripeCustomerId = subscription.stripeCustomerId;
-
-        // Get the customer's default payment method
-        const paymentMethods = await stripe.paymentMethods.list({
-          customer: stripeCustomerId,
-          type: "card",
-          limit: 1,
-        });
-
-        if (paymentMethods.data.length > 0) {
-          const paymentMethod = paymentMethods.data[0];
-
-          // Create $40 pre-auth (manual capture)
-          const paymentIntent = await stripe.paymentIntents.create({
-            amount: 4000, // $40.00
-            currency: "usd",
-            capture_method: "manual",
-            customer: stripeCustomerId,
-            payment_method: paymentMethod.id,
-            off_session: true,
-            confirm: true,
-            metadata: {
-              orderId: order.id,
-              userId: recurring.user.id,
-              recurringOrderId: recurring.id,
-              isFillUp: "true",
-            },
-          });
-
-          // Update order with Stripe info — recurring orders go straight to ACTIVE
-          await prisma.order.update({
-            where: { id: order.id },
-            data: {
-              stripePaymentIntentId: paymentIntent.id,
-              stripeCustomerId,
-              stripePaymentMethodId: paymentMethod.id,
-              status: "ACTIVE",
-            },
-          });
-        } else {
-          // No payment method on file - mark order as needing payment
-          await prisma.order.update({
-            where: { id: order.id },
-            data: {
-              notes: `${order.notes || ""} [NEEDS PAYMENT - no card on file]`,
-            },
-          });
-        }
-      } catch (stripeError: any) {
-        // Stripe failed - still create order but mark it
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            notes: `${order.notes || ""} [PRE-AUTH FAILED: ${stripeError.message}]`,
-          },
-        });
-      }
+      // Update the payment intent metadata with the new order ID
+      await stripe.paymentIntents.update(paymentIntent.id, {
+        metadata: {
+          orderId: order.id,
+          userId: recurring.user.id,
+          recurringOrderId: recurring.id,
+          isFillUp: "true",
+        },
+      });
 
       // Update recurring order with last processed info
       await prisma.recurringOrder.update({
@@ -258,7 +256,6 @@ async function handleRecurringOrders(req: NextRequest) {
           lastOrderDate: now,
         },
       });
-
 
       results.push({ id: recurring.id, status: "created", orderId: order.id });
     } catch (error: any) {

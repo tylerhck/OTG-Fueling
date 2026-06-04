@@ -373,6 +373,10 @@ export default function RecurringOrdersPage() {
               })()}). A $40 pre-charge will be placed on your card each delivery day. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.
             </div>
 
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              <strong>Important:</strong> If the $40 pre-charge fails on your scheduled delivery day (e.g., expired card, insufficient funds), no delivery will be made and no order ticket will be created. Please ensure your payment method on file is up to date.
+            </div>
+
             <button
               type="submit"
               disabled={saving}
