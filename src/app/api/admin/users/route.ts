@@ -21,7 +21,6 @@ export async function GET() {
         select: {
           id: true,
           status: true,
-          plan: true,
         },
         where: { status: "ACTIVE" },
         take: 1,
@@ -33,7 +32,6 @@ export async function GET() {
   const result = users.map((u) => ({
     ...u,
     isSubscriber: u.subscriptions.length > 0,
-    subscriptionPlan: u.subscriptions[0]?.plan || null,
     subscriptionStatus: u.subscriptions[0]?.status || null,
   }));
 

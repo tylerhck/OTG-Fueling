@@ -11,7 +11,6 @@ interface User {
   createdAt: string;
   _count: { orders: number };
   isSubscriber: boolean;
-  subscriptionPlan: string | null;
 }
 
 export default function AdminUsers() {
@@ -114,7 +113,7 @@ export default function AdminUsers() {
                 <td className="px-4 py-3 text-sm">
                   {u.isSubscriber ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                      {u.subscriptionPlan || "Active"}
+                      Active
                     </span>
                   ) : (
                     <span className="text-gray-400 text-xs">No</span>
