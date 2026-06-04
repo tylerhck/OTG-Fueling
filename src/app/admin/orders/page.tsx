@@ -454,6 +454,13 @@ export default function AdminOrders() {
                         Enter Gallons &amp; Complete
                       </button>
                       <button
+                        onClick={() => updateStatus(order.id, "UNRESOLVED")}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        Move to Unresolved
+                      </button>
+                      <button
                         onClick={() => cancelOrder(order.id)}
                         disabled={updating === order.id}
                         className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
