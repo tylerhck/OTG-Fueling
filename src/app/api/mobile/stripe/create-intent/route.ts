@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
-  // Fill-up flow: authorize $40 pre-charge
+  // Fill-up flow: authorize $40 pre-authorization
   if (isFillUp) {
     const customer = await stripe.customers.create({
       email: session?.user?.email ?? undefined,

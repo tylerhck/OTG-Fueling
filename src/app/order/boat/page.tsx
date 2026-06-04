@@ -620,7 +620,7 @@ export default function BoatOrderPage() {
           <div className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-amber-900">Fill Up Tank</p>
-              <p className="text-xs text-amber-700">A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-charge is released upon completion.</p>
+              <p className="text-xs text-amber-700">A $40 pre-authorization will be placed on your card on the day of your fill-up. If the pre-authorization fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-authorization is released upon completion.</p>
             </div>
             <button
               type="button"
@@ -805,12 +805,12 @@ export default function BoatOrderPage() {
                   <span className="font-semibold text-slate-900">Card Hold</span>
                   <span className="font-bold text-slate-900 text-lg">$40.00</span>
                 </div>
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><strong>Important:</strong> A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-charge is released upon completion.</p>
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><strong>Important:</strong> A $40 pre-authorization will be placed on your card on the day of your fill-up. If the pre-authorization fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-authorization is released upon completion.</p>
               </>
             ) : (
               <>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — ${form.dollarAmount.toFixed(2)} pre-charge</span>
+                  <span className="text-slate-600">{FUEL_TYPE_LABELS[form.fuelType as keyof typeof FUEL_TYPE_LABELS]} — ${form.dollarAmount.toFixed(2)} pre-authorization</span>
                   <span className="font-medium text-slate-900">${form.dollarAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -865,8 +865,8 @@ export default function BoatOrderPage() {
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Place Order — $40.00 Pre-charge"
-            : `Place Order — $${total.toFixed(2)} Pre-charge`}
+            ? "Place Order — $40.00 Pre-authorization"
+            : `Place Order — $${total.toFixed(2)} Pre-authorization`}
         </button>
 
         {!isAuthenticated && (

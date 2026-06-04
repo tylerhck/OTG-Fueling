@@ -601,7 +601,7 @@ export default function OrderPage() {
               <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
               {form.isFillUp ? (
                 <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <span className="text-sm text-slate-400 italic">Fill up — $40 pre-charge, only charged for what you receive at completion</span>
+                  <span className="text-sm text-slate-400 italic">Fill up — $40 pre-authorization, only charged for what you receive at completion</span>
                 </div>
               ) : (
                 <div className="relative mt-1.5">
@@ -625,7 +625,7 @@ export default function OrderPage() {
             <div>
               <p className="text-sm font-medium text-amber-900">Fill Up My Tank</p>
               <p className="text-xs text-amber-700">
-                A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-charge is released upon completion.
+                A $40 pre-authorization will be placed on your card on the day of your fill-up. If the pre-authorization fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-authorization is released upon completion.
               </p>
             </div>
             <button
@@ -697,7 +697,7 @@ export default function OrderPage() {
                       <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
                       {secondVehicle.isFillUp ? (
                         <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <span className="text-sm text-slate-400 italic">Fill up — $40 pre-charge, only charged for what you receive at completion</span>
+                          <span className="text-sm text-slate-400 italic">Fill up — $40 pre-authorization, only charged for what you receive at completion</span>
                         </div>
                       ) : (
                         <div className="relative mt-1.5">
@@ -851,7 +851,7 @@ export default function OrderPage() {
                       <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
                       {boatAddon.isFillUp ? (
                         <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <span className="text-sm text-slate-400 italic">Fill up — $40 pre-charge, only charged for what you receive at completion</span>
+                          <span className="text-sm text-slate-400 italic">Fill up — $40 pre-authorization, only charged for what you receive at completion</span>
                         </div>
                       ) : (
                         <div className="relative mt-1.5">
@@ -1207,7 +1207,7 @@ export default function OrderPage() {
 
             <div className="flex justify-between border-t border-slate-200 pt-2">
               <span className="font-semibold text-slate-900">
-                {form.isFillUp ? "Card Hold" : "Pre-charge Total"}
+                {form.isFillUp ? "Card Hold" : "Pre-authorization Total"}
               </span>
               <span className="font-bold text-slate-900 text-lg">
                 {form.isFillUp ? "$40.00" : `$${total.toFixed(2)}`}
@@ -1216,18 +1216,18 @@ export default function OrderPage() {
 
             {form.isFillUp ? (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <strong>Important:</strong> A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-charge is released upon completion.
+                <strong>Important:</strong> A $40 pre-authorization will be placed on your card on the day of your fill-up. If the pre-authorization fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-authorization is released upon completion.
               </p>
             ) : (
               <p className="text-xs text-slate-400">
-                Your card will be pre-charged for the amount above. After delivery, you will be charged only for the actual fuel pumped. If your tank fills before reaching your pre-funded amount, the difference is released back to your card.
+                Your card will be pre-authorized for the amount above. After delivery, you will be charged only for the actual fuel pumped. If your tank fills before reaching your pre-funded amount, the difference is released back to your card.
               </p>
             )}
 
             {/* Fuel price disclaimer */}
             <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
               <p className="text-xs text-amber-800">
-                <strong>Note:</strong> Fuel prices fluctuate daily. The number of gallons you receive is based on the current market price at the time of delivery. You will be pre-charged your selected dollar amount unless your tank fills first. A detailed receipt with gallons delivered and price per gallon will be emailed upon completion.
+                <strong>Note:</strong> Fuel prices fluctuate daily. The number of gallons you receive is based on the current market price at the time of delivery. You will be pre-authorized your selected dollar amount unless your tank fills first. A detailed receipt with gallons delivered and price per gallon will be emailed upon completion.
               </p>
             </div>
           </div>
@@ -1249,8 +1249,8 @@ export default function OrderPage() {
           {submitting
             ? "Processing..."
             : form.isFillUp
-            ? "Place Order — $40.00 Pre-charge"
-            : `Place Order — $${total.toFixed(2)} Pre-charge`}
+            ? "Place Order — $40.00 Pre-authorization"
+            : `Place Order — $${total.toFixed(2)} Pre-authorization`}
         </button>
       </form>
     </div>

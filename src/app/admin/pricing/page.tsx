@@ -297,7 +297,7 @@ export default function PricingAdmin() {
             <strong>Homepage Prices</strong> — Display only. You set them above, customers see them on the homepage cards. Not linked to checkout.
           </li>
           <li>
-            <strong>Fuel Orders</strong> — Customers pre-fund a dollar amount or choose Fill Up ($40 pre-charge). You enter the actual gallons and price per gallon at completion.
+            <strong>Fuel Orders</strong> — Customers pre-fund a dollar amount or choose Fill Up ($40 pre-authorization). You enter the actual gallons and price per gallon at completion.
           </li>
           <li>
             <strong>Service Fee</strong> — $15 for non-subscribers (vehicles), $20 for boats. Subscribers get free delivery.

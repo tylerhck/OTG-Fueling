@@ -195,10 +195,10 @@ async function handleRecurringOrders(req: NextRequest) {
       const availableFromStr = windowFrom;
       const availableToStr = windowTo;
 
-      // For fill-ups, we authorize $40 (4000 cents) pre-charge
+      // For fill-ups, we authorize $40 (4000 cents) pre-authorization
       const authAmountCents = 4000; // $40 pre-authorization
 
-      // Create the order — pre-charge already succeeded so we go straight to ACTIVE
+      // Create the order — pre-authorization already succeeded so we go straight to ACTIVE
       const order = await prisma.order.create({
         data: {
           userId: recurring.user.id,
