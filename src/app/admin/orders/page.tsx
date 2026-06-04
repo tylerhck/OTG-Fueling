@@ -137,13 +137,22 @@ export default function AdminOrders() {
 
   async function updateStatus(orderId: string, newStatus: string) {
     setUpdating(orderId);
-    const res = await fetch(`/api/orders/${orderId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (res.ok) {
-      await loadOrders();
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        await loadOrders();
+      } else {
+        const err = await res.text();
+        console.error("Status update failed:", res.status, err);
+        alert(`Failed to update status: ${err}`);
+      }
+    } catch (e: unknown) {
+      console.error("Status update error:", e);
+      alert(`Error updating status: ${e instanceof Error ? e.message : e}`);
     }
     setUpdating(null);
   }
