@@ -74,9 +74,31 @@ export async function PUT(
   }
 
   try {
-    const order = await prisma.order.update({
+    // Use raw SQL for UNRESOLVED to bypass Prisma enum cache issues
+    if (status === "UNRESOLVED" || status === "ACTIVE") {
+      await prisma.$executeRawUnsafe(
+        `UPDATE orders SET status = ? WHERE id = ?`,
+        status,
+        id
+      );
+      if (etaMinutes !== undefined) {
+        const eta = etaMinutes === null ? null : Math.max(0, Math.round(Number(etaMinutes)));
+        await prisma.$executeRawUnsafe(
+          `UPDATE orders SET etaMinutes = ? WHERE id = ?`,
+          eta,
+          id
+        );
+      }
+    } else {
+      await prisma.order.update({
+        where: { id },
+        data,
+      });
+    }
+
+    // Fetch the updated order
+    const order = await prisma.order.findUnique({
       where: { id },
-      data,
       include: {
         vehicle: true,
         address: true,
@@ -85,8 +107,8 @@ export async function PUT(
     });
 
     // Fire-and-forget notifications (email + push)
-    notifyOrderStatus(order.id, status).catch(() => {});
-    pushOrderStatus(order.id, status).catch(() => {});
+    notifyOrderStatus(id, status).catch(() => {});
+    pushOrderStatus(id, status).catch(() => {});
 
     return NextResponse.json(order);
   } catch (e: unknown) {
