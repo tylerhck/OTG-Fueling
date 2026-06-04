@@ -17,9 +17,25 @@ export async function GET() {
       phone: true,
       createdAt: true,
       _count: { select: { orders: true } },
+      subscriptions: {
+        select: {
+          id: true,
+          status: true,
+          plan: true,
+        },
+        where: { status: "ACTIVE" },
+        take: 1,
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(users);
+  const result = users.map((u) => ({
+    ...u,
+    isSubscriber: u.subscriptions.length > 0,
+    subscriptionPlan: u.subscriptions[0]?.plan || null,
+    subscriptionStatus: u.subscriptions[0]?.status || null,
+  }));
+
+  return NextResponse.json(result);
 }

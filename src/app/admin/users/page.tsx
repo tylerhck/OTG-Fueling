@@ -10,6 +10,8 @@ interface User {
   phone: string | null;
   createdAt: string;
   _count: { orders: number };
+  isSubscriber: boolean;
+  subscriptionPlan: string | null;
 }
 
 export default function AdminUsers() {
@@ -34,18 +36,31 @@ export default function AdminUsers() {
           <div key={u.id} className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-900">{u.name || "—"}</p>
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  u.role === "ADMIN"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {u.role}
-              </span>
+              <div className="flex items-center gap-2">
+                {u.isSubscriber && (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    Subscriber
+                  </span>
+                )}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    u.role === "ADMIN"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {u.role}
+                </span>
+              </div>
             </div>
             <p className="mt-1 text-sm text-gray-600">{u.email}</p>
             <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+              {u.isSubscriber && u.subscriptionPlan && (
+                <>
+                  <span className="text-green-600 font-medium">{u.subscriptionPlan}</span>
+                  <span>&middot;</span>
+                </>
+              )}
               <span>{u._count.orders} order{u._count.orders !== 1 ? "s" : ""}</span>
               <span>&middot;</span>
               <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
@@ -66,6 +81,9 @@ export default function AdminUsers() {
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
                 Role
+              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                Subscriber
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
                 Orders
@@ -92,6 +110,15 @@ export default function AdminUsers() {
                   >
                     {u.role}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {u.isSubscriber ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      {u.subscriptionPlan || "Active"}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-sm">{u._count.orders}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">
