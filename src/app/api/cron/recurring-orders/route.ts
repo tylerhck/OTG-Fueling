@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { DayOfWeek } from "@prisma/client";
+import { isBanned } from "@/lib/banCheck";
 
 // Map JS day (0=Sunday) to our DayOfWeek enum
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -108,6 +109,13 @@ async function handleRecurringOrders(req: NextRequest) {
           }
           // Order was cancelled or deleted — allow re-creation
         }
+      }
+
+      // Ban check — skip banned users
+      const banned = await isBanned({ email: recurring.user.email });
+      if (banned) {
+        results.push({ id: recurring.id, status: "skipped", error: "User is banned" });
+        continue;
       }
 
       // Verify user still has active subscription

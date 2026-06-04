@@ -3,6 +3,7 @@ import { getMobileSession } from "@/lib/mobileAuth";
 import { prisma } from "@/lib/prisma";
 import { orderSchema } from "@/lib/validators";
 import { notifyOrderActive } from "@/lib/orderActiveSms";
+import { isBanned } from "@/lib/banCheck";
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -23,6 +24,15 @@ export async function POST(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Ban check
+  const mobileUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, phone: true } });
+  if (mobileUser) {
+    const banned = await isBanned({ email: mobileUser.email, phone: mobileUser.phone });
+    if (banned) {
+      return NextResponse.json({ error: "Unable to process your order. Please contact support." }, { status: 403 });
+    }
   }
 
   const body = await req.json();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod/v4";
+import { isBanned } from "@/lib/banCheck";
 
 const recurringOrderSchema = z.object({
   vehicleId: z.string().optional(),
@@ -39,6 +40,15 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Ban check
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, phone: true } });
+  if (user) {
+    const banned = await isBanned({ email: user.email, phone: user.phone });
+    if (banned) {
+      return NextResponse.json({ error: "Unable to process your order. Please contact support." }, { status: 403 });
+    }
   }
 
   const body = await req.json();

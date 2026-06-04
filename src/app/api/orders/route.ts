@@ -6,6 +6,7 @@ import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 import { geocodeAddress } from "@/lib/geocode";
 import { notifyOrderStatus } from "@/lib/notifications";
 import { ensureSubscriptionFromStripe } from "@/lib/subscriptions";
+import { isBanned } from "@/lib/banCheck";
 
 // Delivery fee is now read from admin settings (siteSetting table)
 async function getDeliveryFeeCents(): Promise<number> {
@@ -110,6 +111,18 @@ export async function POST(req: NextRequest) {
   const isDefGuest = body.guestDef === true;
   const pinLat = typeof body.pinLat === "number" ? body.pinLat : null;
   const pinLng = typeof body.pinLng === "number" ? body.pinLng : null;
+
+  // --- BAN CHECK FOR GUEST ORDERS ---
+  if (isGuest || isBoatGuest || isDefGuest) {
+    const banned = await isBanned({
+      email: body.guestEmail,
+      phone: body.guestPhone,
+      address: body.street ? `${body.street}, ${body.city}, ${body.state || "TX"} ${body.zip}` : null,
+    });
+    if (banned) {
+      return NextResponse.json({ error: "Unable to process your order. Please contact support." }, { status: 403 });
+    }
+  }
 
   // --- GUEST DEF ORDER ---
   if (isDefGuest) {
@@ -326,6 +339,16 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Ban check for authenticated users
+  const authUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, phone: true } });
+  if (authUser) {
+    const banned = await isBanned({ email: authUser.email, phone: authUser.phone });
+    if (banned) {
+      return NextResponse.json({ error: "Unable to process your order. Please contact support." }, { status: 403 });
+    }
+  }
+
   console.log("[orders] AUTH order start", { userId: session.user.id, scheduledAt: body.scheduledAt, deliveryType: body.scheduledAt ? "scheduled" : "asap" });
   try {
   const parsed = orderSchema.safeParse(body);

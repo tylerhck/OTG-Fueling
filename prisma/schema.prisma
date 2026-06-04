@@ -427,3 +427,16 @@ model CanvassPin {
 
   @@map("canvass_pins")
 }
+
+model BanEntry {
+  id           String   @id @default(cuid())
+  type         String   // "email", "phone", "address", "plate"
+  value        String   // the actual email, phone, address, or plate
+  reason       String?  @db.Text // why they were banned
+  bannedAt     DateTime @default(now()) @map("banned_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([type, value])
+  @@map("ban_entries")
+}

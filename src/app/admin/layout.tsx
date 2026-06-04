@@ -14,6 +14,7 @@ const adminLinks = [
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/recurring", label: "Recurring" },
   { href: "/admin/kill-list", label: "Kill List" },
+  { href: "/admin/ban-list", label: "Ban List" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/waitlist", label: "Waitlist" },
 ];
