@@ -416,7 +416,7 @@ export default function AdminOrders() {
 
                 {/* Action buttons */}
                 <div className="flex flex-wrap gap-2">
-                  {/* ACTIVE orders: Start Delivery, Move to Unresolved, Cancel */}
+                  {/* ACTIVE orders: Start Delivery, Cancel */}
                   {order.status === "ACTIVE" && (
                     <>
                       <button
@@ -425,13 +425,6 @@ export default function AdminOrders() {
                         className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                       >
                         Start Delivery
-                      </button>
-                      <button
-                        onClick={() => updateStatus(order.id, "UNRESOLVED")}
-                        disabled={updating === order.id}
-                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
-                      >
-                        Move to Unresolved
                       </button>
                       <button
                         onClick={() => cancelOrder(order.id)}
