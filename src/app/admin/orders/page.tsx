@@ -370,7 +370,7 @@ export default function AdminOrders() {
                     ) : null}
                     {order.fuelType.replace("_", " ")} &middot;{" "}
                     {order.isFillUp
-                      ? `$1.00 hold + $${(order.deliveryFeeCents / 100).toFixed(2)} service fee on completion`
+                      ? `$40.00 pre-charge + $${(order.deliveryFeeCents / 100).toFixed(2)} service fee on completion`
                       : `$${((order.totalCents - order.deliveryFeeCents) / 100).toFixed(2)} fuel + $${(order.deliveryFeeCents / 100).toFixed(2)} fee = $${(order.totalCents / 100).toFixed(2)}`
                     } &middot;{" "}
                     {!order.scheduledAt ? "ASAP" : "Scheduled"} &middot;{" "}

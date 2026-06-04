@@ -41,8 +41,8 @@ export default function TermsOfServicePage() {
         </p>
         <ul className="list-disc list-inside text-slate-600 leading-relaxed mb-4 space-y-1">
           <li><strong>Dollar Amount Orders:</strong> When you select a dollar amount (e.g., $40), that amount is held on your card. At delivery, you are charged only for the actual fuel dispensed at the market price. If your tank fills before reaching the full dollar amount, only the actual cost is charged and the remaining hold is released.</li>
-          <li><strong>Fill-Up Orders:</strong> A $1.00 pre-authorization hold is placed to verify your payment method. After delivery, you are charged the actual cost of fuel dispensed plus any applicable service fees.</li>
-          <li><strong>Recurring Orders:</strong> All recurring orders are fill-up orders. A $1.00 hold is placed each delivery day, and the actual fuel cost is charged upon completion.</li>
+          <li><strong>Fill-Up Orders:</strong> A $40.00 pre-charge is placed on your card when you select the fill-up option. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after delivery.</li>
+          <li><strong>Recurring Orders:</strong> All recurring orders are fill-up orders. A $40.00 pre-charge is placed each delivery day. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after delivery.</li>
         </ul>
         <p className="text-slate-600 leading-relaxed mb-4">
           Pre-authorization holds that are not captured will be released according to your financial institution&rsquo;s policies (typically 3&ndash;7 business days). Service fees (delivery fees) are included in the final charge at the time of delivery completion.

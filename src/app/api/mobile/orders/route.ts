@@ -88,8 +88,8 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    // Fuel items: dollar amount pre-auth or fill-up ($1 pre-auth)
-    const fuelPreAuthCents = item.isFillUp ? 100 : (item.prefundedCents ?? 0);
+    // Fuel items: dollar amount pre-auth or fill-up ($40 pre-auth)
+    const fuelPreAuthCents = item.isFillUp ? 4000 : (item.prefundedCents ?? 0);
 
     return {
       kind: item.kind,

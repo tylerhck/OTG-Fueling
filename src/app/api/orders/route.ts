@@ -199,8 +199,8 @@ export async function POST(req: NextRequest) {
     }
 
     const deliveryFeeCents = BOAT_BASE_FEE_CENTS;
-    // For fill-up: pre-auth $1 + service fee. For dollar amount: prefunded + service fee.
-    const fuelPreAuthCents = isFillUp ? 100 : (prefundedCents ?? 0);
+    // For fill-up: pre-auth $40 + service fee. For dollar amount: prefunded + service fee.
+    const fuelPreAuthCents = isFillUp ? 4000 : (prefundedCents ?? 0);
     const totalCents = fuelPreAuthCents + deliveryFeeCents;
     // authAmountCents = total hold on the card (fuel + service fee)
     const authAmountCents = totalCents;
@@ -275,8 +275,8 @@ export async function POST(req: NextRequest) {
     }
 
     const deliveryFeeCents = await getDeliveryFeeCents();
-    // For fill-up: pre-auth $1 + delivery fee. For dollar amount: prefunded + delivery fee.
-    const fuelPreAuthCents = isFillUp ? 100 : (prefundedCents ?? 0);
+    // For fill-up: pre-auth $40 + delivery fee. For dollar amount: prefunded + delivery fee.
+    const fuelPreAuthCents = isFillUp ? 4000 : (prefundedCents ?? 0);
     const totalCents = fuelPreAuthCents + deliveryFeeCents;
     const authAmountCents = totalCents;
 
@@ -462,8 +462,8 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    // For fuel items: dollar amount pre-auth or fill-up ($1 pre-auth)
-    const fuelPreAuthCents = item.isFillUp ? 100 : (item.prefundedCents ?? 0);
+    // For fuel items: dollar amount pre-auth or fill-up ($40 pre-auth)
+    const fuelPreAuthCents = item.isFillUp ? 4000 : (item.prefundedCents ?? 0);
 
     let serviceFeeCents = 0;
     if (item.kind === "SECOND_VEHICLE") serviceFeeCents = SECOND_VEHICLE_ADDON_CENTS;
@@ -477,7 +477,7 @@ export async function POST(req: NextRequest) {
       gallons: null, // determined at completion
       isFillUp: item.isFillUp ?? false,
       pricePerGallonCents: 0, // determined at completion
-      gasCents: fuelPreAuthCents, // stores the pre-funded amount (or $1 for fill-up)
+      gasCents: fuelPreAuthCents, // stores the pre-funded amount (or $40 for fill-up)
       serviceFeeCents,
       authAmountCents: fuelPreAuthCents + serviceFeeCents,
       notes: item.notes,

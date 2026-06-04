@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 
       // Scheduled orders with saved card: place the hold now
       if (order.stripeCustomerId) {
-        const holdAmount = order.isFillUp ? 100 : (order.authAmountCents || order.totalCents || 100);
+        const holdAmount = order.isFillUp ? 4000 : (order.authAmountCents || order.totalCents || 4000);
 
         // Get the customer's saved payment method
         const paymentMethods = await stripe.paymentMethods.list({

@@ -151,8 +151,8 @@ async function handleRecurringOrders(req: NextRequest) {
       const availableFromStr = windowFrom;
       const availableToStr = windowTo;
 
-      // For fill-ups, we authorize $1 (100 cents) to verify card
-      const authAmountCents = 100; // $1 pre-authorization
+      // For fill-ups, we authorize $40 (4000 cents) pre-charge
+      const authAmountCents = 4000; // $40 pre-authorization
 
       // Create the order
       const order = await prisma.order.create({
@@ -190,7 +190,7 @@ async function handleRecurringOrders(req: NextRequest) {
         },
       });
 
-      // Create Stripe $1 pre-authorization using saved payment method
+      // Create Stripe $40 pre-authorization using saved payment method
       try {
         const stripeCustomerId = subscription.stripeCustomerId;
 
@@ -204,9 +204,9 @@ async function handleRecurringOrders(req: NextRequest) {
         if (paymentMethods.data.length > 0) {
           const paymentMethod = paymentMethods.data[0];
 
-          // Create $1 pre-auth (manual capture)
+          // Create $40 pre-auth (manual capture)
           const paymentIntent = await stripe.paymentIntents.create({
-            amount: 100, // $1.00
+            amount: 4000, // $40.00
             currency: "usd",
             capture_method: "manual",
             customer: stripeCustomerId,

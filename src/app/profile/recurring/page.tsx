@@ -370,7 +370,7 @@ export default function RecurringOrdersPage() {
               during your availability window ({(() => {
                 const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`; };
                 return `${fmt(formData.windowFrom)} \u2013 ${fmt(formData.windowTo || "20:00")}`;
-              })()}). We&apos;ll pre-authorize $1 on your card, then charge the actual fuel cost after fill-up.
+              })()}). A $40 pre-charge will be placed on your card each delivery day. You will only be charged for what you receive at time of completion. The pre-charge is released immediately after.
             </div>
 
             <button
