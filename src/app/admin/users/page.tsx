@@ -19,6 +19,7 @@ export default function AdminUsers() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -26,6 +27,18 @@ export default function AdminUsers() {
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  const filteredUsers = users.filter((u) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (u.name || "").toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.phone || "").toLowerCase().includes(q) ||
+      (u.promoCode || "").toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q)
+    );
+  });
 
   const handleEditPromo = (user: User) => {
     setEditingId(user.id);
@@ -62,9 +75,20 @@ export default function AdminUsers() {
         {users.length} registered user{users.length !== 1 ? "s" : ""}.
       </p>
 
+      {/* Search */}
+      <div className="mt-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, email, phone, or promo code..."
+          className="w-full max-w-md rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+        />
+      </div>
+
       {/* Mobile view */}
-      <div className="mt-6 space-y-3 md:hidden">
-        {users.map((u) => (
+      <div className="mt-4 space-y-3 md:hidden">
+        {filteredUsers.map((u) => (
           <div key={u.id} className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-900">{u.name || "—"}</p>
@@ -142,7 +166,7 @@ export default function AdminUsers() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id}>
                 <td className="px-4 py-3 text-sm font-medium">{u.name || "—"}</td>
                 <td className="px-4 py-3 text-sm">{u.email}</td>
