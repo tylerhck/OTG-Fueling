@@ -542,9 +542,16 @@ export default function AdminOrders() {
                     </button>
                   )}
 
-                  {/* UNRESOLVED orders: Move back to Active, Cancel */}
-                  {order.status === "UNRESOLVED" && (
+                  {/* UNRESOLVED orders: Capture, Move back to Active, Cancel */}
+                  {order.status === "UNRESOLVED" && showCapture !== order.id && (
                     <>
+                      <button
+                        onClick={() => openCapture(order.id, order.deliveryFeeCents)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                      >
+                        Enter Gallons & Charge
+                      </button>
                       <button
                         onClick={() => updateStatus(order.id, "ACTIVE")}
                         disabled={updating === order.id}
@@ -560,6 +567,74 @@ export default function AdminOrders() {
                         Cancel
                       </button>
                     </>
+                  )}
+                  {order.status === "UNRESOLVED" && showCapture === order.id && (
+                    <div className="flex flex-wrap items-start gap-2">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            placeholder="Gallons"
+                            value={captureGallons[order.id] || ""}
+                            onChange={(e) => setCaptureGallons({ ...captureGallons, [order.id]: e.target.value })}
+                            className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="$/gal"
+                            value={capturePricePerGallon[order.id] || ""}
+                            onChange={(e) => setCapturePricePerGallon({ ...capturePricePerGallon, [order.id]: e.target.value })}
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Fee $"
+                            value={captureServiceFee[order.id] || ""}
+                            onChange={(e) => setCaptureServiceFee({ ...captureServiceFee, [order.id]: e.target.value })}
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => capturePayment(order.id)}
+                            disabled={updating === order.id}
+                            className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                          >
+                            {updating === order.id ? "..." : "Charge"}
+                          </button>
+                          <button
+                            onClick={() => { setShowCapture(null); setCaptureError({ ...captureError, [order.id]: "" }); }}
+                            className="rounded-lg bg-slate-100 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        {(() => {
+                          const g = parseFloat(captureGallons[order.id] || "0");
+                          const p = parseFloat(capturePricePerGallon[order.id] || "0");
+                          const f = parseFloat(captureServiceFee[order.id] || "0");
+                          const fuelTotal = g * p;
+                          const grandTotal = fuelTotal + f;
+                          if (grandTotal > 0) {
+                            return (
+                              <p className="text-xs text-slate-600 font-medium">
+                                {fuelTotal > 0 ? `$${fuelTotal.toFixed(2)} fuel` : "No fuel"} + ${f.toFixed(2)} service fee = <span className="text-orange-600 font-bold">${grandTotal.toFixed(2)} total charge</span>
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
+                        {captureError[order.id] && (
+                          <p className="text-xs text-red-600">{captureError[order.id]}</p>
+                        )}
+                      </div>
+                    </div>
                   )}
 
                   {/* Awaiting Payment: Cancel */}
