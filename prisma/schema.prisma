@@ -32,6 +32,7 @@ enum OrderStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  UNRESOLVED
 }
 
 enum NotificationType {

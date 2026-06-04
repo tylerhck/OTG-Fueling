@@ -20,6 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
   IN_PROGRESS: "bg-indigo-100 text-indigo-800",
   COMPLETED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
+  UNRESOLVED: "bg-orange-100 text-orange-800",
 };
 
 interface Order {
@@ -51,7 +52,7 @@ interface Order {
   items: { kind: string; fuelType: string; gallons: number | null; vehicle: { make: string; model: string; year: number; nickname: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
 }
 
-type Tab = "active" | "pending" | "history";
+type Tab = "active" | "pending" | "unresolved" | "history";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -160,12 +161,16 @@ export default function AdminOrders() {
     () => orders.filter((o) => o.status === "COMPLETED" || o.status === "CANCELLED"),
     [orders]
   );
+  const unresolvedOrders = useMemo(
+    () => orders.filter((o) => o.status === "UNRESOLVED"),
+    [orders]
+  );
   const awaitingPaymentOrders = useMemo(
     () => orders.filter((o) => o.status === "AWAITING_PAYMENT"),
     [orders]
   );
 
-  const tabOrders = tab === "active" ? activeOrders : tab === "pending" ? pendingOrders : historyOrders;
+  const tabOrders = tab === "active" ? activeOrders : tab === "pending" ? pendingOrders : tab === "unresolved" ? unresolvedOrders : historyOrders;
 
   const filtered = useMemo(() => {
     let list = tabOrders;
@@ -227,6 +232,7 @@ export default function AdminOrders() {
         {([
           { key: "active" as Tab, label: "Active", orders: activeOrders },
           { key: "pending" as Tab, label: "Pending", orders: pendingOrders },
+          { key: "unresolved" as Tab, label: "Unresolved", orders: unresolvedOrders },
           { key: "history" as Tab, label: "History", orders: historyOrders },
         ]).map((t) => (
           <button
@@ -275,6 +281,8 @@ export default function AdminOrders() {
                 ? "No active orders — you're all caught up!"
                 : tab === "pending"
                 ? "No pending orders."
+                : tab === "unresolved"
+                ? "No unresolved orders."
                 : "No order history yet."}
             </p>
           </div>
@@ -408,7 +416,7 @@ export default function AdminOrders() {
 
                 {/* Action buttons */}
                 <div className="flex flex-wrap gap-2">
-                  {/* ACTIVE orders: Start Delivery, Cancel, Delete */}
+                  {/* ACTIVE orders: Start Delivery, Move to Unresolved, Cancel */}
                   {order.status === "ACTIVE" && (
                     <>
                       <button
@@ -417,6 +425,13 @@ export default function AdminOrders() {
                         className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                       >
                         Start Delivery
+                      </button>
+                      <button
+                        onClick={() => updateStatus(order.id, "UNRESOLVED")}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                      >
+                        Move to Unresolved
                       </button>
                       <button
                         onClick={() => cancelOrder(order.id)}
@@ -525,6 +540,26 @@ export default function AdminOrders() {
                     >
                       Cancel
                     </button>
+                  )}
+
+                  {/* UNRESOLVED orders: Move back to Active, Cancel */}
+                  {order.status === "UNRESOLVED" && (
+                    <>
+                      <button
+                        onClick={() => updateStatus(order.id, "ACTIVE")}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        Move to Active
+                      </button>
+                      <button
+                        onClick={() => cancelOrder(order.id)}
+                        disabled={updating === order.id}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
 
                   {/* Awaiting Payment: Cancel */}

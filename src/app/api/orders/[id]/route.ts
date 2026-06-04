@@ -61,6 +61,7 @@ export async function PUT(
     "IN_PROGRESS",
     "COMPLETED",
     "CANCELLED",
+    "UNRESOLVED",
   ];
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
