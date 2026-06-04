@@ -401,7 +401,7 @@ export default function GuestOrderPage() {
           <div className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-amber-900">Fill Up Tank</p>
-              <p className="text-xs text-amber-700">A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion.</p>
+              <p className="text-xs text-amber-700">A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-charge is released upon completion.</p>
             </div>
             <button
               type="button"
@@ -571,7 +571,7 @@ export default function GuestOrderPage() {
                   <span className="font-semibold text-slate-900">Card Hold</span>
                   <span className="text-lg font-bold text-slate-900">$40.00</span>
                 </div>
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><strong>Important:</strong> A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion.</p>
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><strong>Important:</strong> A $40 pre-charge will be placed on your card on the day of your fill-up. If the pre-charge fails, no order ticket will be created and you will not receive service. You will only be charged for what you receive at time of completion. The pre-charge is released upon completion.</p>
               </>
             ) : (
               <>
