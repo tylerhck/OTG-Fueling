@@ -164,10 +164,11 @@ function ProfileContent() {
 
   async function handleSubscribe() {
     setSubLoading(true);
-    const payload: { couponId?: string; usesTrial?: boolean } = {};
+    const payload: { couponId?: string; usesTrial?: boolean; promoCode?: string } = {};
     if (appliedPromo) {
       if (appliedPromo.couponId) payload.couponId = appliedPromo.couponId;
       if (appliedPromo.usesTrial) payload.usesTrial = true;
+      if (appliedPromo.code) payload.promoCode = appliedPromo.code;
     }
     const body = Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined;
     const res = await fetch("/api/subscription", {

@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
   // Parse optional promo data from request body
   let couponId: string | null = null;
   let usesTrial = false;
+  let promoCode: string | null = null;
   try {
     const body = await req.json();
     if (body.couponId && typeof body.couponId === "string") {
@@ -98,6 +99,9 @@ export async function POST(req: NextRequest) {
     }
     if (body.usesTrial === true) {
       usesTrial = true;
+    }
+    if (body.promoCode && typeof body.promoCode === "string") {
+      promoCode = body.promoCode;
     }
   } catch {
     // No body or invalid JSON — proceed without promo
@@ -124,6 +128,7 @@ export async function POST(req: NextRequest) {
     ],
     metadata: {
       userId: session.user.id,
+      ...(promoCode && { promoCode }),
     },
     success_url: `${process.env.NEXTAUTH_URL}/profile?subscribed=true&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXTAUTH_URL}/profile`,
@@ -197,6 +202,7 @@ export async function PUT(req: NextRequest) {
       stripeSubscriptionId: sub.id,
       stripeCustomerId: sub.customer as string,
       status: "ACTIVE",
+      promoCode: checkoutSession.metadata?.promoCode || null,
       currentPeriodStart: item
         ? new Date((item as unknown as { current_period_start: number }).current_period_start * 1000)
         : new Date(),

@@ -22,6 +22,7 @@ export async function GET() {
           select: {
             id: true,
             status: true,
+            promoCode: true,
           },
           where: { status: "ACTIVE" },
           take: 1,
@@ -34,6 +35,7 @@ export async function GET() {
       ...u,
       isSubscriber: u.subscriptions.length > 0,
       subscriptionStatus: u.subscriptions[0]?.status || null,
+      promoCode: u.subscriptions[0]?.promoCode || null,
     }));
 
     return NextResponse.json(result);

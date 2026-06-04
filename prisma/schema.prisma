@@ -281,6 +281,7 @@ model Subscription {
   stripeSubscriptionId String             @unique @map("stripe_subscription_id")
   stripeCustomerId     String             @map("stripe_customer_id")
   status               SubscriptionStatus @default(ACTIVE)
+  promoCode            String?            @map("promo_code")
   currentPeriodStart   DateTime           @map("current_period_start")
   currentPeriodEnd     DateTime           @map("current_period_end")
   createdAt            DateTime           @default(now()) @map("created_at")

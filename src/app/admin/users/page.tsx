@@ -11,6 +11,7 @@ interface User {
   createdAt: string;
   _count: { orders: number };
   isSubscriber: boolean;
+  promoCode: string | null;
 }
 
 export default function AdminUsers() {
@@ -54,10 +55,11 @@ export default function AdminUsers() {
             </div>
             <p className="mt-1 text-sm text-gray-600">{u.email}</p>
             <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-              {u.isSubscriber && u.subscriptionPlan && (
+              {u.isSubscriber && u.promoCode && (
                 <>
-                  <span className="text-green-600 font-medium">{u.subscriptionPlan}</span>
-                  <span>&middot;</span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    {u.promoCode}
+                  </span>
                 </>
               )}
               <span>{u._count.orders} order{u._count.orders !== 1 ? "s" : ""}</span>
@@ -83,6 +85,9 @@ export default function AdminUsers() {
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
                 Subscriber
+              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                Promo Code
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
                 Orders
@@ -117,6 +122,15 @@ export default function AdminUsers() {
                     </span>
                   ) : (
                     <span className="text-gray-400 text-xs">No</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {u.promoCode ? (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {u.promoCode}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">—</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-sm">{u._count.orders}</td>
