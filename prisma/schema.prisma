@@ -24,16 +24,7 @@ enum FuelCapSide {
   UNKNOWN
 }
 
-enum OrderStatus {
-  AWAITING_PAYMENT
-  PENDING
-  CONFIRMED
-  ACTIVE
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  UNRESOLVED
-}
+// OrderStatus values: AWAITING_PAYMENT, PENDING, CONFIRMED, ACTIVE, IN_PROGRESS, COMPLETED, CANCELLED, UNRESOLVED
 
 enum NotificationType {
   EMAIL
@@ -191,7 +182,7 @@ model Order {
   stripePaymentIntentId String?     @map("stripe_payment_intent_id")
   stripeCustomerId      String?     @map("stripe_customer_id")
   stripePaymentMethodId String?     @map("stripe_payment_method_id")
-  status                OrderStatus @default(AWAITING_PAYMENT)
+  status                String      @default("PENDING") @db.VarChar(50)
   scheduledAt           DateTime?   @map("scheduled_at")
   availableFrom         String?     @map("available_from") // e.g. "08:00"
   availableTo           String?     @map("available_to")   // e.g. "17:00"

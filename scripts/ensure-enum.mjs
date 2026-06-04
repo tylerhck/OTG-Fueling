@@ -1,5 +1,5 @@
-// Ensures the orders.status enum includes UNRESOLVED
-// Runs after prisma db push to fix any enum sync issues
+// Ensures the orders.status column is VARCHAR(50) to avoid enum sync issues
+// Runs AFTER prisma db push in the build pipeline
 import mariadb from "mariadb";
 
 const dbUrl = new URL(process.env.DATABASE_URL);
@@ -14,7 +14,7 @@ const config = {
   user: decodeURIComponent(dbUrl.username),
   password: decodeURIComponent(dbUrl.password),
   database: dbUrl.pathname.slice(1),
-  connectTimeout: 10000,
+  connectTimeout: 15000,
 };
 if (needsSsl) {
   config.ssl = { rejectUnauthorized: false };
@@ -24,18 +24,19 @@ async function run() {
   let conn;
   try {
     conn = await mariadb.createConnection(config);
-    const [cols] = await conn.query("SHOW COLUMNS FROM orders LIKE 'status'");
-    const currentType = cols?.Type || "";
-    console.log("Current status enum:", currentType);
+    const cols = await conn.query("SHOW COLUMNS FROM orders LIKE 'status'");
+    const currentType = (cols[0]?.Type || "").toLowerCase();
+    console.log("Current status column type:", currentType);
 
-    if (!currentType.includes("UNRESOLVED")) {
-      console.log("Adding UNRESOLVED to enum...");
+    // If it's still an enum (not varchar), convert it
+    if (currentType.includes("enum")) {
+      console.log("Converting status column from ENUM to VARCHAR(50)...");
       await conn.query(
-        "ALTER TABLE orders MODIFY COLUMN status ENUM('AWAITING_PAYMENT','PENDING','CONFIRMED','ACTIVE','IN_PROGRESS','COMPLETED','CANCELLED','UNRESOLVED') NOT NULL DEFAULT 'PENDING'"
+        "ALTER TABLE orders MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'PENDING'"
       );
-      console.log("DONE - UNRESOLVED added");
+      console.log("DONE - status is now VARCHAR(50)");
     } else {
-      console.log("UNRESOLVED already present - no action needed");
+      console.log("status is already VARCHAR - no action needed");
     }
   } catch (e) {
     console.error("ensure-enum error:", e.message);

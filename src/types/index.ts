@@ -7,7 +7,8 @@ export type OrderStatus =
   | "CONFIRMED"
   | "IN_PROGRESS"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "UNRESOLVED";
 export type Role = "CUSTOMER" | "ADMIN";
 export type OrderItemKind =
   | "PRIMARY_VEHICLE"
@@ -38,6 +39,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
+  UNRESOLVED: "Unresolved",
 };
 
 export const ORDER_ITEM_KIND_LABELS: Record<OrderItemKind, string> = {
