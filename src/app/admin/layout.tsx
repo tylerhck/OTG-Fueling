@@ -18,6 +18,7 @@ const adminLinks = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/waitlist", label: "Waitlist" },
   { href: "/admin/walk-up", label: "Walk-Up" },
+  { href: "/admin/bookkeeping", label: "Bookkeeping" },
   { href: "/admin/pool", label: "🎱 Pool" },
 ];
 
