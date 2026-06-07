@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
       dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     } else if (period === "month") {
       dateFilter = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === "year") {
+      dateFilter = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
     }
 
     // Fetch completed orders
@@ -38,47 +40,57 @@ export async function GET(req: NextRequest) {
     });
 
     // Calculate fuel vs service fee totals
+    // Service fee = total - (gallons * pricePerGallon)
+    // If deliveryFeeCents is set and > 0, use that directly
+    // Otherwise calculate from the difference
     let fuelRevenue = 0;
     let serviceFeeRevenue = 0;
     let totalGallons = 0;
 
     for (const order of orders) {
-      serviceFeeRevenue += order.deliveryFeeCents || 0;
-      const fuelCost = order.totalCents - (order.deliveryFeeCents || 0);
-      fuelRevenue += Math.max(0, fuelCost);
-      totalGallons += order.gallons || 0;
+      const gallons = order.gallons || 0;
+      const ppg = order.pricePerGallonCents || 0;
+      const calculatedFuelCents = Math.round(gallons * ppg);
+
+      if (order.deliveryFeeCents && order.deliveryFeeCents > 0) {
+        // Service fee was explicitly recorded
+        serviceFeeRevenue += order.deliveryFeeCents;
+        fuelRevenue += order.totalCents - order.deliveryFeeCents;
+      } else if (calculatedFuelCents > 0 && order.totalCents > calculatedFuelCents) {
+        // Calculate service fee as difference between total and fuel cost
+        const impliedServiceFee = order.totalCents - calculatedFuelCents;
+        serviceFeeRevenue += impliedServiceFee;
+        fuelRevenue += calculatedFuelCents;
+      } else {
+        // Can't determine breakdown — put it all in fuel
+        fuelRevenue += order.totalCents;
+      }
+
+      totalGallons += gallons;
     }
 
     // Fetch subscription revenue from Stripe
     let subscriptionRevenue = 0;
     try {
-      // Get charges from Stripe that are subscription-related
-      const listParams: any = { limit: 100 };
+      const listParams: any = { limit: 100, status: "paid" };
       if (dateFilter) {
         listParams.created = { gte: Math.floor(dateFilter.getTime() / 1000) };
       }
 
-      // Use Stripe to get subscription invoices paid
-      const invoices = await stripe.invoices.list({
-        ...listParams,
-        status: "paid",
-        collection_method: "charge_automatically",
-      });
+      const invoices = await stripe.invoices.list(listParams);
 
       for (const invoice of invoices.data) {
         if (invoice.subscription) {
-          subscriptionRevenue += invoice.amount_paid; // already in cents
+          subscriptionRevenue += invoice.amount_paid;
         }
       }
 
-      // If there are more, paginate
+      // Paginate
       let hasMore = invoices.has_more;
       let lastId = invoices.data.length > 0 ? invoices.data[invoices.data.length - 1].id : null;
       while (hasMore && lastId) {
         const more = await stripe.invoices.list({
           ...listParams,
-          status: "paid",
-          collection_method: "charge_automatically",
           starting_after: lastId,
         });
         for (const invoice of more.data) {
@@ -91,12 +103,11 @@ export async function GET(req: NextRequest) {
       }
     } catch (stripeErr) {
       console.error("Stripe subscription fetch error:", stripeErr);
-      // Continue without subscription data
     }
 
     const totalRevenue = fuelRevenue + serviceFeeRevenue + subscriptionRevenue;
 
-    // Monthly breakdown (from orders)
+    // Monthly breakdown
     const monthlyMap: Record<string, { fuelRevenue: number; serviceFeeRevenue: number; subscriptionRevenue: number; gallons: number; orders: number }> = {};
 
     for (const order of orders) {
@@ -105,29 +116,29 @@ export async function GET(req: NextRequest) {
       if (!monthlyMap[key]) {
         monthlyMap[key] = { fuelRevenue: 0, serviceFeeRevenue: 0, subscriptionRevenue: 0, gallons: 0, orders: 0 };
       }
-      const fuel = Math.max(0, order.totalCents - (order.deliveryFeeCents || 0));
-      monthlyMap[key].fuelRevenue += fuel;
-      monthlyMap[key].serviceFeeRevenue += order.deliveryFeeCents || 0;
-      monthlyMap[key].gallons += order.gallons || 0;
+
+      const gallons = order.gallons || 0;
+      const ppg = order.pricePerGallonCents || 0;
+      const calculatedFuelCents = Math.round(gallons * ppg);
+
+      if (order.deliveryFeeCents && order.deliveryFeeCents > 0) {
+        monthlyMap[key].serviceFeeRevenue += order.deliveryFeeCents;
+        monthlyMap[key].fuelRevenue += order.totalCents - order.deliveryFeeCents;
+      } else if (calculatedFuelCents > 0 && order.totalCents > calculatedFuelCents) {
+        const impliedServiceFee = order.totalCents - calculatedFuelCents;
+        monthlyMap[key].serviceFeeRevenue += impliedServiceFee;
+        monthlyMap[key].fuelRevenue += calculatedFuelCents;
+      } else {
+        monthlyMap[key].fuelRevenue += order.totalCents;
+      }
+
+      monthlyMap[key].gallons += gallons;
       monthlyMap[key].orders += 1;
     }
 
-    // Add subscription revenue to monthly (approximate by distributing evenly or just showing total)
-    // For now, we'll add subscription totals to the current month
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    if (!monthlyMap[currentMonthKey]) {
-      monthlyMap[currentMonthKey] = { fuelRevenue: 0, serviceFeeRevenue: 0, subscriptionRevenue: 0, gallons: 0, orders: 0 };
-    }
-    if (period === "all") {
-      // Distribute subscription revenue to current month as a simplification
-      monthlyMap[currentMonthKey].subscriptionRevenue = subscriptionRevenue;
-    } else {
-      // For filtered periods, just add it to the first available month
-      const keys = Object.keys(monthlyMap).sort().reverse();
-      if (keys.length > 0) {
-        monthlyMap[keys[0]].subscriptionRevenue = subscriptionRevenue;
-      }
-    }
+    // Distribute subscription revenue into months (from Stripe invoice dates if possible)
+    // For simplicity, add total subscription revenue to the summary
+    // The monthly table will show order-based revenue per month + subscription as a separate total
 
     const monthly = Object.entries(monthlyMap)
       .sort(([a], [b]) => b.localeCompare(a))

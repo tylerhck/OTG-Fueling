@@ -25,7 +25,7 @@ interface BookkeepingData {
 export default function BookkeepingPage() {
   const [data, setData] = useState<BookkeepingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<"all" | "month" | "week" | "today">("all");
+  const [period, setPeriod] = useState<"all" | "year" | "month" | "week" | "today">("all");
 
   async function fetchData() {
     setLoading(true);
@@ -57,7 +57,7 @@ export default function BookkeepingPage() {
         </div>
         {/* Period filter */}
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          {(["today", "week", "month", "all"] as const).map((p) => (
+          {(["today", "week", "month", "year", "all"] as const).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -65,7 +65,7 @@ export default function BookkeepingPage() {
                 period === p ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              {p === "all" ? "All Time" : p === "month" ? "This Month" : p === "week" ? "This Week" : "Today"}
+              {p === "all" ? "All Time" : p === "year" ? "This Year" : p === "month" ? "This Month" : p === "week" ? "This Week" : "Today"}
             </button>
           ))}
         </div>
