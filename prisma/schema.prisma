@@ -432,3 +432,15 @@ model BanEntry {
   @@unique([type, value])
   @@map("ban_entries")
 }
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String   @db.VarChar(50)
+  amountCents Int      @map("amount_cents")
+  description String?  @db.Text
+  expenseDate DateTime @map("expense_date") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("expenses")
+}
