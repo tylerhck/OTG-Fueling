@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 interface WalkUpOrder {
   id: string;
@@ -24,6 +24,13 @@ interface FuelPrices {
   DIESEL: number;
 }
 
+interface User {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 export default function WalkUpPage() {
   const [orders, setOrders] = useState<WalkUpOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +38,13 @@ export default function WalkUpPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [prices, setPrices] = useState<FuelPrices | null>(null);
+
+  // User search
+  const [userSearch, setUserSearch] = useState("");
+  const [userResults, setUserResults] = useState<User[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserSearch, setShowUserSearch] = useState(false);
 
   // Form fields
   const [name, setName] = useState("");
@@ -73,11 +87,36 @@ export default function WalkUpPage() {
           });
         }
         setPrices(p);
-        // Set default price
         setPricePerGallon(p.REGULAR_87.toFixed(2));
       }
     } catch (err) {
       console.error("Failed to fetch prices:", err);
+    }
+  }
+
+  // Search users
+  async function searchUsers(query: string) {
+    if (query.length < 2) {
+      setUserResults([]);
+      return;
+    }
+    setSearchingUsers(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        const q = query.toLowerCase();
+        const filtered = (data || []).filter((u: User) =>
+          (u.name && u.name.toLowerCase().includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.phone && u.phone.includes(q))
+        );
+        setUserResults(filtered.slice(0, 8));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSearchingUsers(false);
     }
   }
 
@@ -86,6 +125,15 @@ export default function WalkUpPage() {
     fetchPrices();
   }, []);
 
+  // Debounced user search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (userSearch.trim()) searchUsers(userSearch.trim());
+      else setUserResults([]);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearch]);
+
   // Auto-update price when fuel type changes
   useEffect(() => {
     if (prices) {
@@ -93,6 +141,24 @@ export default function WalkUpPage() {
       setPricePerGallon(price.toFixed(2));
     }
   }, [fuelType, prices]);
+
+  function selectUser(user: User) {
+    setSelectedUser(user);
+    setName(user.name || "");
+    setEmail(user.email || "");
+    setPhone(user.phone || "");
+    setShowUserSearch(false);
+    setUserSearch("");
+    setUserResults([]);
+  }
+
+  function clearSelectedUser() {
+    setSelectedUser(null);
+    setName("");
+    setEmail("");
+    setPhone("");
+    setVehicle("");
+  }
 
   // Calculate total
   const fuelCost = (parseFloat(gallons) || 0) * (parseFloat(pricePerGallon) || 0);
@@ -130,7 +196,6 @@ export default function WalkUpPage() {
       });
 
       if (res.ok) {
-        const data = await res.json();
         setMessage({ text: `Order completed! Receipt sent to ${email}`, type: "success" });
         // Reset form
         setName("");
@@ -140,6 +205,7 @@ export default function WalkUpPage() {
         setGallons("");
         setNotes("");
         setServiceFee("15.00");
+        setSelectedUser(null);
         setShowForm(false);
         fetchOrders();
       } else {
@@ -189,7 +255,71 @@ export default function WalkUpPage() {
         <form onSubmit={handleSubmit} className="mt-6 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">New Walk-Up Order</h2>
 
-          {/* Customer Info */}
+          {/* Existing User Selection */}
+          <div className="mb-6 pb-4 border-b border-gray-100">
+            {selectedUser ? (
+              <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 p-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">{selectedUser.name || "No name"}</p>
+                  <p className="text-xs text-blue-700">{selectedUser.email} {selectedUser.phone ? `• ${selectedUser.phone}` : ""}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelectedUser}
+                  className="rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowUserSearch(!showUserSearch)}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
+                  >
+                    Select Existing User
+                  </button>
+                  <span className="self-center text-sm text-gray-400">or enter info manually below</span>
+                </div>
+
+                {showUserSearch && (
+                  <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder="Search by name, email, or phone..."
+                      autoFocus
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    {searchingUsers && <p className="mt-2 text-xs text-gray-400">Searching...</p>}
+                    {userResults.length > 0 && (
+                      <div className="mt-2 max-h-48 overflow-y-auto divide-y divide-gray-100">
+                        {userResults.map((u) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => selectUser(u)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-md transition-colors"
+                          >
+                            <p className="text-sm font-medium text-gray-900">{u.name || "No name"}</p>
+                            <p className="text-xs text-gray-500">{u.email} {u.phone ? `• ${u.phone}` : ""}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {userSearch.length >= 2 && !searchingUsers && userResults.length === 0 && (
+                      <p className="mt-2 text-xs text-gray-400">No users found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Customer Info (manual entry or editable after selecting user) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
