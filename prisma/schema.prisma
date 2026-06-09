@@ -61,8 +61,6 @@ model User {
   phone         String?
   referralSource String?  @map("referral_source")
   role          Role      @default(CUSTOMER)
-  totpSecret    String?   @map("totp_secret")   
-  totpEnabled   Boolean   @default(false) @map("totp_enabled")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
