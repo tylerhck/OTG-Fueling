@@ -2,12 +2,32 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+async function ensureTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS active_sessions (
+      id VARCHAR(191) NOT NULL PRIMARY KEY,
+      user_id VARCHAR(191) NOT NULL,
+      token VARCHAR(191) NOT NULL,
+      ip_address VARCHAR(45),
+      city VARCHAR(100),
+      region VARCHAR(100),
+      country VARCHAR(100),
+      user_agent TEXT,
+      last_active_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      INDEX idx_active_sessions_user_id (user_id)
+    )
+  `);
+}
+
 // GET /api/admin/sessions — Get all active sessions for all admin users
 export async function GET() {
   const session = await auth();
   if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  await ensureTable();
 
   // Get all active sessions for admin users
   const sessions = await prisma.activeSession.findMany({

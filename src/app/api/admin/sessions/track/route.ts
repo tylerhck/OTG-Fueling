@@ -4,13 +4,31 @@ import { prisma } from "@/lib/prisma";
 import { getGeoFromIp, getClientIp } from "@/lib/geo";
 import { randomBytes } from "crypto";
 
-// GET /api/admin/sessions/track — Record current session (called when admin visits security page or any admin page)
+async function ensureTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS active_sessions (
+      id VARCHAR(191) NOT NULL PRIMARY KEY,
+      user_id VARCHAR(191) NOT NULL,
+      token VARCHAR(191) NOT NULL,
+      ip_address VARCHAR(45),
+      city VARCHAR(100),
+      region VARCHAR(100),
+      country VARCHAR(100),
+      user_agent TEXT,
+      last_active_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      INDEX idx_active_sessions_user_id (user_id)
+    )
+  `);
+}
+
+// GET /api/admin/sessions/track — Record current session
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Not authenticated", debug: "no session" }, { status: 401 });
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -19,6 +37,9 @@ export async function GET(req: NextRequest) {
     if (role !== "ADMIN") {
       return NextResponse.json({ ok: true, skipped: "not admin" });
     }
+
+    // Ensure table exists
+    await ensureTable();
 
     const ip = getClientIp(req.headers);
     const userAgent = req.headers.get("user-agent") || null;
@@ -30,7 +51,6 @@ export async function GET(req: NextRequest) {
     });
 
     if (existing) {
-      // Update last active time
       await prisma.activeSession.update({
         where: { id: existing.id },
         data: { lastActiveAt: new Date() },
@@ -59,7 +79,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Keep POST for backwards compat with sign-in page
+// Keep POST for sign-in page compat
 export async function POST(req: NextRequest) {
   return GET(req);
 }
