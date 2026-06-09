@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+    return null;
+  }
+  return session;
+}
+
 export async function GET(req: NextRequest) {
+  if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const period = req.nextUrl.searchParams.get("period") || "all";
 
@@ -43,6 +54,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await req.json();
     const { category, amount, description, date, receiptImage } = body;
@@ -72,6 +84,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!await requireAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) {

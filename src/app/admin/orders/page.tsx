@@ -85,6 +85,18 @@ export default function AdminOrders() {
     setUpdating(null);
   }
 
+  async function deleteOrder(orderId: string) {
+    if (!confirm("Permanently delete this order? This cannot be undone.")) return;
+    setUpdating(orderId);
+    const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
+    if (res.ok) {
+      await loadOrders();
+    } else {
+      alert("Failed to delete order");
+    }
+    setUpdating(null);
+  }
+
   useEffect(() => {
     loadOrders();
   }, []);
@@ -654,6 +666,16 @@ export default function AdminOrders() {
                       className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       Cancel
+                    </button>
+                  )}
+                  {/* Delete button for completed/cancelled/unresolved orders */}
+                  {(order.status === "COMPLETED" || order.status === "CANCELLED") && (
+                    <button
+                      onClick={() => deleteOrder(order.id)}
+                      disabled={updating === order.id}
+                      className="rounded-lg bg-gray-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      🗑️ Delete
                     </button>
                   )}
                 </div>

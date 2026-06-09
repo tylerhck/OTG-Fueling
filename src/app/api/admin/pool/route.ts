@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const POOL_KEY = "pool_tally";
@@ -29,6 +31,10 @@ async function savePlayers(players: Player[]) {
 }
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const players = await getPlayers();
     return NextResponse.json({ players });
@@ -39,6 +45,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await req.json();
     const { action, name, amount } = body;

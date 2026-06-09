@@ -220,6 +220,36 @@ export default function BookkeepingPage() {
             </div>
           </div>
 
+          {/* Net Profit Bar Chart */}
+          {revenueData && revenueData.monthly.length > 0 && (
+            <div className="mt-6 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Monthly Net Profit</h3>
+              <div className="flex items-end gap-2 h-40 overflow-x-auto">
+                {revenueData.monthly.map((row) => {
+                  // Calculate monthly expenses (approximate by distributing total evenly if no monthly breakdown)
+                  const monthlyExpense = expenseData ? Math.round(expenseData.totalExpenses / Math.max(revenueData.monthly.length, 1)) : 0;
+                  const monthNet = row.totalRevenue - monthlyExpense;
+                  const maxVal = Math.max(...revenueData.monthly.map(m => Math.abs(m.totalRevenue)), 1);
+                  const barHeight = Math.max(Math.abs(row.totalRevenue) / maxVal * 100, 4);
+                  return (
+                    <div key={row.month} className="flex flex-col items-center flex-1 min-w-[40px]">
+                      <span className="text-[10px] text-gray-500 mb-1">
+                        {fmt(row.totalRevenue)}
+                      </span>
+                      <div
+                        className={`w-full rounded-t-md ${row.totalRevenue >= 0 ? 'bg-green-500' : 'bg-red-400'}`}
+                        style={{ height: `${barHeight}%`, minHeight: '4px' }}
+                      />
+                      <span className="text-[10px] text-gray-400 mt-1 truncate w-full text-center">
+                        {row.month.split(' ')[0]?.slice(0, 3)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Revenue Cards */}
           <div className="mt-6">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Revenue (Credits)</h2>
