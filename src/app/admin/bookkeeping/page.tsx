@@ -2,24 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 
-interface BookkeepingData {
-  totals: {
-    fuelRevenue: number;
-    serviceFeeRevenue: number;
-    subscriptionRevenue: number;
-    totalRevenue: number;
-    totalGallons: number;
-    totalOrders: number;
-  };
-  monthly: {
-    month: string;
-    fuelRevenue: number;
-    serviceFeeRevenue: number;
-    subscriptionRevenue: number;
-    totalRevenue: number;
-    gallons: number;
-    orders: number;
-  }[];
+interface Credit {
+  id: string;
+  amountCents: number;
+  description: string | null;
+  creditDate: string;
 }
 
 interface Expense {
@@ -31,10 +18,20 @@ interface Expense {
   expenseDate: string;
 }
 
-interface ExpenseData {
+interface BookkeepingData {
+  totals: {
+    totalCredits: number;
+    totalExpenses: number;
+    netProfit: number;
+  };
+  monthly: {
+    month: string;
+    credits: number;
+    expenses: number;
+    netProfit: number;
+  }[];
+  credits: Credit[];
   expenses: Expense[];
-  categoryTotals: Record<string, number>;
-  totalExpenses: number;
 }
 
 const CATEGORIES = [
@@ -50,33 +47,39 @@ const CATEGORIES = [
 ];
 
 export default function BookkeepingPage() {
-  const [revenueData, setRevenueData] = useState<BookkeepingData | null>(null);
-  const [expenseData, setExpenseData] = useState<ExpenseData | null>(null);
+  const [data, setData] = useState<BookkeepingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<"all" | "year" | "month" | "week" | "today">("all");
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+
+  // Credit form
+  const [showCreditForm, setShowCreditForm] = useState(false);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditDescription, setCreditDescription] = useState("");
+  const [creditDate, setCreditDate] = useState(new Date().toISOString().split("T")[0]);
+  const [creditSubmitting, setCreditSubmitting] = useState(false);
 
   // Expense form
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expCategory, setExpCategory] = useState("Fuel Purchased");
   const [expAmount, setExpAmount] = useState("");
   const [expDescription, setExpDescription] = useState("");
   const [expDate, setExpDate] = useState(new Date().toISOString().split("T")[0]);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [expSubmitting, setExpSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Receipt viewer
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
   async function fetchData() {
     setLoading(true);
     try {
-      const [revRes, expRes] = await Promise.all([
-        fetch(`/api/admin/bookkeeping?period=${period}`),
-        fetch(`/api/admin/expenses?period=${period}`),
-      ]);
-      if (revRes.ok) setRevenueData(await revRes.json());
-      if (expRes.ok) setExpenseData(await expRes.json());
+      const res = await fetch(`/api/admin/bookkeeping?period=${period}`);
+      if (res.ok) {
+        setData(await res.json());
+      }
     } catch (err) {
-      console.error("Failed to fetch data:", err);
+      console.error("Failed to fetch bookkeeping data:", err);
     } finally {
       setLoading(false);
     }
@@ -86,17 +89,54 @@ export default function BookkeepingPage() {
     fetchData();
   }, [period]);
 
+  // Credit handlers
+  async function addCredit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!creditAmount || parseFloat(creditAmount) <= 0) return;
+    setCreditSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(creditAmount),
+          description: creditDescription.trim(),
+          date: creditDate,
+        }),
+      });
+      if (res.ok) {
+        setCreditAmount("");
+        setCreditDescription("");
+        setCreditDate(new Date().toISOString().split("T")[0]);
+        setShowCreditForm(false);
+        fetchData();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCreditSubmitting(false);
+    }
+  }
+
+  async function deleteCredit(id: string) {
+    if (!confirm("Delete this credit entry?")) return;
+    await fetch("/api/admin/credits", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchData();
+  }
+
+  // Expense handlers
   function handleReceiptSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Compress and convert to base64
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        // Resize to max 800px wide
         const maxWidth = 800;
         const scale = Math.min(1, maxWidth / img.width);
         canvas.width = img.width * scale;
@@ -104,7 +144,6 @@ export default function BookkeepingPage() {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Compress to 70% quality JPEG
           const compressed = canvas.toDataURL("image/jpeg", 0.7);
           setReceiptPreview(compressed);
         }
@@ -117,7 +156,7 @@ export default function BookkeepingPage() {
   async function addExpense(e: React.FormEvent) {
     e.preventDefault();
     if (!expAmount || parseFloat(expAmount) <= 0) return;
-    setSubmitting(true);
+    setExpSubmitting(true);
     try {
       const res = await fetch("/api/admin/expenses", {
         method: "POST",
@@ -141,7 +180,7 @@ export default function BookkeepingPage() {
     } catch {
       // ignore
     } finally {
-      setSubmitting(false);
+      setExpSubmitting(false);
     }
   }
 
@@ -156,9 +195,17 @@ export default function BookkeepingPage() {
     return `$${(abs / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const totalRevenue = revenueData?.totals.totalRevenue || 0;
-  const totalExpenses = expenseData?.totalExpenses || 0;
-  const netProfit = totalRevenue - totalExpenses;
+  const totalCredits = data?.totals.totalCredits || 0;
+  const totalExpenses = data?.totals.totalExpenses || 0;
+  const netProfit = data?.totals.netProfit || 0;
+
+  // Category totals from expenses
+  const categoryTotals: Record<string, number> = {};
+  if (data?.expenses) {
+    for (const exp of data.expenses) {
+      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amountCents;
+    }
+  }
 
   return (
     <div>
@@ -183,7 +230,7 @@ export default function BookkeepingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookkeeping</h1>
-          <p className="mt-1 text-sm text-gray-500">Revenue, expenses, and net profit</p>
+          <p className="mt-1 text-sm text-gray-500">Manual credits, expenses, and net profit</p>
         </div>
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {(["today", "week", "month", "year", "all"] as const).map((p) => (
@@ -214,34 +261,31 @@ export default function BookkeepingPage() {
                 </p>
               </div>
               <div className="text-right text-sm text-gray-500">
-                <p>Revenue: <span className="font-medium text-green-700">{fmt(totalRevenue)}</span></p>
+                <p>Credits: <span className="font-medium text-green-700">{fmt(totalCredits)}</span></p>
                 <p>Expenses: <span className="font-medium text-red-700">-{fmt(totalExpenses)}</span></p>
               </div>
             </div>
           </div>
 
-          {/* Net Profit Bar Chart */}
-          {revenueData && revenueData.monthly.length > 0 && (
+          {/* Monthly Net Profit Bar Chart */}
+          {data && data.monthly.length > 0 && (
             <div className="mt-6 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Monthly Net Profit</h3>
               <div className="flex items-end gap-2 h-40 overflow-x-auto">
-                {revenueData.monthly.map((row) => {
-                  // Calculate monthly expenses (approximate by distributing total evenly if no monthly breakdown)
-                  const monthlyExpense = expenseData ? Math.round(expenseData.totalExpenses / Math.max(revenueData.monthly.length, 1)) : 0;
-                  const monthNet = row.totalRevenue - monthlyExpense;
-                  const maxVal = Math.max(...revenueData.monthly.map(m => Math.abs(m.totalRevenue)), 1);
-                  const barHeight = Math.max(Math.abs(row.totalRevenue) / maxVal * 100, 4);
+                {data.monthly.map((row) => {
+                  const maxVal = Math.max(...data.monthly.map(m => Math.abs(m.netProfit)), 1);
+                  const barHeight = Math.max(Math.abs(row.netProfit) / maxVal * 100, 4);
                   return (
-                    <div key={row.month} className="flex flex-col items-center flex-1 min-w-[40px]">
+                    <div key={row.month} className="flex flex-col items-center flex-1 min-w-[50px]">
                       <span className="text-[10px] text-gray-500 mb-1">
-                        {fmt(row.totalRevenue)}
+                        {row.netProfit >= 0 ? "+" : "-"}{fmt(row.netProfit)}
                       </span>
                       <div
-                        className={`w-full rounded-t-md ${row.totalRevenue >= 0 ? 'bg-green-500' : 'bg-red-400'}`}
-                        style={{ height: `${barHeight}%`, minHeight: '4px' }}
+                        className={`w-full rounded-t-md ${row.netProfit >= 0 ? "bg-green-500" : "bg-red-400"}`}
+                        style={{ height: `${barHeight}%`, minHeight: "4px" }}
                       />
                       <span className="text-[10px] text-gray-400 mt-1 truncate w-full text-center">
-                        {row.month.split(' ')[0]?.slice(0, 3)}
+                        {row.month}
                       </span>
                     </div>
                   );
@@ -250,29 +294,108 @@ export default function BookkeepingPage() {
             </div>
           )}
 
-          {/* Revenue Cards */}
-          <div className="mt-6">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Revenue (Credits)</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Revenue</p>
-                <p className="mt-2 text-2xl font-bold text-green-700">{fmt(totalRevenue)}</p>
-                <p className="mt-1 text-xs text-gray-400">{revenueData?.totals.totalOrders || 0} orders</p>
-              </div>
-              <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Fuel Charged</p>
-                <p className="mt-2 text-xl font-bold text-gray-900">{fmt(revenueData?.totals.fuelRevenue || 0)}</p>
-                <p className="mt-1 text-xs text-gray-400">{(revenueData?.totals.totalGallons || 0).toFixed(1)} gal</p>
-              </div>
-              <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                <p className="text-xs font-medium text-green-600 uppercase tracking-wide">Service Fees</p>
-                <p className="mt-2 text-xl font-bold text-gray-900">{fmt(revenueData?.totals.serviceFeeRevenue || 0)}</p>
-              </div>
-              <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                <p className="text-xs font-medium text-purple-600 uppercase tracking-wide">Subscriptions</p>
-                <p className="mt-2 text-xl font-bold text-gray-900">{fmt(revenueData?.totals.subscriptionRevenue || 0)}</p>
-              </div>
+          {/* Credits Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Credits (Income)</h2>
+              <button
+                onClick={() => setShowCreditForm(!showCreditForm)}
+                className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-500 transition-colors"
+              >
+                {showCreditForm ? "Cancel" : "+ Add Credit"}
+              </button>
             </div>
+
+            {/* Add Credit Form */}
+            {showCreditForm && (
+              <form onSubmit={addCredit} className="mb-4 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Amount ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={creditAmount}
+                      onChange={(e) => setCreditAmount(e.target.value)}
+                      placeholder="0.00"
+                      required
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={creditDate}
+                      onChange={(e) => setCreditDate(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                    <input
+                      type="text"
+                      value={creditDescription}
+                      onChange={(e) => setCreditDescription(e.target.value)}
+                      placeholder="e.g. Stripe settlement, Cash payment"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={creditSubmitting}
+                      className="w-full rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+                    >
+                      {creditSubmitting ? "..." : "Add Credit"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+
+            {/* Credits List */}
+            {data && data.credits.length > 0 && (
+              <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden mb-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Date</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Description</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-700">Amount</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-700"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {data.credits.map((credit) => (
+                        <tr key={credit.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-gray-700">
+                            {new Date(credit.creditDate).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{credit.description || "—"}</td>
+                          <td className="px-4 py-3 text-right font-medium text-green-700">+{fmt(credit.amountCents)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => deleteCredit(credit.id)}
+                              className="text-xs text-gray-400 hover:text-red-600"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {data && data.credits.length === 0 && !showCreditForm && (
+              <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-100 text-center text-gray-500 mb-4">
+                No credits recorded yet. Click &quot;+ Add Credit&quot; to log income (e.g. when Stripe settles to your bank).
+              </div>
+            )}
           </div>
 
           {/* Expenses Section */}
@@ -337,10 +460,10 @@ export default function BookkeepingPage() {
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      disabled={submitting}
+                      disabled={expSubmitting}
                       className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
                     >
-                      {submitting ? "..." : "Add"}
+                      {expSubmitting ? "..." : "Add"}
                     </button>
                   </div>
                 </div>
@@ -382,9 +505,9 @@ export default function BookkeepingPage() {
             )}
 
             {/* Category Breakdown Cards */}
-            {expenseData && Object.keys(expenseData.categoryTotals).length > 0 && (
+            {Object.keys(categoryTotals).length > 0 && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 mb-4">
-                {Object.entries(expenseData.categoryTotals)
+                {Object.entries(categoryTotals)
                   .sort(([, a], [, b]) => b - a)
                   .map(([cat, cents]) => (
                     <div key={cat} className="rounded-lg bg-white p-3 shadow-sm border border-gray-100">
@@ -400,7 +523,7 @@ export default function BookkeepingPage() {
             )}
 
             {/* Recent Expenses List */}
-            {expenseData && expenseData.expenses.length > 0 && (
+            {data && data.expenses.length > 0 && (
               <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -415,7 +538,7 @@ export default function BookkeepingPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {expenseData.expenses.map((exp) => (
+                      {data.expenses.map((exp) => (
                         <tr key={exp.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-gray-700">
                             {new Date(exp.expenseDate).toLocaleDateString()}
@@ -455,49 +578,12 @@ export default function BookkeepingPage() {
               </div>
             )}
 
-            {expenseData && expenseData.expenses.length === 0 && !showExpenseForm && (
+            {data && data.expenses.length === 0 && !showExpenseForm && (
               <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-100 text-center text-gray-500">
                 No expenses recorded yet. Click &quot;+ Add Expense&quot; to start tracking.
               </div>
             )}
           </div>
-
-          {/* Monthly Revenue Breakdown */}
-          {revenueData && revenueData.monthly.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Monthly Revenue Breakdown</h2>
-              <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700">Month</th>
-                        <th className="px-4 py-3 text-right font-medium text-blue-600">Fuel</th>
-                        <th className="px-4 py-3 text-right font-medium text-green-600">Service Fees</th>
-                        <th className="px-4 py-3 text-right font-medium text-purple-600">Subscriptions</th>
-                        <th className="px-4 py-3 text-right font-medium text-gray-700">Total</th>
-                        <th className="px-4 py-3 text-right font-medium text-gray-500">Gallons</th>
-                        <th className="px-4 py-3 text-right font-medium text-gray-500">Orders</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {revenueData.monthly.map((row) => (
-                        <tr key={row.month} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-900">{row.month}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{fmt(row.fuelRevenue)}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{fmt(row.serviceFeeRevenue)}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{fmt(row.subscriptionRevenue)}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmt(row.totalRevenue)}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">{row.gallons.toFixed(1)}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">{row.orders}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Stripe from "stripe";
-
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2025-04-30.basil" as any });
-}
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as { role: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
   try {
     const period = req.nextUrl.searchParams.get("period") || "all";
 
-    // Calculate date filter
     let dateFilter: Date | null = null;
     const now = new Date();
     if (period === "today") {
@@ -25,151 +20,73 @@ export async function GET(req: NextRequest) {
     } else if (period === "month") {
       dateFilter = new Date(now.getFullYear(), now.getMonth(), 1);
     } else if (period === "year") {
-      dateFilter = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
+      dateFilter = new Date(now.getFullYear(), 0, 1);
     }
 
-    // Fetch completed orders
-    const whereClause: any = { status: "COMPLETED" };
+    // Fetch credits
+    const creditWhere: any = {};
     if (dateFilter) {
-      whereClause.createdAt = { gte: dateFilter };
+      creditWhere.creditDate = { gte: dateFilter };
     }
-
-    const orders = await prisma.order.findMany({
-      where: whereClause,
-      select: {
-        totalCents: true,
-        deliveryFeeCents: true,
-        gallons: true,
-        pricePerGallonCents: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
+    const credits = await prisma.credit.findMany({
+      where: creditWhere,
+      orderBy: { creditDate: "desc" },
     });
 
-    // Calculate fuel vs service fee totals
-    // Service fee = total - (gallons * pricePerGallon)
-    // If deliveryFeeCents is set and > 0, use that directly
-    // Otherwise calculate from the difference
-    let fuelRevenue = 0;
-    let serviceFeeRevenue = 0;
-    let totalGallons = 0;
-
-    for (const order of orders) {
-      const gallons = order.gallons || 0;
-      const ppg = order.pricePerGallonCents || 0;
-      const calculatedFuelCents = Math.round(gallons * ppg);
-
-      if (order.deliveryFeeCents && order.deliveryFeeCents > 0) {
-        // Service fee was explicitly recorded
-        serviceFeeRevenue += order.deliveryFeeCents;
-        fuelRevenue += order.totalCents - order.deliveryFeeCents;
-      } else if (calculatedFuelCents > 0 && order.totalCents > calculatedFuelCents) {
-        // Calculate service fee as difference between total and fuel cost
-        const impliedServiceFee = order.totalCents - calculatedFuelCents;
-        serviceFeeRevenue += impliedServiceFee;
-        fuelRevenue += calculatedFuelCents;
-      } else {
-        // Can't determine breakdown — put it all in fuel
-        fuelRevenue += order.totalCents;
-      }
-
-      totalGallons += gallons;
+    // Fetch expenses
+    const expenseWhere: any = {};
+    if (dateFilter) {
+      expenseWhere.expenseDate = { gte: dateFilter };
     }
+    const expenses = await prisma.expense.findMany({
+      where: expenseWhere,
+      orderBy: { expenseDate: "desc" },
+    });
 
-    // Fetch subscription revenue from Stripe
-    let subscriptionRevenue = 0;
-    try {
-      const listParams: any = { limit: 100, status: "paid" };
-      if (dateFilter) {
-        listParams.created = { gte: Math.floor(dateFilter.getTime() / 1000) };
-      }
+    // Calculate totals
+    const totalCredits = credits.reduce((sum, c) => sum + c.amountCents, 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amountCents, 0);
+    const netProfit = totalCredits - totalExpenses;
 
-      const stripe = getStripe();
-      const invoices = await stripe.invoices.list(listParams);
+    // Monthly breakdown for chart
+    const monthlyMap: Record<string, { credits: number; expenses: number }> = {};
 
-      for (const invoice of invoices.data) {
-        if (invoice.subscription) {
-          subscriptionRevenue += invoice.amount_paid;
-        }
-      }
-
-      // Paginate
-      let hasMore = invoices.has_more;
-      let lastId = invoices.data.length > 0 ? invoices.data[invoices.data.length - 1].id : null;
-      while (hasMore && lastId) {
-        const more = await stripe.invoices.list({
-          ...listParams,
-          starting_after: lastId,
-        });
-        for (const invoice of more.data) {
-          if (invoice.subscription) {
-            subscriptionRevenue += invoice.amount_paid;
-          }
-        }
-        hasMore = more.has_more;
-        lastId = more.data.length > 0 ? more.data[more.data.length - 1].id : null;
-      }
-    } catch (stripeErr) {
-      console.error("Stripe subscription fetch error:", stripeErr);
-    }
-
-    const totalRevenue = fuelRevenue + serviceFeeRevenue + subscriptionRevenue;
-
-    // Monthly breakdown
-    const monthlyMap: Record<string, { fuelRevenue: number; serviceFeeRevenue: number; subscriptionRevenue: number; gallons: number; orders: number }> = {};
-
-    for (const order of orders) {
-      const d = new Date(order.createdAt);
+    for (const credit of credits) {
+      const d = new Date(credit.creditDate);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (!monthlyMap[key]) {
-        monthlyMap[key] = { fuelRevenue: 0, serviceFeeRevenue: 0, subscriptionRevenue: 0, gallons: 0, orders: 0 };
-      }
-
-      const gallons = order.gallons || 0;
-      const ppg = order.pricePerGallonCents || 0;
-      const calculatedFuelCents = Math.round(gallons * ppg);
-
-      if (order.deliveryFeeCents && order.deliveryFeeCents > 0) {
-        monthlyMap[key].serviceFeeRevenue += order.deliveryFeeCents;
-        monthlyMap[key].fuelRevenue += order.totalCents - order.deliveryFeeCents;
-      } else if (calculatedFuelCents > 0 && order.totalCents > calculatedFuelCents) {
-        const impliedServiceFee = order.totalCents - calculatedFuelCents;
-        monthlyMap[key].serviceFeeRevenue += impliedServiceFee;
-        monthlyMap[key].fuelRevenue += calculatedFuelCents;
-      } else {
-        monthlyMap[key].fuelRevenue += order.totalCents;
-      }
-
-      monthlyMap[key].gallons += gallons;
-      monthlyMap[key].orders += 1;
+      if (!monthlyMap[key]) monthlyMap[key] = { credits: 0, expenses: 0 };
+      monthlyMap[key].credits += credit.amountCents;
     }
 
-    // Distribute subscription revenue into months (from Stripe invoice dates if possible)
-    // For simplicity, add total subscription revenue to the summary
-    // The monthly table will show order-based revenue per month + subscription as a separate total
+    for (const expense of expenses) {
+      const d = new Date(expense.expenseDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthlyMap[key]) monthlyMap[key] = { credits: 0, expenses: 0 };
+      monthlyMap[key].expenses += expense.amountCents;
+    }
 
     const monthly = Object.entries(monthlyMap)
-      .sort(([a], [b]) => b.localeCompare(a))
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, val]) => {
         const [year, month] = key.split("-");
-        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
         return {
           month: monthName,
-          ...val,
-          totalRevenue: val.fuelRevenue + val.serviceFeeRevenue + val.subscriptionRevenue,
+          credits: val.credits,
+          expenses: val.expenses,
+          netProfit: val.credits - val.expenses,
         };
       });
 
     return NextResponse.json({
       totals: {
-        fuelRevenue,
-        serviceFeeRevenue,
-        subscriptionRevenue,
-        totalRevenue,
-        totalGallons,
-        totalOrders: orders.length,
+        totalCredits,
+        totalExpenses,
+        netProfit,
       },
       monthly,
+      credits,
+      expenses,
     });
   } catch (error) {
     console.error("Bookkeeping error:", error);

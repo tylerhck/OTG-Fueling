@@ -447,3 +447,14 @@ model Expense {
 
   @@map("expenses")
 }
+
+model Credit {
+  id          String   @id @default(cuid())
+  amountCents Int      @map("amount_cents")
+  description String?  @db.VarChar(255)
+  creditDate  DateTime @map("credit_date") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("credits")
+}
