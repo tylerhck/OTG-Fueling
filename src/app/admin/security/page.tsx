@@ -35,7 +35,11 @@ export default function SecurityPage() {
   }, []);
 
   useEffect(() => {
-    fetchSessions().finally(() => setLoading(false));
+    // First, record our own session, then fetch all sessions
+    fetch("/api/admin/sessions/track", { credentials: "include" })
+      .then(() => fetchSessions())
+      .catch(() => fetchSessions())
+      .finally(() => setLoading(false));
     // Refresh every 30 seconds
     const interval = setInterval(fetchSessions, 30000);
     return () => clearInterval(interval);

@@ -4,21 +4,18 @@ import { prisma } from "@/lib/prisma";
 import { getGeoFromIp, getClientIp } from "@/lib/geo";
 import { randomBytes } from "crypto";
 
-// POST /api/admin/sessions/track — Called after successful login to record session location
-export async function POST(req: NextRequest) {
+// GET /api/admin/sessions/track — Record current session (called when admin visits security page or any admin page)
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     
     if (!session?.user?.id) {
-      // Log for debugging
-      console.log("[SESSION TRACK] No session found - auth() returned:", JSON.stringify(session));
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json({ error: "Not authenticated", debug: "no session" }, { status: 401 });
     }
 
     const userId = session.user.id;
     const role = (session.user as { role?: string }).role;
 
-    // Only track admin sessions
     if (role !== "ADMIN") {
       return NextResponse.json({ ok: true, skipped: "not admin" });
     }
@@ -26,10 +23,23 @@ export async function POST(req: NextRequest) {
     const ip = getClientIp(req.headers);
     const userAgent = req.headers.get("user-agent") || null;
     const geo = await getGeoFromIp(ip);
+
+    // Check if we already have a session for this user from this IP
+    const existing = await prisma.activeSession.findFirst({
+      where: { userId, ipAddress: ip },
+    });
+
+    if (existing) {
+      // Update last active time
+      await prisma.activeSession.update({
+        where: { id: existing.id },
+        data: { lastActiveAt: new Date() },
+      });
+      return NextResponse.json({ ok: true, action: "updated" });
+    }
+
+    // Create new session record
     const token = randomBytes(32).toString("hex");
-
-    console.log("[SESSION TRACK] Creating session for user:", userId, "IP:", ip, "Geo:", JSON.stringify(geo));
-
     await prisma.activeSession.create({
       data: {
         id: randomBytes(12).toString("hex"),
@@ -43,10 +53,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log("[SESSION TRACK] Session created successfully");
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, action: "created", geo });
   } catch (err: any) {
-    console.error("[SESSION TRACK] Error:", err?.message || err);
-    return NextResponse.json({ error: "Failed to track session", detail: err?.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed", detail: err?.message }, { status: 500 });
   }
+}
+
+// Keep POST for backwards compat with sign-in page
+export async function POST(req: NextRequest) {
+  return GET(req);
 }
