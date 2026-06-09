@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2025-04-30.basil" as any });
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2025-04-30.basil" as any });
+}
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+  const session = await auth();
+  if (!session || (session.user as { role: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
@@ -83,6 +84,7 @@ export async function GET(req: NextRequest) {
         listParams.created = { gte: Math.floor(dateFilter.getTime() / 1000) };
       }
 
+      const stripe = getStripe();
       const invoices = await stripe.invoices.list(listParams);
 
       for (const invoice of invoices.data) {
