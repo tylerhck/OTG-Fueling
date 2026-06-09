@@ -69,12 +69,28 @@ export const addressSchema = z.object({
   zip: z.string().min(5, "ZIP code is required"),
 });
 
+// Texas bounding box (approximate)
+// Lat: 25.84 to 36.50, Lng: -106.65 to -93.51
+const TEXAS_LAT_MIN = 25.84;
+const TEXAS_LAT_MAX = 36.50;
+const TEXAS_LNG_MIN = -106.65;
+const TEXAS_LNG_MAX = -93.51;
+
 export const serviceAreaSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  centerLat: z.number().min(-90).max(90),
-  centerLng: z.number().min(-180).max(180),
+  centerLat: z.number().min(TEXAS_LAT_MIN, "Location must be in Texas").max(TEXAS_LAT_MAX, "Location must be in Texas"),
+  centerLng: z.number().min(TEXAS_LNG_MIN, "Location must be in Texas").max(TEXAS_LNG_MAX, "Location must be in Texas"),
   radiusMiles: z.number().positive("Radius must be positive"),
-  polygon: z.array(z.tuple([z.number(), z.number()])).min(3).nullable().optional(),
+  polygon: z.array(z.tuple([z.number(), z.number()])).min(3).nullable().optional().refine(
+    (polygon) => {
+      if (!polygon) return true;
+      return polygon.every(([lat, lng]) => 
+        lat >= TEXAS_LAT_MIN && lat <= TEXAS_LAT_MAX && 
+        lng >= TEXAS_LNG_MIN && lng <= TEXAS_LNG_MAX
+      );
+    },
+    { message: "All polygon points must be within Texas" }
+  ),
   isActive: z.boolean().default(true),
 });
 
