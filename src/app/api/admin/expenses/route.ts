@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { category, amount, description, date } = body;
+    const { category, amount, description, date, receiptImage } = body;
 
     if (!category || !amount || amount <= 0) {
       return NextResponse.json({ error: "Category and amount are required" }, { status: 400 });
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
         category,
         amountCents,
         description: description || null,
+        receiptImage: receiptImage || null,
         expenseDate,
       },
     });

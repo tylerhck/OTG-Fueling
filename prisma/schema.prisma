@@ -434,13 +434,14 @@ model BanEntry {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  category    String   @db.VarChar(50)
-  amountCents Int      @map("amount_cents")
-  description String?  @db.Text
-  expenseDate DateTime @map("expense_date") @db.Date
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  category     String   @db.VarChar(50)
+  amountCents  Int      @map("amount_cents")
+  description  String?  @db.Text
+  receiptImage String?  @map("receipt_image") @db.LongText
+  expenseDate  DateTime @map("expense_date") @db.Date
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("expenses")
 }

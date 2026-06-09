@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface BookkeepingData {
   totals: {
@@ -27,6 +27,7 @@ interface Expense {
   category: string;
   amountCents: number;
   description: string | null;
+  receiptImage: string | null;
   expenseDate: string;
 }
 
@@ -55,12 +56,15 @@ export default function BookkeepingPage() {
   const [period, setPeriod] = useState<"all" | "year" | "month" | "week" | "today">("all");
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
   // Expense form
   const [expCategory, setExpCategory] = useState("Fuel Purchased");
   const [expAmount, setExpAmount] = useState("");
   const [expDescription, setExpDescription] = useState("");
   const [expDate, setExpDate] = useState(new Date().toISOString().split("T")[0]);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function fetchData() {
     setLoading(true);
@@ -82,6 +86,34 @@ export default function BookkeepingPage() {
     fetchData();
   }, [period]);
 
+  function handleReceiptSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Compress and convert to base64
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        // Resize to max 800px wide
+        const maxWidth = 800;
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Compress to 70% quality JPEG
+          const compressed = canvas.toDataURL("image/jpeg", 0.7);
+          setReceiptPreview(compressed);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function addExpense(e: React.FormEvent) {
     e.preventDefault();
     if (!expAmount || parseFloat(expAmount) <= 0) return;
@@ -95,11 +127,14 @@ export default function BookkeepingPage() {
           amount: parseFloat(expAmount),
           description: expDescription.trim(),
           date: expDate,
+          receiptImage: receiptPreview || null,
         }),
       });
       if (res.ok) {
         setExpAmount("");
         setExpDescription("");
+        setReceiptPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         setShowExpenseForm(false);
         fetchData();
       }
@@ -127,6 +162,24 @@ export default function BookkeepingPage() {
 
   return (
     <div>
+      {/* Receipt Viewer Modal */}
+      {viewingReceipt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setViewingReceipt(null)}
+        >
+          <div className="relative max-h-[90vh] max-w-[90vw] overflow-auto rounded-lg bg-white p-2">
+            <button
+              onClick={() => setViewingReceipt(null)}
+              className="absolute top-2 right-2 rounded-full bg-gray-900 text-white w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-gray-700 z-10"
+            >
+              &times;
+            </button>
+            <img src={viewingReceipt} alt="Receipt" className="max-h-[85vh] w-auto" />
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookkeeping</h1>
@@ -261,6 +314,40 @@ export default function BookkeepingPage() {
                     </button>
                   </div>
                 </div>
+                {/* Receipt Upload */}
+                <div className="mt-3 flex items-center gap-3">
+                  <label className="cursor-pointer rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-red-400 hover:text-red-600 transition-colors">
+                    📷 Attach Receipt
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleReceiptSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  {receiptPreview && (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={receiptPreview}
+                        alt="Receipt preview"
+                        className="h-12 w-12 rounded-lg object-cover border border-gray-200 cursor-pointer"
+                        onClick={() => setViewingReceipt(receiptPreview)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReceiptPreview(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
               </form>
             )}
 
@@ -292,6 +379,7 @@ export default function BookkeepingPage() {
                         <th className="px-4 py-3 text-left font-medium text-gray-700">Date</th>
                         <th className="px-4 py-3 text-left font-medium text-gray-700">Category</th>
                         <th className="px-4 py-3 text-left font-medium text-gray-700">Description</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-700">Receipt</th>
                         <th className="px-4 py-3 text-right font-medium text-gray-700">Amount</th>
                         <th className="px-4 py-3 text-right font-medium text-gray-700"></th>
                       </tr>
@@ -308,6 +396,18 @@ export default function BookkeepingPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-gray-600">{exp.description || "—"}</td>
+                          <td className="px-4 py-3 text-center">
+                            {exp.receiptImage ? (
+                              <button
+                                onClick={() => setViewingReceipt(exp.receiptImage!)}
+                                className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                              >
+                                📷 View
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-right font-medium text-red-700">{fmt(exp.amountCents)}</td>
                           <td className="px-4 py-3 text-right">
                             <button
