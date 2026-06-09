@@ -30,8 +30,8 @@ export default function SignInPage() {
     } else {
       // Track session location — wait for cookie to be set, then track
       try {
-        await new Promise((r) => setTimeout(r, 500));
-        await fetch("/api/admin/sessions/track", { method: "POST" });
+        await new Promise((r) => setTimeout(r, 1000));
+        await fetch("/api/admin/sessions/track", { method: "POST", credentials: "include" });
       } catch {}
       router.push("/");
       router.refresh();
