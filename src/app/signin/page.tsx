@@ -9,14 +9,38 @@ export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needs2FA, setNeeds2FA] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
+    // If 2FA is required, verify the code first
+    if (needs2FA) {
+      try {
+        const verifyRes = await fetch("/api/auth/2fa/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, code: totpCode }),
+        });
+        if (!verifyRes.ok) {
+          const data = await verifyRes.json();
+          setError(data.error || "Invalid 2FA code");
+          setLoading(false);
+          return;
+        }
+      } catch {
+        setError("Failed to verify 2FA code");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Now sign in with NextAuth
     const result = await signIn("credentials", {
       email,
       password,
@@ -30,6 +54,21 @@ export default function SignInPage() {
     } else {
       router.push("/");
       router.refresh();
+    }
+  }
+
+  async function handleEmailBlur() {
+    if (!email) return;
+    try {
+      const res = await fetch("/api/auth/2fa/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      setNeeds2FA(data.requires2FA || false);
+    } catch {
+      // Silently fail - will just not show 2FA field
     }
   }
 
@@ -66,6 +105,7 @@ export default function SignInPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={handleEmailBlur}
               className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
               placeholder="you@example.com"
             />
@@ -90,6 +130,28 @@ export default function SignInPage() {
               placeholder="••••••••"
             />
           </div>
+
+          {needs2FA && (
+            <div>
+              <label htmlFor="totp" className="block text-sm font-medium text-slate-700">
+                Authenticator Code
+              </label>
+              <p className="text-xs text-slate-500 mt-0.5 mb-1.5">Enter the 6-digit code from Google Authenticator</p>
+              <input
+                id="totp"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                required
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-center text-xl font-mono tracking-[0.3em] text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+          )}
 
           <button
             type="submit"
