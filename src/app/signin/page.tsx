@@ -28,8 +28,11 @@ export default function SignInPage() {
     if (result?.error) {
       setError("Invalid email or password");
     } else {
-      // Track session location (fire and forget — don't block redirect)
-      fetch("/api/admin/sessions/track", { method: "POST" }).catch(() => {});
+      // Track session location — wait for cookie to be set, then track
+      try {
+        await new Promise((r) => setTimeout(r, 500));
+        await fetch("/api/admin/sessions/track", { method: "POST" });
+      } catch {}
       router.push("/");
       router.refresh();
     }
