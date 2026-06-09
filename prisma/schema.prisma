@@ -73,6 +73,7 @@ model User {
     subscriptions Subscription[]
   recurringOrders RecurringOrder[]
   passwordResetTokens PasswordResetToken[]
+  activeSessions ActiveSession[]
   @@map("users")
 }
 
@@ -456,3 +457,22 @@ model Credit {
 
   @@map("credits")
 }
+
+model ActiveSession {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  token        String   @unique
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  city         String?  @db.VarChar(100)
+  region       String?  @db.VarChar(100)
+  country      String?  @db.VarChar(100)
+  userAgent    String?  @map("user_agent") @db.Text
+  lastActiveAt DateTime @default(now()) @map("last_active_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("active_sessions")
+}
+
+

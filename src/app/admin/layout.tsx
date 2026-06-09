@@ -20,6 +20,7 @@ const adminLinks = [
   { href: "/admin/walk-up", label: "Walk-Up" },
   { href: "/admin/bookkeeping", label: "Bookkeeping" },
   { href: "/admin/pool", label: "🎱 Pool" },
+  { href: "/admin/security", label: "🔒 Security" },
 ];
 
 export default function AdminLayout({
