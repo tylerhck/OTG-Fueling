@@ -2,11 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+async function ensureTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS credits (
+      id VARCHAR(191) NOT NULL PRIMARY KEY,
+      amount_cents INT NOT NULL,
+      description VARCHAR(255),
+      credit_date DATE NOT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+    )
+  `);
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as { role: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  await ensureTable();
 
   const period = req.nextUrl.searchParams.get("period") || "all";
   let dateFilter: Date | null = null;
@@ -40,6 +55,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await ensureTable();
+
   const body = await req.json();
   const { amount, description, date } = body;
 
@@ -65,6 +82,8 @@ export async function DELETE(req: NextRequest) {
   if (!session || (session.user as { role: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  await ensureTable();
 
   const { id } = await req.json();
   if (!id) {
