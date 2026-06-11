@@ -46,23 +46,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check if within any active service area
-  const serviceAreas = await prisma.serviceArea.findMany({
-    where: { isActive: true },
-  });
-  const inServiceArea = isInAnyServiceArea(geo.lat, geo.lng, serviceAreas);
-
-  if (!inServiceArea && serviceAreas.length > 0) {
-    return NextResponse.json(
-      {
-        error:
-          "This address is outside our current service area. We currently serve the Fort Worth area.",
-        lat: geo.lat,
-        lng: geo.lng,
-      },
-      { status: 400 }
-    );
-  }
+  // TEMPORARILY DISABLED for FIFA promotion — allow any address
+  // const serviceAreas = await prisma.serviceArea.findMany({
+  //   where: { isActive: true },
+  // });
+  // const inServiceArea = isInAnyServiceArea(geo.lat, geo.lng, serviceAreas);
+  // if (!inServiceArea && serviceAreas.length > 0) {
+  //   return NextResponse.json(
+  //     {
+  //       error:
+  //         "This address is outside our current service area. We currently serve the Fort Worth area.",
+  //       lat: geo.lat,
+  //       lng: geo.lng,
+  //     },
+  //     { status: 400 }
+  //   );
+  // }
 
   // If setting as default, unset others
   const isDefault = body.isDefault ?? false;

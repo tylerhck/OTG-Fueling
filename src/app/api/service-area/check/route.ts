@@ -22,35 +22,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const serviceAreas = await prisma.serviceArea.findMany({
-    where: { isActive: true },
+  // TEMPORARILY DISABLED for FIFA promotion — accept all addresses
+  return NextResponse.json({
+    message: "Great news! We deliver to your area. Sign up now!",
+    inServiceArea: true,
+    lat: geo.lat,
+    lng: geo.lng,
   });
-
-  if (serviceAreas.length === 0) {
-    return NextResponse.json(
-      { message: "Our service is being set up. Check back soon!" },
-      { status: 200 }
-    );
-  }
-
-  const inArea = isInAnyServiceArea(geo.lat, geo.lng, serviceAreas);
-
-  if (inArea) {
-    return NextResponse.json({
-      message: "Great news! We deliver to your area. Order now!",
-      inServiceArea: true,
-      lat: geo.lat,
-      lng: geo.lng,
-    });
-  }
-
-  return NextResponse.json(
-    {
-      error: "Sorry, we don't deliver to your area yet. We currently serve the Fort Worth area.",
-      inServiceArea: false,
-      lat: geo.lat,
-      lng: geo.lng,
-    },
-    { status: 400 }
-  );
 }

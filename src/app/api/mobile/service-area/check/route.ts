@@ -24,23 +24,9 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const areas = await prisma.serviceArea.findMany({
-    where: { isActive: true },
-  });
-
-  for (const area of areas) {
-    if (isInServiceArea(coords.lat, coords.lng, area)) {
-      return NextResponse.json({
-        inServiceArea: true,
-        serviceArea: { id: area.id, name: area.name },
-        message: `Great news! We deliver to your area.`,
-      });
-    }
-  }
-
+  // TEMPORARILY DISABLED for FIFA promotion — accept all addresses
   return NextResponse.json({
-    inServiceArea: false,
-    message:
-      "Sorry, we don't currently serve your area. Join the waitlist to be notified!",
+    inServiceArea: true,
+    message: "Great news! We deliver to your area. Sign up now!",
   });
 }
