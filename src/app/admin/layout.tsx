@@ -16,7 +16,6 @@ const adminLinks = [
   { href: "/admin/kill-list", label: "Kill List" },
   { href: "/admin/ban-list", label: "Ban List" },
   { href: "/admin/users", label: "Users" },
-  { href: "/admin/waitlist", label: "Waitlist" },
   { href: "/admin/walk-up", label: "Walk-Up" },
   { href: "/admin/bookkeeping", label: "Bookkeeping" },
   { href: "/admin/pool", label: "🎱 Pool" },
