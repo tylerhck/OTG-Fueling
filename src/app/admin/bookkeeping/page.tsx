@@ -371,7 +371,7 @@ export default function BookkeepingPage() {
                       {data.credits.map((credit) => (
                         <tr key={credit.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-gray-700">
-                            {new Date(credit.creditDate).toLocaleDateString()}
+                            {credit.creditDate.split("T")[0].replace(/(\d{4})-(\d{2})-(\d{2})/, (_, y, m, d) => `${parseInt(m)}/${parseInt(d)}/${y}`)}
                           </td>
                           <td className="px-4 py-3 text-gray-600">{credit.description || "—"}</td>
                           <td className="px-4 py-3 text-right font-medium text-green-700">+{fmt(credit.amountCents)}</td>
@@ -541,7 +541,7 @@ export default function BookkeepingPage() {
                       {data.expenses.map((exp) => (
                         <tr key={exp.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-gray-700">
-                            {new Date(exp.expenseDate).toLocaleDateString()}
+                            {exp.expenseDate.split("T")[0].replace(/(\d{4})-(\d{2})-(\d{2})/, (_, y, m, d) => `${parseInt(m)}/${parseInt(d)}/${y}`)}
                           </td>
                           <td className="px-4 py-3">
                             <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">

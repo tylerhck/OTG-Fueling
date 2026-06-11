@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     data: {
       amountCents,
       description: description || null,
-      creditDate: new Date(date || new Date()),
+      creditDate: date ? new Date(date + "T12:00:00") : new Date(),
     },
   });
 

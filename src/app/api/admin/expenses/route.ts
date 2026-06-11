@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     const amountCents = Math.round(amount * 100);
-    const expenseDate = date ? new Date(date) : new Date();
+    const expenseDate = date ? new Date(date + "T12:00:00") : new Date();
 
     const expense = await prisma.expense.create({
       data: {
