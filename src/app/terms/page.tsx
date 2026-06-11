@@ -93,7 +93,12 @@ export default function TermsOfServicePage() {
           These Terms shall be governed by and construed in accordance with the laws of the State of Texas, without regard to its conflict of law provisions. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts located in Tarrant County, Texas.
         </p>
 
-        <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">14. Contact Information</h2>
+        <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">14. Customer Gifts &amp; Rewards</h2>
+        <p className="text-slate-600 leading-relaxed mb-4">
+          On The Go Fueling does not conduct sweepstakes, contests, or lotteries. From time to time, we may choose to gift items or experiences to our customers at our sole discretion as a token of appreciation. These gifts are not guaranteed, are not tied to any purchase or subscription requirement, and do not constitute a promotional offer or obligation. On The Go Fueling reserves the right to select gift recipients using any criteria it deems appropriate. No customer is entitled to receive a gift, and the decision to provide gifts is entirely voluntary on the part of OTG Fueling.
+        </p>
+
+        <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-3">15. Contact Information</h2>
         <p className="text-slate-600 leading-relaxed mb-4">
 If you have questions about these Terms of Service, please contact us at:<br />
            Email: otgfuelingllc@gmail.com
