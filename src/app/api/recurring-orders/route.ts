@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod/v4";
 import { isBanned } from "@/lib/banCheck";
+import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 
 const recurringOrderSchema = z.object({
   vehicleId: z.string().optional(),
@@ -68,6 +69,12 @@ export async function POST(req: NextRequest) {
   });
   if (!address) {
     return NextResponse.json({ error: "Address not found" }, { status: 404 });
+  }
+
+  // Check if address is within service area
+  const serviceAreas = await prisma.serviceArea.findMany({ where: { isActive: true } });
+  if (serviceAreas.length > 0 && !isInAnyServiceArea(address.lat, address.lng, serviceAreas)) {
+    return NextResponse.json({ error: "Address is outside our service area. Recurring orders can only be set up for addresses within our delivery zone." }, { status: 400 });
   }
 
   // Verify vehicle belongs to user (if provided)

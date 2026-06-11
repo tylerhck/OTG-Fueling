@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { DayOfWeek } from "@prisma/client";
 import { isBanned } from "@/lib/banCheck";
+import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
 
 // Map JS day (0=Sunday) to our DayOfWeek enum
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -122,6 +123,15 @@ async function handleRecurringOrders(req: NextRequest) {
       if (!recurring.user.subscriptions || recurring.user.subscriptions.length === 0) {
         results.push({ id: recurring.id, status: "skipped", error: "No active subscription" });
         continue;
+      }
+
+      // Verify address is still within service area
+      if (recurring.address) {
+        const serviceAreas = await prisma.serviceArea.findMany({ where: { isActive: true } });
+        if (serviceAreas.length > 0 && !isInAnyServiceArea(recurring.address.lat, recurring.address.lng, serviceAreas)) {
+          results.push({ id: recurring.id, status: "skipped", error: "Address outside service area" });
+          continue;
+        }
       }
 
       const subscription = recurring.user.subscriptions[0];
