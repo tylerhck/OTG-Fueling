@@ -43,6 +43,10 @@ const CATEGORIES = [
   "Equipment",
   "Supplies",
   "Software/Subscriptions",
+  "Cellular Service",
+  "Payroll/Labor",
+  "Uniforms/Apparel",
+  "Taxes",
   "Other",
 ];
 
