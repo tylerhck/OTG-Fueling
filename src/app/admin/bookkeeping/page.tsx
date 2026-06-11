@@ -18,11 +18,20 @@ interface Expense {
   expenseDate: string;
 }
 
+interface Funding {
+  id: string;
+  amountCents: number;
+  description: string | null;
+  fundingDate: string;
+}
+
 interface BookkeepingData {
   totals: {
     totalCredits: number;
     totalExpenses: number;
     netProfit: number;
+    totalFunding: number;
+    overallBalance: number;
   };
   monthly: {
     month: string;
@@ -32,6 +41,7 @@ interface BookkeepingData {
   }[];
   credits: Credit[];
   expenses: Expense[];
+  funding: Funding[];
 }
 
 const CATEGORIES = [
@@ -47,6 +57,7 @@ const CATEGORIES = [
   "Payroll/Labor",
   "Uniforms/Apparel",
   "Taxes",
+  "Credit Card Payment",
   "Other",
 ];
 
@@ -61,6 +72,13 @@ export default function BookkeepingPage() {
   const [creditDescription, setCreditDescription] = useState("");
   const [creditDate, setCreditDate] = useState(new Date().toISOString().split("T")[0]);
   const [creditSubmitting, setCreditSubmitting] = useState(false);
+
+  // Funding form
+  const [showFundingForm, setShowFundingForm] = useState(false);
+  const [fundingAmount, setFundingAmount] = useState("");
+  const [fundingDescription, setFundingDescription] = useState("");
+  const [fundingDate, setFundingDate] = useState(new Date().toISOString().split("T")[0]);
+  const [fundingSubmitting, setFundingSubmitting] = useState(false);
 
   // Expense form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -125,6 +143,45 @@ export default function BookkeepingPage() {
   async function deleteCredit(id: string) {
     if (!confirm("Delete this credit entry?")) return;
     await fetch("/api/admin/credits", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchData();
+  }
+
+  // Funding handlers
+  async function addFunding(e: React.FormEvent) {
+    e.preventDefault();
+    if (!fundingAmount || parseFloat(fundingAmount) <= 0) return;
+    setFundingSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/funding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(fundingAmount),
+          description: fundingDescription.trim(),
+          date: fundingDate,
+        }),
+      });
+      if (res.ok) {
+        setFundingAmount("");
+        setFundingDescription("");
+        setFundingDate(new Date().toISOString().split("T")[0]);
+        setShowFundingForm(false);
+        fetchData();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setFundingSubmitting(false);
+    }
+  }
+
+  async function deleteFunding(id: string) {
+    if (!confirm("Delete this funding entry?")) return;
+    await fetch("/api/admin/funding", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
@@ -202,6 +259,8 @@ export default function BookkeepingPage() {
   const totalCredits = data?.totals.totalCredits || 0;
   const totalExpenses = data?.totals.totalExpenses || 0;
   const netProfit = data?.totals.netProfit || 0;
+  const totalFunding = data?.totals.totalFunding || 0;
+  const overallBalance = data?.totals.overallBalance || 0;
 
   // Category totals from expenses
   const categoryTotals: Record<string, number> = {};
@@ -209,6 +268,18 @@ export default function BookkeepingPage() {
     for (const exp of data.expenses) {
       categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amountCents;
     }
+  }
+
+  // Bar chart scaling: use square root scale so small values are still visible
+  function getBarHeight(value: number, maxValue: number): number {
+    if (maxValue === 0) return 20;
+    const absValue = Math.abs(value);
+    const absMax = Math.abs(maxValue);
+    // Square root scaling: preserves relative order but compresses large differences
+    const scaledValue = Math.sqrt(absValue);
+    const scaledMax = Math.sqrt(absMax);
+    const height = (scaledValue / scaledMax) * 160;
+    return Math.max(24, height); // minimum 24px so bars are always visible
   }
 
   return (
@@ -234,7 +305,7 @@ export default function BookkeepingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookkeeping</h1>
-          <p className="mt-1 text-sm text-gray-500">Manual credits, expenses, and net profit</p>
+          <p className="mt-1 text-sm text-gray-500">Funding, credits, expenses, and balance</p>
         </div>
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {(["today", "week", "month", "year", "all"] as const).map((p) => (
@@ -255,18 +326,26 @@ export default function BookkeepingPage() {
         <div className="mt-8 text-center text-gray-500">Loading...</div>
       ) : (
         <>
-          {/* Net Profit Banner */}
-          <div className={`mt-6 rounded-xl p-6 shadow-sm border ${netProfit >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Net Profit</p>
-                <p className={`text-3xl font-bold ${netProfit >= 0 ? "text-green-700" : "text-red-700"}`}>
-                  {netProfit >= 0 ? "+" : "-"}{fmt(netProfit)}
-                </p>
-              </div>
-              <div className="text-right text-sm text-gray-500">
-                <p>Credits: <span className="font-medium text-green-700">{fmt(totalCredits)}</span></p>
-                <p>Expenses: <span className="font-medium text-red-700">-{fmt(totalExpenses)}</span></p>
+          {/* Balance & Profit Banner */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Overall Balance */}
+            <div className={`rounded-xl p-5 shadow-sm border ${overallBalance >= 0 ? "bg-blue-50 border-blue-200" : "bg-red-50 border-red-200"}`}>
+              <p className="text-sm font-medium text-gray-600">Overall Balance</p>
+              <p className={`text-2xl font-bold ${overallBalance >= 0 ? "text-blue-700" : "text-red-700"}`}>
+                {overallBalance >= 0 ? "" : "-"}{fmt(overallBalance)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Funding + Credits − Expenses</p>
+            </div>
+            {/* Net Profit */}
+            <div className={`rounded-xl p-5 shadow-sm border ${netProfit >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+              <p className="text-sm font-medium text-gray-600">Net Profit</p>
+              <p className={`text-2xl font-bold ${netProfit >= 0 ? "text-green-700" : "text-red-700"}`}>
+                {netProfit >= 0 ? "+" : "-"}{fmt(netProfit)}
+              </p>
+              <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                <span>Credits: <span className="font-medium text-green-700">{fmt(totalCredits)}</span></span>
+                <span>Expenses: <span className="font-medium text-red-700">{fmt(totalExpenses)}</span></span>
+                <span>Funding: <span className="font-medium text-blue-700">{fmt(totalFunding)}</span></span>
               </div>
             </div>
           </div>
@@ -278,7 +357,7 @@ export default function BookkeepingPage() {
               <div className="flex items-end gap-4 overflow-x-auto" style={{ height: "220px" }}>
                 {data.monthly.map((row) => {
                   const maxVal = Math.max(...data.monthly.map(m => Math.abs(m.netProfit)), 1);
-                  const barHeight = Math.max(Math.abs(row.netProfit) / maxVal * 180, 20);
+                  const barHeight = getBarHeight(row.netProfit, maxVal);
                   return (
                     <div key={row.month} className="flex flex-col items-center justify-end flex-1 min-w-[60px] h-full">
                       <span className="text-xs font-medium text-gray-600 mb-2">
@@ -297,6 +376,110 @@ export default function BookkeepingPage() {
               </div>
             </div>
           )}
+
+          {/* Funding Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Funding (Capital)</h2>
+              <button
+                onClick={() => setShowFundingForm(!showFundingForm)}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-colors"
+              >
+                {showFundingForm ? "Cancel" : "+ Add Funding"}
+              </button>
+            </div>
+
+            {/* Add Funding Form */}
+            {showFundingForm && (
+              <form onSubmit={addFunding} className="mb-4 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Amount ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={fundingAmount}
+                      onChange={(e) => setFundingAmount(e.target.value)}
+                      placeholder="0.00"
+                      required
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={fundingDate}
+                      onChange={(e) => setFundingDate(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                    <input
+                      type="text"
+                      value={fundingDescription}
+                      onChange={(e) => setFundingDescription(e.target.value)}
+                      placeholder="e.g. Owner investment, Business loan"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={fundingSubmitting}
+                      className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+                    >
+                      {fundingSubmitting ? "..." : "Add Funding"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+
+            {/* Funding List */}
+            {data && data.funding && data.funding.length > 0 && (
+              <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden mb-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Date</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700">Description</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-700">Amount</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-700"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {data.funding.map((f) => (
+                        <tr key={f.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-gray-700">
+                            {String(f.fundingDate).split("T")[0].replace(/(\d{4})-(\d{2})-(\d{2})/, (_, y, m, d) => `${parseInt(m)}/${parseInt(d)}/${y}`)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{f.description || "—"}</td>
+                          <td className="px-4 py-3 text-right font-medium text-blue-700">{fmt(f.amountCents)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => deleteFunding(f.id)}
+                              className="text-xs text-gray-400 hover:text-red-600"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {data && (!data.funding || data.funding.length === 0) && !showFundingForm && (
+              <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-100 text-center text-gray-500 mb-4">
+                No funding recorded yet. Click &quot;+ Add Funding&quot; to log owner investments or loans that don&apos;t count as profit.
+              </div>
+            )}
+          </div>
 
           {/* Credits Section */}
           <div className="mt-8">
