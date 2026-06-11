@@ -271,20 +271,20 @@ export default function BookkeepingPage() {
           {data && data.monthly.length > 0 && (
             <div className="mt-6 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Monthly Net Profit</h3>
-              <div className="flex items-end gap-2 h-40 overflow-x-auto">
+              <div className="flex items-end gap-4 overflow-x-auto" style={{ height: "220px" }}>
                 {data.monthly.map((row) => {
                   const maxVal = Math.max(...data.monthly.map(m => Math.abs(m.netProfit)), 1);
-                  const barHeight = Math.max(Math.abs(row.netProfit) / maxVal * 100, 4);
+                  const barHeight = Math.max(Math.abs(row.netProfit) / maxVal * 180, 20);
                   return (
-                    <div key={row.month} className="flex flex-col items-center flex-1 min-w-[50px]">
-                      <span className="text-[10px] text-gray-500 mb-1">
+                    <div key={row.month} className="flex flex-col items-center justify-end flex-1 min-w-[60px] h-full">
+                      <span className="text-xs font-medium text-gray-600 mb-2">
                         {row.netProfit >= 0 ? "+" : "-"}{fmt(row.netProfit)}
                       </span>
                       <div
-                        className={`w-full rounded-t-md ${row.netProfit >= 0 ? "bg-green-500" : "bg-red-400"}`}
-                        style={{ height: `${barHeight}%`, minHeight: "4px" }}
+                        className={`w-full rounded-t-lg ${row.netProfit >= 0 ? "bg-green-500" : "bg-red-400"}`}
+                        style={{ height: `${barHeight}px`, minWidth: "40px" }}
                       />
-                      <span className="text-[10px] text-gray-400 mt-1 truncate w-full text-center">
+                      <span className="text-xs text-gray-500 mt-2 truncate w-full text-center font-medium">
                         {row.month}
                       </span>
                     </div>
