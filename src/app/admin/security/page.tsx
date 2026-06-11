@@ -51,6 +51,12 @@ export default function SecurityPage() {
     fetchSessions();
   }
 
+  async function deleteSession(sessionId: string) {
+    if (!confirm("Remove this entry from the list? (This won't log them out, just cleans up the record.)")) return;
+    await fetch(`/api/admin/sessions/${sessionId}`, { method: "DELETE" });
+    fetchSessions();
+  }
+
   function formatLocation(city: string | null, region: string | null, country: string | null) {
     const parts = [city, region, country].filter(Boolean);
     return parts.length > 0 ? parts.join(", ") : "Unknown location";
@@ -137,12 +143,20 @@ export default function SecurityPage() {
                           {parseDevice(s.userAgent)} • IP: {s.ipAddress || "unknown"} • Logged in {formatDate(s.createdAt)}
                         </p>
                       </div>
-                      <button
-                        onClick={() => killSession(s.id)}
-                        className="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-semibold rounded-lg hover:bg-red-200 transition-colors"
-                      >
-                        Kill
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => deleteSession(s.id)}
+                          className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => killSession(s.id)}
+                          className="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-semibold rounded-lg hover:bg-red-200 transition-colors"
+                        >
+                          Kill
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
