@@ -47,7 +47,7 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="https://www.instagram.com/otg_fueling/"
+                href="https://www.instagram.com/otg_fueling?igsh=MWg0djJpYncycmNsNQ=="
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-slate-400 hover:text-pink-600 transition-colors"
