@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { DayOfWeek } from "@prisma/client";
 import { isBanned } from "@/lib/banCheck";
 import { isInAnyServiceArea } from "@/lib/serviceAreaCheck";
+import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 // Map JS day (0=Sunday) to our DayOfWeek enum
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -274,6 +275,9 @@ async function handleRecurringOrders(req: NextRequest) {
           lastOrderDate: now,
         },
       });
+
+      // Notify company (email + SMS)
+      notifyOrderActive(order.id, "Recurring").catch(() => {});
 
       results.push({ id: recurring.id, status: "created", orderId: order.id });
     } catch (error: any) {

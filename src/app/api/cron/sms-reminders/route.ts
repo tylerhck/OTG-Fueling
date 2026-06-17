@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushDeliveryReminder } from "@/lib/pushNotifications";
 import { stripe } from "@/lib/stripe";
+import { notifyOrderActive } from "@/lib/orderActiveSms";
 
 /**
  * Cron job: Activate scheduled orders on their delivery day.
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest) {
           where: { id: order.id },
           data: { status: "ACTIVE" },
         });
+        notifyOrderActive(order.id, "Scheduled").catch(() => {});
         activated++;
         continue;
       }
@@ -105,6 +107,7 @@ export async function GET(req: NextRequest) {
               status: "ACTIVE",
             },
           });
+          notifyOrderActive(order.id, "Scheduled").catch(() => {});
           activated++;
         } else {
           // No payment method found — activate but flag it
@@ -114,6 +117,7 @@ export async function GET(req: NextRequest) {
               status: "ACTIVE",
             },
           });
+          notifyOrderActive(order.id, "Scheduled").catch(() => {});
           // Append note about failed hold
           await prisma.$executeRawUnsafe(
             `UPDATE "Order" SET notes = COALESCE(notes, '') || ' [HOLD FAILED - no card on file]' WHERE id = $1`,
@@ -128,6 +132,7 @@ export async function GET(req: NextRequest) {
           where: { id: order.id },
           data: { status: "ACTIVE" },
         });
+        notifyOrderActive(order.id, "Scheduled").catch(() => {});
         activated++;
       }
     } catch (err: any) {
@@ -138,6 +143,7 @@ export async function GET(req: NextRequest) {
           where: { id: order.id },
           data: { status: "ACTIVE" },
         });
+        notifyOrderActive(order.id, "Scheduled").catch(() => {});
         await prisma.$executeRawUnsafe(
           `UPDATE "Order" SET notes = COALESCE(notes, '') || $2 WHERE id = $1`,
           order.id,
