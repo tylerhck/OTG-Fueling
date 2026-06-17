@@ -451,7 +451,7 @@ export default function OrderPage() {
             </div>
             {!isSubscriber && (
               <p className="mt-4 text-xs text-slate-400">
-                Recurring deliveries require a subscription ($35/mo). You&apos;ll be guided through setup.
+                Recurring deliveries require a subscription ($8.75/week, billed $35/mo). You&apos;ll be guided through setup.
               </p>
             )}
           </div>
@@ -485,7 +485,7 @@ export default function OrderPage() {
               "OTG Subscriber — delivery included."
             )
           ) : (
-            `Not subscribed — $${Math.round(deliveryFeeCents / 100)} delivery fee applies. Subscribe for $35/month to get free deliveries.`
+            `Not subscribed — $${Math.round(deliveryFeeCents / 100)} delivery fee applies. Subscribe for just $8.75/week ($35/mo) to get free deliveries.`
           )}
         </div>
       )}

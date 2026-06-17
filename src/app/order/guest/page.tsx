@@ -197,7 +197,7 @@ export default function GuestOrderPage() {
               </button>
             </div>
             <p className="mt-4 text-xs text-slate-400">
-              Recurring deliveries include a $35/mo subscription with free weekly delivery.
+              Recurring deliveries include a subscription ($8.75/week, billed $35/mo) with free weekly delivery.
             </p>
           </div>
         </div>

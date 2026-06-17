@@ -228,7 +228,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:divide-x sm:divide-slate-100">
             {[
               { value: "1x", label: "Weekly Top-Off", sub: "We come to you" },
-              { value: "$35", label: "/Month", sub: "Free weekly delivery" },
+              { value: "$8.75", label: "/Week", sub: "$35/month · Free delivery" },
               { value: "Set It", label: "& Forget It", sub: "Recurring auto-fills" },
               { value: "$0", label: "To Sign Up", sub: "Cancel anytime" },
             ].map((stat) => (
@@ -259,7 +259,7 @@ export default function HomePage() {
               {
                 step: "01",
                 title: "Subscribe & Add Your Vehicle",
-                desc: "Create a free account, subscribe for $35/mo, and add your vehicle and delivery address.",
+                desc: "Create a free account, subscribe for just $8.75/week ($35/mo), and add your vehicle and delivery address.",
                 icon: (
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -347,9 +347,10 @@ export default function HomePage() {
               </div>
               <p className="text-sm font-semibold uppercase tracking-wider text-red-600">Monthly Subscription</p>
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-slate-900">$35</span>
-                <span className="text-sm text-slate-500">/month</span>
+                <span className="text-4xl font-extrabold text-slate-900">$8.75</span>
+                <span className="text-sm text-slate-500">/week</span>
               </div>
+              <p className="mt-1 text-xs text-slate-400">Billed monthly at $35</p>
               <p className="mt-3 text-sm text-slate-500">
                 Set a recurring day and we top you off every week. Never think about fuel again.
               </p>
@@ -396,7 +397,7 @@ export default function HomePage() {
                   },
                   {
                     title: "Competitive Pricing",
-                    desc: `$35/mo subscription includes one free delivery per week. Otherwise, $${Math.round(deliveryFeeCents / 100)} delivery fee. No surge pricing, no hidden costs.`,
+                    desc: `Just $8.75/week ($35/mo) includes one free delivery per week. Otherwise, $${Math.round(deliveryFeeCents / 100)} delivery fee. No surge pricing, no hidden costs.`,
                     icon: (
                       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     ),
@@ -647,7 +648,7 @@ export default function HomePage() {
             </Link>
           </div>
           <p className="mt-6 text-xs text-slate-400">
-            {`$35/mo · 1 free weekly top-off included · Cancel anytime · $${Math.round(deliveryFeeCents / 100)} per delivery without subscription`}
+            {`$8.75/week ($35/mo) · 1 free weekly top-off included · Cancel anytime · $${Math.round(deliveryFeeCents / 100)} per delivery without subscription`}
           </p>
         </div>
       </section>

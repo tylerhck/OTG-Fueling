@@ -342,7 +342,7 @@ function ProfileContent() {
                 Active
               </span>
               <span className="text-sm text-slate-500">
-                $35/month
+                $8.75/week
               </span>
             </div>
             <div className="text-sm text-slate-600">
@@ -372,7 +372,7 @@ function ProfileContent() {
         ) : (
           <div className="mt-3 space-y-3">
             <p className="text-sm text-slate-600">
-              Subscribe for <span className="font-semibold text-slate-900">$35/month</span> and get 1 free delivery per week!
+              Subscribe for just <span className="font-semibold text-slate-900">$8.75/week</span> ($35/mo) and get 1 free delivery per week!
             </p>
             <ul className="text-sm text-slate-500 space-y-1">
               <li>&#x2022; Up to 2 fill-ups per week</li>
@@ -426,7 +426,7 @@ function ProfileContent() {
               disabled={subLoading}
               className={`w-full rounded-xl px-5 py-3 text-sm font-semibold transition-all disabled:opacity-50 ${appliedPromo ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm shadow-red-200 hover:shadow-md hover:shadow-red-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
             >
-              {subLoading ? "Processing..." : appliedPromo ? "Subscribe with Discount →" : "Subscribe — $35/month"}
+              {subLoading ? "Processing..." : appliedPromo ? "Subscribe with Discount →" : "Subscribe — $8.75/week"}
             </button>
           </div>
         )}
