@@ -36,7 +36,7 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-1">
             <Image
               src="/otg-lettering.png"
               alt="On The Go Fueling"
@@ -44,6 +44,7 @@ export default function Navbar() {
               height={80}
               className="rounded-md"
             />
+            <span className="text-[10px] font-medium text-slate-400 self-start mt-1">™</span>
           </Link>
 
           {/* Desktop Nav */}
