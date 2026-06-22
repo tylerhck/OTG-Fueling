@@ -89,7 +89,7 @@ export async function GET() {
         user: isAdmin ? { select: { name: true, email: true, phone: true } } : false,
         items: {
           include: {
-            vehicle: { select: { make: true, model: true, year: true, nickname: true } },
+            vehicle: { select: { make: true, model: true, year: true, nickname: true, color: true, licensePlate: true, fuelCapSide: true } },
             boat: { select: { nickname: true, make: true, model: true, registrationNumber: true } },
           },
         },

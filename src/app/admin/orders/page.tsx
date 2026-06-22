@@ -49,7 +49,7 @@ interface Order {
   guestName: string | null;
   guestEmail: string | null;
   guestPhone: string | null;
-  items: { kind: string; fuelType: string; gallons: number | null; vehicle: { make: string; model: string; year: number; nickname: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
+  items: { kind: string; fuelType: string; gallons: number | null; isFillUp?: boolean; vehicle: { make: string; model: string; year: number; nickname: string | null; color?: string | null; licensePlate?: string | null; fuelCapSide?: string | null } | null; boat: { nickname: string | null; make: string | null; model: string | null; registrationNumber: string | null } | null }[];
 }
 
 type Tab = "active" | "pending" | "unresolved" | "history";
@@ -372,17 +372,59 @@ export default function AdminOrders() {
                       📍 Navigate
                     </a>
                   </p>
-                  {/* Vehicle / Boat info */}
-                  {order.vehicle && (
-                    <p className="mt-0.5 text-xs text-gray-700 font-medium">
-                      🚗 {order.vehicle.year} {order.vehicle.make} {order.vehicle.model}{order.vehicle.color ? ` (${order.vehicle.color})` : ""}{order.vehicle.licensePlate ? ` · ${order.vehicle.licensePlate}` : ""}{order.vehicle.fuelCapSide && order.vehicle.fuelCapSide !== "UNKNOWN" ? ` · Cap: ${order.vehicle.fuelCapSide.replace("_", " ").toLowerCase()}` : ""}
-                    </p>
-                  )}
-                  {!order.vehicle && order.guestVehicle && (
-                    <p className="mt-0.5 text-xs text-gray-700 font-medium">
-                      🚗 {order.guestVehicle}
-                    </p>
-                  )}
+                  {/* Vehicle / Boat info — show ALL vehicles from order items */}
+                  {(() => {
+                    const vehicleItems = order.items?.filter(i => i.vehicle && (i.kind === "PRIMARY_VEHICLE" || i.kind === "SECOND_VEHICLE")) || [];
+                    if (vehicleItems.length > 1) {
+                      // Multiple vehicles — show each one clearly labeled
+                      return (
+                        <div className="mt-1 rounded-md border border-blue-200 bg-blue-50 p-2">
+                          <p className="text-xs font-bold text-blue-800 mb-1">🚗 {vehicleItems.length} VEHICLES ON THIS ORDER:</p>
+                          {vehicleItems.map((item, idx) => (
+                            <p key={idx} className="text-xs text-gray-800 font-medium ml-2">
+                              <span className="font-bold text-blue-700">Vehicle {idx + 1}:</span>{" "}
+                              {item.vehicle?.year} {item.vehicle?.make} {item.vehicle?.model}
+                              {item.vehicle?.color ? ` (${item.vehicle.color})` : ""}
+                              {item.vehicle?.licensePlate ? ` · ${item.vehicle.licensePlate}` : ""}
+                              {item.vehicle?.fuelCapSide && item.vehicle.fuelCapSide !== "UNKNOWN" ? ` · Cap: ${item.vehicle.fuelCapSide.replace("_", " ").toLowerCase()}` : ""}
+                              {" — "}
+                              <span className="font-bold text-red-700">{item.fuelType?.replace("_", " ") || "Unknown fuel"}</span>
+                              {item.isFillUp ? " (Fill Up)" : item.gallons ? ` (${item.gallons} gal)` : ""}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    }
+                    if (vehicleItems.length === 1) {
+                      // Single vehicle from items — show with fuel type from item
+                      const item = vehicleItems[0];
+                      return (
+                        <p className="mt-0.5 text-xs text-gray-700 font-medium">
+                          🚗 {item.vehicle?.year} {item.vehicle?.make} {item.vehicle?.model}
+                          {item.vehicle?.color ? ` (${item.vehicle.color})` : ""}
+                          {item.vehicle?.licensePlate ? ` · ${item.vehicle.licensePlate}` : ""}
+                          {item.vehicle?.fuelCapSide && item.vehicle.fuelCapSide !== "UNKNOWN" ? ` · Cap: ${item.vehicle.fuelCapSide.replace("_", " ").toLowerCase()}` : ""}
+                          {" — "}{item.fuelType?.replace("_", " ") || ""}
+                        </p>
+                      );
+                    }
+                    // Fallback to order.vehicle (legacy orders without items)
+                    if (order.vehicle) {
+                      return (
+                        <p className="mt-0.5 text-xs text-gray-700 font-medium">
+                          🚗 {order.vehicle.year} {order.vehicle.make} {order.vehicle.model}{order.vehicle.color ? ` (${order.vehicle.color})` : ""}{order.vehicle.licensePlate ? ` · ${order.vehicle.licensePlate}` : ""}{order.vehicle.fuelCapSide && order.vehicle.fuelCapSide !== "UNKNOWN" ? ` · Cap: ${order.vehicle.fuelCapSide.replace("_", " ").toLowerCase()}` : ""}
+                        </p>
+                      );
+                    }
+                    if (order.guestVehicle) {
+                      return (
+                        <p className="mt-0.5 text-xs text-gray-700 font-medium">
+                          🚗 {order.guestVehicle}
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                   {order.items?.some(i => i.boat) && (
                     <p className="mt-0.5 text-xs text-gray-700 font-medium">
                       ⛵ {order.items.filter(i => i.boat).map(i => `${i.boat?.make || ""} ${i.boat?.model || ""} ${i.boat?.registrationNumber ? `(${i.boat.registrationNumber})` : ""}`).join(", ")}
