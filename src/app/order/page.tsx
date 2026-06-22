@@ -150,6 +150,8 @@ export default function OrderPage() {
     dollarAmount: 40,
     isFillUp: false,
     notes: "",
+    vehicleDescription: "",
+    licensePlate: "",
   });
 
   // Trailered boat add-on
@@ -285,6 +287,12 @@ export default function OrderPage() {
     }
     if (isWeeklyLimitReached) {
       setError("Your weekly fill-up limit has been reached. Please contact us for additional service.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (addSecondVehicle && !secondVehicle.vehicleId) {
+      setError("Please select a vehicle for your 2nd vehicle add-on.");
       setSubmitting(false);
       return;
     }
@@ -659,81 +667,95 @@ export default function OrderPage() {
 
               {addSecondVehicle && (
                 <div className="mt-4 space-y-4">
-                  <p className="text-xs text-slate-500">Choose a different vehicle at the same location.</p>
+                  <p className="text-xs text-slate-500">Select the 2nd vehicle at the same location.</p>
                   {vehicles.filter((v) => v.id !== form.vehicleId).length === 0 ? (
-                    <p className="text-sm text-slate-400">No other vehicles saved. <a href="/profile/vehicles" className="text-red-600 hover:text-red-500">Add one</a>.</p>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-medium text-amber-800">You need to add another vehicle to your profile first.</p>
+                      <a href="/profile/vehicles" className="mt-2 inline-block text-sm font-semibold text-red-600 hover:text-red-500">+ Add a Vehicle →</a>
+                    </div>
                   ) : (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {vehicles.filter((v) => v.id !== form.vehicleId).map((v) => (
-                        <button
-                          type="button"
-                          key={v.id}
-                          onClick={() => setSecondVehicle((prev) => ({ ...prev, vehicleId: v.id, fuelType: v.fuelType }))}
-                          className={`rounded-lg border-2 p-3 text-left transition-colors ${
-                            secondVehicle.vehicleId === v.id ? "border-red-500 bg-red-50" : "border-slate-200 hover:border-slate-300 bg-white"
-                          }`}
-                        >
-                          <p className="font-medium text-slate-900 text-sm">{v.nickname || `${v.year} ${v.make} ${v.model}`}</p>
-                          {v.licensePlate && <p className="text-xs text-slate-400">Plate: {v.licensePlate}</p>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700">Fuel Type</label>
-                      <select
-                        value={secondVehicle.fuelType}
-                        onChange={(e) => setSecondVehicle((p) => ({ ...p, fuelType: e.target.value }))}
-                        className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                      >
-                        {Object.entries(FUEL_TYPE_LABELS).map(([key, label]) => (
-                          <option key={key} value={key}>{label}</option>
+                    <>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {vehicles.filter((v) => v.id !== form.vehicleId).map((v) => (
+                          <button
+                            type="button"
+                            key={v.id}
+                            onClick={() => setSecondVehicle((prev) => ({ ...prev, vehicleId: v.id, fuelType: v.fuelType, vehicleDescription: `${v.year} ${v.make} ${v.model}`, licensePlate: v.licensePlate || "" }))}
+                            className={`rounded-lg border-2 p-3 text-left transition-colors ${
+                              secondVehicle.vehicleId === v.id ? "border-red-500 bg-red-50" : "border-slate-200 hover:border-slate-300 bg-white"
+                            }`}
+                          >
+                            <p className="font-medium text-slate-900 text-sm">{v.nickname || `${v.year} ${v.make} ${v.model}`}</p>
+                            <p className="text-xs text-slate-500">{v.year} {v.make} {v.model}</p>
+                            {v.licensePlate && <p className="text-xs text-slate-400">Plate: {v.licensePlate}</p>}
+                          </button>
                         ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
-                      {secondVehicle.isFillUp ? (
-                        <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <span className="text-sm text-slate-400 italic">Fill up — $40 hold, only charged for what you receive at completion</span>
-                        </div>
-                      ) : (
-                        <div className="relative mt-1.5">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
-                          <input
-                            type="number" min={20} max={500} step={5}
-                            value={secondVehicle.dollarAmount}
-                            onChange={(e) => setSecondVehicle((p) => ({ ...p, dollarAmount: parseFloat(e.target.value) || 0 }))}
-                            className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                          />
-                        </div>
+                      </div>
+
+                      {!secondVehicle.vehicleId && (
+                        <p className="text-xs font-medium text-red-600">⚠ Please select a vehicle above</p>
                       )}
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-sm font-medium text-slate-700">Fill Up 2nd Vehicle</p>
-                    <button
-                      type="button"
-                      onClick={() => setSecondVehicle((p) => ({ ...p, isFillUp: !p.isFillUp }))}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${secondVehicle.isFillUp ? "bg-red-600" : "bg-slate-300"}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${secondVehicle.isFillUp ? "translate-x-6" : "translate-x-1"}`} />
-                    </button>
-                  </div>
+                      {secondVehicle.vehicleId && (
+                        <>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700">Fuel Type</label>
+                              <select
+                                value={secondVehicle.fuelType}
+                                onChange={(e) => setSecondVehicle((p) => ({ ...p, fuelType: e.target.value }))}
+                                className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                              >
+                                {Object.entries(FUEL_TYPE_LABELS).map(([key, label]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700">Fuel Amount ($)</label>
+                              {secondVehicle.isFillUp ? (
+                                <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                  <span className="text-sm text-slate-400 italic">Fill up — $40 hold, only charged for what you receive at completion</span>
+                                </div>
+                              ) : (
+                                <div className="relative mt-1.5">
+                                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                                  <input
+                                    type="number" min={20} max={500} step={5}
+                                    value={secondVehicle.dollarAmount}
+                                    onChange={(e) => setSecondVehicle((p) => ({ ...p, dollarAmount: parseFloat(e.target.value) || 0 }))}
+                                    className="block w-full rounded-xl border border-slate-300 pl-8 pr-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">Notes <span className="text-slate-400 font-normal">(optional)</span></label>
-                    <input
-                      type="text"
-                      value={secondVehicle.notes}
-                      onChange={(e) => setSecondVehicle((p) => ({ ...p, notes: e.target.value }))}
-                      placeholder="e.g. fuel cap on the right side"
-                      className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
-                    />
-                  </div>
+                          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+                            <p className="text-sm font-medium text-slate-700">Fill Up 2nd Vehicle</p>
+                            <button
+                              type="button"
+                              onClick={() => setSecondVehicle((p) => ({ ...p, isFillUp: !p.isFillUp }))}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${secondVehicle.isFillUp ? "bg-red-600" : "bg-slate-300"}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${secondVehicle.isFillUp ? "translate-x-6" : "translate-x-1"}`} />
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700">Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+                            <input
+                              type="text"
+                              value={secondVehicle.notes}
+                              onChange={(e) => setSecondVehicle((p) => ({ ...p, notes: e.target.value }))}
+                              placeholder="e.g. fuel cap on the right side"
+                              className="mt-1.5 block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-shadow"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
