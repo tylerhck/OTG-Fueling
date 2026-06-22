@@ -28,3 +28,28 @@ export async function GET() {
 
   return NextResponse.json(recurringOrders);
 }
+
+// DELETE — remove a recurring order entirely
+export async function DELETE(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+  if (user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "Missing recurring order id" }, { status: 400 });
+  }
+
+  await prisma.recurringOrder.delete({ where: { id } });
+
+  return NextResponse.json({ success: true, message: "Recurring order deleted" });
+}

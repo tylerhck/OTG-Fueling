@@ -47,6 +47,25 @@ export default function AdminRecurringPage() {
   const [orders, setOrders] = useState<RecurringOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDay, setFilterDay] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, customerName: string) => {
+    if (!confirm(`Delete recurring order for ${customerName}? This removes it completely.`)) return;
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/recurring-orders?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setOrders((prev) => prev.filter((o) => o.id !== id));
+      } else {
+        alert(data.error || "Failed to delete");
+      }
+    } catch (err) {
+      alert("Network error");
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/admin/recurring-orders")
@@ -188,6 +207,7 @@ export default function AdminRecurringPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Order</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -223,6 +243,15 @@ export default function AdminRecurringPage() {
                     {order.lastOrderDate
                       ? new Date(order.lastOrderDate).toLocaleDateString()
                       : "Never"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleDelete(order.id, order.user.name)}
+                      disabled={deleting === order.id}
+                      className="text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded-full font-medium disabled:opacity-50"
+                    >
+                      {deleting === order.id ? "Deleting..." : "Delete"}
+                    </button>
                   </td>
                 </tr>
               ))}
