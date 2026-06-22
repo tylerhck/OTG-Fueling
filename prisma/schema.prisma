@@ -205,8 +205,8 @@ model Order {
   guestEmail   String? @map("guest_email")
   guestPhone   String? @map("guest_phone")
   guestVehicle String? @map("guest_vehicle") @db.Text
-  guestAddress String? @map("guest_address") @db.Text
-
+    guestAddress String? @map("guest_address") @db.Text
+  meterPhotos  String? @map("meter_photos") @db.LongText
   user          User?          @relation(fields: [userId], references: [id])
   vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id])
   address       Address?       @relation(fields: [addressId], references: [id])
