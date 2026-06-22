@@ -68,6 +68,8 @@ model User {
   role          Role      @default(CUSTOMER)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  adminNotes    String?   @map("admin_notes") @db.Text
 
   vehicles      Vehicle[]
   boats         Boat[]

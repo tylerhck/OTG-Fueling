@@ -16,6 +16,8 @@ export async function GET() {
       role: true,
       phone: true,
       createdAt: true,
+      deletedAt: true,
+      adminNotes: true,
       _count: { select: { orders: true } },
     },
     orderBy: { createdAt: "desc" },
