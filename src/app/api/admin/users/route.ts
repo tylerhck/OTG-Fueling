@@ -18,6 +18,8 @@ export async function GET() {
         phone: true,
         createdAt: true,
         _count: { select: { orders: true } },
+        deletedAt: true,
+        adminNotes: true,
         subscriptions: {
           select: {
             id: true,
@@ -36,6 +38,8 @@ export async function GET() {
       isSubscriber: u.subscriptions.length > 0,
       subscriptionStatus: u.subscriptions[0]?.status || null,
       promoCode: u.subscriptions[0]?.promoCode || null,
+      deletedAt: u.deletedAt,
+      adminNotes: u.adminNotes,
     }));
 
     return NextResponse.json(result);

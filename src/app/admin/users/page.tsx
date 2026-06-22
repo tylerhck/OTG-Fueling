@@ -12,6 +12,8 @@ interface User {
   _count: { orders: number };
   isSubscriber: boolean;
   promoCode: string | null;
+  deletedAt: string | null;
+  adminNotes: string | null;
 }
 
 export default function AdminUsers() {
@@ -21,12 +23,19 @@ export default function AdminUsers() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
+  function fetchUsers() {
     fetch("/api/admin/users")
       .then((r) => r.json())
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
   useEffect(() => {
@@ -36,7 +45,10 @@ export default function AdminUsers() {
     }
   }, [editingId]);
 
-  const filteredUsers = users.filter((u) => {
+  const activeUsers = users.filter((u) => !u.deletedAt);
+  const deletedUsers = users.filter((u) => u.deletedAt);
+
+  const filteredUsers = activeUsers.filter((u) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -86,6 +98,30 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteTarget.id}/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: deleteReason }),
+      });
+      if (res.ok) {
+        setDeleteTarget(null);
+        setDeleteReason("");
+        fetchUsers();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete user");
+      }
+    } catch {
+      alert("Failed to delete user");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const PromoCell = ({ user }: { user: User }) => {
     if (editingId === user.id) {
       return (
@@ -121,7 +157,8 @@ export default function AdminUsers() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Users</h1>
       <p className="mt-1 text-sm text-gray-500">
-        {users.length} registered user{users.length !== 1 ? "s" : ""}.
+        {activeUsers.length} active user{activeUsers.length !== 1 ? "s" : ""}
+        {deletedUsers.length > 0 && ` · ${deletedUsers.length} deleted`}.
       </p>
 
       {/* Search */}
@@ -165,6 +202,14 @@ export default function AdminUsers() {
               <span>&middot;</span>
               <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
             </div>
+            {u.role !== "ADMIN" && (
+              <button
+                onClick={() => setDeleteTarget(u)}
+                className="mt-3 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+              >
+                Delete User
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -181,6 +226,7 @@ export default function AdminUsers() {
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Promo Code</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Orders</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Joined</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -215,11 +261,90 @@ export default function AdminUsers() {
                 <td className="px-4 py-3 text-sm text-gray-500">
                   {new Date(u.createdAt).toLocaleDateString()}
                 </td>
+                <td className="px-4 py-3 text-sm">
+                  {u.role !== "ADMIN" && (
+                    <button
+                      onClick={() => setDeleteTarget(u)}
+                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Deleted users section */}
+      {deletedUsers.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold text-gray-700">Deleted Users</h2>
+          <div className="mt-3 space-y-2">
+            {deletedUsers.map((u) => (
+              <div key={u.id} className="rounded-lg border border-red-100 bg-red-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-red-800">
+                    {u.name || "[Deleted User]"}
+                  </span>
+                  <span className="text-xs text-red-600">
+                    Deleted {u.deletedAt ? new Date(u.deletedAt).toLocaleDateString() : ""}
+                  </span>
+                </div>
+                {u.adminNotes && (
+                  <p className="mt-1 text-xs text-red-700 whitespace-pre-wrap">{u.adminNotes}</p>
+                )}
+                <p className="mt-1 text-xs text-red-600">{u._count.orders} order{u._count.orders !== 1 ? "s" : ""} on record</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900">Delete User</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to delete <strong>{deleteTarget.name || deleteTarget.email}</strong>?
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              This will cancel their Stripe subscription, deactivate recurring orders, cancel all pending orders, and remove their login credentials. Order history will be preserved.
+            </p>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Reason for deletion (optional)
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="e.g., Card never goes through, requested removal, etc."
+                className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-red-500 focus:ring-red-500"
+                rows={3}
+              />
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteReason(""); }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
