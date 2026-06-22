@@ -64,6 +64,7 @@ export default function AdminOrders() {
   const [captureServiceFee, setCaptureServiceFee] = useState<Record<string, string>>({});
   const [showCapture, setShowCapture] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<Record<string, string>>({});
+  const [capturePhotos, setCapturePhotos] = useState<Record<string, string[]>>({});
 
   async function loadOrders() {
     const r = await fetch("/api/orders");
@@ -127,7 +128,7 @@ export default function AdminOrders() {
     const res = await fetch(`/api/admin/orders/${orderId}/capture`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gallons: gallons || 0, pricePerGallon: pricePerGallon || 0, serviceFeeDollars: serviceFee }),
+      body: JSON.stringify({ gallons: gallons || 0, pricePerGallon: pricePerGallon || 0, serviceFeeDollars: serviceFee, meterPhotos: capturePhotos[orderId] || [] }),
     });
     if (res.ok) {
       setShowCapture(null);
@@ -557,6 +558,55 @@ export default function AdminOrders() {
                             className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
                           />
                         </div>
+                        {/* Photo upload (up to 3) */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <label className="cursor-pointer rounded-lg border border-dashed border-slate-300 px-2 py-1.5 text-xs text-slate-500 hover:border-orange-400 hover:text-orange-600">
+                            📷 Add Photo {(capturePhotos[order.id]?.length || 0)}/3
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={(capturePhotos[order.id]?.length || 0) >= 3}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    const canvas = document.createElement("canvas");
+                                    const maxW = 800;
+                                    const scale = Math.min(1, maxW / img.width);
+                                    canvas.width = img.width * scale;
+                                    canvas.height = img.height * scale;
+                                    const ctx = canvas.getContext("2d");
+                                    if (ctx) {
+                                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+                                      setCapturePhotos((prev) => ({
+                                        ...prev,
+                                        [order.id]: [...(prev[order.id] || []), compressed].slice(0, 3),
+                                      }));
+                                    }
+                                  };
+                                  img.src = ev.target?.result as string;
+                                };
+                                reader.readAsDataURL(file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          {(capturePhotos[order.id] || []).map((photo, idx) => (
+                            <div key={idx} className="relative">
+                              <img src={photo} alt={`Photo ${idx + 1}`} className="h-10 w-10 rounded object-cover border border-slate-200" />
+                              <button
+                                type="button"
+                                onClick={() => setCapturePhotos((prev) => ({ ...prev, [order.id]: prev[order.id].filter((_, i) => i !== idx) }))}
+                                className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center"
+                              >×</button>
+                            </div>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => capturePayment(order.id)}
@@ -662,6 +712,55 @@ export default function AdminOrders() {
                             onChange={(e) => setCaptureServiceFee({ ...captureServiceFee, [order.id]: e.target.value })}
                             className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-orange-500 focus:ring-orange-500"
                           />
+                        </div>
+                        {/* Photo upload (up to 3) */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <label className="cursor-pointer rounded-lg border border-dashed border-slate-300 px-2 py-1.5 text-xs text-slate-500 hover:border-orange-400 hover:text-orange-600">
+                            📷 Add Photo {(capturePhotos[order.id]?.length || 0)}/3
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={(capturePhotos[order.id]?.length || 0) >= 3}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    const canvas = document.createElement("canvas");
+                                    const maxW = 800;
+                                    const scale = Math.min(1, maxW / img.width);
+                                    canvas.width = img.width * scale;
+                                    canvas.height = img.height * scale;
+                                    const ctx = canvas.getContext("2d");
+                                    if (ctx) {
+                                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+                                      setCapturePhotos((prev) => ({
+                                        ...prev,
+                                        [order.id]: [...(prev[order.id] || []), compressed].slice(0, 3),
+                                      }));
+                                    }
+                                  };
+                                  img.src = ev.target?.result as string;
+                                };
+                                reader.readAsDataURL(file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          {(capturePhotos[order.id] || []).map((photo, idx) => (
+                            <div key={idx} className="relative">
+                              <img src={photo} alt={`Photo ${idx + 1}`} className="h-10 w-10 rounded object-cover border border-slate-200" />
+                              <button
+                                type="button"
+                                onClick={() => setCapturePhotos((prev) => ({ ...prev, [order.id]: prev[order.id].filter((_, i) => i !== idx) }))}
+                                className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center"
+                              >×</button>
+                            </div>
+                          ))}
                         </div>
                         <div className="flex items-center gap-1">
                           <button

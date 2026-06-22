@@ -39,6 +39,7 @@ interface OrderDetail {
   guestAddress: string | null;
   pinLat: number | null;
   pinLng: number | null;
+  meterPhotos: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -244,6 +245,30 @@ export default function OrderDetailPage({
             )}
           </div>
         )}
+
+        {/* Delivery Photos */}
+        {order.meterPhotos && (() => {
+          try {
+            const photos: string[] = JSON.parse(order.meterPhotos);
+            if (photos.length === 0) return null;
+            return (
+              <div className="rounded-xl bg-white p-6 shadow-sm">
+                <h2 className="font-semibold text-gray-900">Delivery Photos</h2>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {photos.map((photo, idx) => (
+                    <img
+                      key={idx}
+                      src={photo}
+                      alt={`Delivery photo ${idx + 1}`}
+                      className="w-full rounded-lg border border-gray-200 object-cover"
+                      style={{ maxHeight: "200px" }}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          } catch { return null; }
+        })()}
 
         {/* Notes */}
         {order.notes && (
