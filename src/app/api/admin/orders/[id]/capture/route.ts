@@ -15,7 +15,7 @@ export async function POST(
 
   const { id } = await params;
   const body = await req.json();
-  const { gallons, pricePerGallon, serviceFeeDollars, meterPhotos } = body;
+  const { gallons, pricePerGallon, serviceFeeDollars } = body;
 
   // Validate service fee (required, can be 0 for waived fee)
   if (serviceFeeDollars === undefined || serviceFeeDollars === null || typeof serviceFeeDollars !== "number" || serviceFeeDollars < 0) {
@@ -130,9 +130,6 @@ export async function POST(
       authAmountCents: actualTotalCents,
       stripePaymentIntentId: finalIntentId,
       status: "COMPLETED",
-      ...(meterPhotos && Array.isArray(meterPhotos) && meterPhotos.length > 0
-        ? { meterPhotos: JSON.stringify(meterPhotos.slice(0, 3)) }
-        : {}),
     },
     include: { user: true, items: true },
   });
