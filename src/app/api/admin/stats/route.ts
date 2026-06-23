@@ -26,8 +26,6 @@ export async function GET() {
     heatMapData,
     referralUsers,
     otgfreeCount,
-    otg20Count,
-    otgvipCount,
   ] = await Promise.all([
     prisma.order.count({ where: { status: { not: "AWAITING_PAYMENT" } } }),
     prisma.order.count({ where: { status: "PENDING" } }),
@@ -56,8 +54,6 @@ export async function GET() {
       select: { referralSource: true },
     }),
     prisma.subscription.count({ where: { promoCode: "OTGFREE", status: "ACTIVE" } }),
-    prisma.subscription.count({ where: { promoCode: "OTG20", status: "ACTIVE" } }),
-    prisma.subscription.count({ where: { promoCode: "OTGVIP", status: "ACTIVE" } }),
   ]);
 
   const totalNonAwaitingOrders = totalOrders;
@@ -89,8 +85,6 @@ export async function GET() {
     }, {} as Record<string, number>),
     promoCodes: {
       OTGFREE: otgfreeCount,
-      OTG20: otg20Count,
-      OTGVIP: otgvipCount,
     },
   });
 }

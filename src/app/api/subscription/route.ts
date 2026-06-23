@@ -134,12 +134,12 @@ export async function POST(req: NextRequest) {
     cancel_url: `${process.env.NEXTAUTH_URL}/profile`,
   };
 
-  // Apply trial period (OTGFREE or OTGVIP) — first month free
+  // Apply trial period (OTGFREE) — first month free
   if (usesTrial) {
     checkoutParams.subscription_data = { trial_period_days: 30 };
   }
 
-  // Apply coupon discount (OTG20 or OTGVIP) — $15 off recurring
+  // Apply coupon discount if any
   if (couponId) {
     checkoutParams.discounts = [{ coupon: couponId }];
   }

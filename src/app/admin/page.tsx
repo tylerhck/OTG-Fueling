@@ -17,7 +17,7 @@ interface Stats {
   uniqueVisitorsTotal: number;
   heatMapPoints: { lat: number; lng: number }[];
   referralStats: Record<string, number>;
-  promoCodes: { OTGFREE: number; OTG20: number; OTGVIP: number };
+  promoCodes: { OTGFREE: number };
 }
 
 export default function AdminDashboard() {
@@ -181,22 +181,12 @@ export default function AdminDashboard() {
           {/* Promo Code Usage */}
           <div className="mt-8">
             <h2 className="text-lg font-semibold text-gray-900">Promo Code Usage</h2>
-            <p className="mt-1 text-sm text-gray-500">Active subscribers using each promo code.</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <p className="mt-1 text-sm text-gray-500">Active subscribers using promo code.</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-1 max-w-xs">
               <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-5">
                 <p className="text-sm font-medium text-amber-700">OTGFREE</p>
                 <p className="mt-1 text-3xl font-bold text-amber-800">{stats.promoCodes?.OTGFREE || 0}</p>
                 <p className="mt-1 text-xs text-amber-600">First month free</p>
-              </div>
-              <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-5">
-                <p className="text-sm font-medium text-blue-700">OTG20</p>
-                <p className="mt-1 text-3xl font-bold text-blue-800">{stats.promoCodes?.OTG20 || 0}</p>
-                <p className="mt-1 text-xs text-blue-600">$15 off every month</p>
-              </div>
-              <div className="rounded-xl border-2 border-purple-200 bg-purple-50 p-5">
-                <p className="text-sm font-medium text-purple-700">OTGVIP</p>
-                <p className="mt-1 text-3xl font-bold text-purple-800">{stats.promoCodes?.OTGVIP || 0}</p>
-                <p className="mt-1 text-xs text-purple-600">Free month + $15 off recurring</p>
               </div>
             </div>
           </div>
